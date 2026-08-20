@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="electronic_health_record.client/electronic_health_record.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Electronic_Health_Record.Server/Electronic_Health_Record.Server.csproj" />
+</Solution>

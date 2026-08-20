@@ -1,0 +1,24 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET build output
+bin/
+obj/
+out/
+
+# Node / client build output (client/.gitignore covers client/ specifics too)
+node_modules/
+dist/
+dist-ssr/
+
+# Env / secrets
+*.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db

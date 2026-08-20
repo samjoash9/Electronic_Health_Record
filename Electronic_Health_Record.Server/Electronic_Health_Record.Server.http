@@ -1,0 +1,6 @@
+@Electronic_Health_Record.Server_HostAddress = http://localhost:5084
+
+GET {{Electronic_Health_Record.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
