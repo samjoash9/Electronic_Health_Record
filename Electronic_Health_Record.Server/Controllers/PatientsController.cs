@@ -4,6 +4,8 @@ using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Models;
 using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore.Query;
+using Electronic_Health_Record.Server.DTOs.Patient;
+using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 
 
 namespace Electronic_Health_Record.Server.Controllers
@@ -59,11 +61,48 @@ namespace Electronic_Health_Record.Server.Controllers
             }
         }
 
-        // GET    /api/patients?search=Dela+Cruz - search by name (for patient lookup in UI)
-
         // register new patient
+        [HttpPost("")]
+        public async Task<IActionResult> CreatePatient([FromBody] CreatePatientDto dto)
+        {
+            // check if input is valid
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            
+            try
+            {
+                var patient = new Patient
+                {
+                    Surname = dto.Surname,
+                    FirstName = dto.FirstName,
+                    MiddleName = dto.MiddleName,
+                    Birthdate = dto.Birthdate,
+                    Sex = dto.Sex,
+                    CivilStatus = dto.CivilStatus,
+                    Address = dto.Address,
+                    AgencyOffice = dto.AgencyOffice,
+                    Position = dto.Position,
+                    ContactNo = dto.ContactNo
+                    // for the CreatedAt and UpdatedAt is handled by DB defaults
+                };
+
+                _context.Patients.Add(patient);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction(
+                        nameof(GetPatient),
+                        new { PatientId = patient.PatientID },
+                        patient);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to create patient.");
+                return StatusCode(500, "An error occurred while creating the patient.");
+            }
+        }
 
         // PUT    /api/patients/:id → full update (edit patient profile)
+
 
         // PATCH  /api/patients/:id → partial update
 
