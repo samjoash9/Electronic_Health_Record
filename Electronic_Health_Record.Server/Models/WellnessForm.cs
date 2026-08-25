@@ -6,7 +6,6 @@
         public int PatientID { get; set; }
         public int PhysicianID { get; set; }
         public DateTime FormDate { get; set; }
-
         public decimal? WeightKg { get; set; }
         public decimal? HeightCm { get; set; }
         public decimal? BMI { get; set; }
@@ -19,6 +18,8 @@
         public string? RecommendedDiagnosticTest { get; set; }
         public string? ImpressionClinical { get; set; }
         public string? ManagementTreatment { get; set; }
+        public int? CreatedByAdminID { get; set; }
+        public int? UpdatedByAdminID { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

@@ -6,6 +6,6 @@ namespace Electronic_Health_Record.Server.Models
     {
         public int ConditionID { get; set; }
         public string ConditionName { get; set; } = string.Empty;
-        public string ConditionType { get; set; } = string.Empty;
+        public string? ConditionType { get; set; }
     }
 }

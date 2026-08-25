@@ -4,7 +4,7 @@
     {
         public int PMHID { get; set; }
         public int FormID { get; set; }
-        public int ConditionID { get; set; }
+        public int? ConditionID { get; set; }
         public string? ConditionOther { get; set; }
         public short? YearDiagnosed { get; set; }
         public string? MaintenanceDrugGeneric { get; set; }
