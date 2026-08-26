@@ -4,7 +4,10 @@
     {
         public int FormID { get; set; }
         public int PatientID { get; set; }
-        public int PhysicianID { get; set; }
+        // null while the form is still a draft and no physician has been assigned yet
+        public int? PhysicianID { get; set; }
+        // "Draft" or "Submitted"
+        public string Status { get; set; } = "Draft";
         public DateTime FormDate { get; set; }
         public decimal? WeightKg { get; set; }
         public decimal? HeightCm { get; set; }

@@ -87,6 +87,11 @@ namespace Electronic_Health_Record.Server.Data
             {
                 entity.ToTable("WellnessForm");
                 entity.HasKey(w => w.FormID);
+                entity.Property(w => w.Status)
+                    .HasMaxLength(20)
+                    .IsUnicode(false)
+                    .HasDefaultValue("Draft")
+                    .IsRequired();
                 entity.Property(w => w.FormDate)
                     .HasColumnType("date")
                     .HasDefaultValueSql("CAST(SYSDATETIME() AS date)");
@@ -106,9 +111,11 @@ namespace Electronic_Health_Record.Server.Data
                     .HasForeignKey(w => w.PatientID)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                // optional: a draft may not have a physician assigned yet
                 entity.HasOne<Physician>()
                     .WithMany()
                     .HasForeignKey(w => w.PhysicianID)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne<Admin>()

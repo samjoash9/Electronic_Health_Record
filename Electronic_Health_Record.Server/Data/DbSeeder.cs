@@ -125,6 +125,7 @@ namespace Electronic_Health_Record.Server.Data
                 {
                     PatientID = patient.PatientID,
                     PhysicianID = physician.PhysicianID,
+                    Status = "Submitted",
                     FormDate = DateTime.UtcNow.Date,
                     WeightKg = 75.5m,
                     HeightCm = 175.0m,

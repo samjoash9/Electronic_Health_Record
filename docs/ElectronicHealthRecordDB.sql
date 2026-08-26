@@ -1,3 +1,8 @@
+-- Electronic Health Record - full schema, runnable.
+-- Matches EF migrations through 20260826012402_AddWellnessFormStatusAndNullablePhysician.
+-- Run against an empty database. Tables are created parent-first so the FKs resolve.
+
+
 /*
 CREATE TABLE Patient (
 	PatientID INT PRIMARY KEY IDENTITY(1, 1),
@@ -11,8 +16,8 @@ CREATE TABLE Patient (
 	AgencyOffice NVARCHAR(100) NULL,
 	Position NVARCHAR(50) NULL,
 	ContactNo VARCHAR(20) NULL,
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+	UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 );
 
 CREATE TABLE Physician (
@@ -22,38 +27,49 @@ CREATE TABLE Physician (
 	MiddleName NVARCHAR(50) NULL,
 	PRCLicenseNo NVARCHAR(20) NOT NULL UNIQUE,
 	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+	UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 );
 
 CREATE TABLE Admin (
-    AdminID INT PRIMARY KEY IDENTITY(1, 1),
-    Username NVARCHAR(30) NOT NULL UNIQUE,
-    Email NVARCHAR(255) NOT NULL UNIQUE,
-    PasswordHash NVARCHAR(255) NOT NULL,
-    FullName NVARCHAR(100) NOT NULL,
-    IsActive BIT NOT NULL DEFAULT 1,
-    LastLoginAt DATETIME2 NULL,
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+	AdminID INT PRIMARY KEY IDENTITY(1, 1),
+	Username NVARCHAR(30) NOT NULL UNIQUE,
+	Email NVARCHAR(255) NOT NULL UNIQUE,
+	PasswordHash NVARCHAR(255) NOT NULL,
+	FullName NVARCHAR(100) NOT NULL,
+	IsActive BIT NOT NULL DEFAULT 1,
+	LastLoginAt DATETIME2 NULL,
+	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+	UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 );
 
 CREATE TABLE AdminSession (
-    SessionID INT PRIMARY KEY IDENTITY(1, 1),
-    AdminID INT NOT NULL,
-    TokenHash CHAR(64) NOT NULL UNIQUE,
-    ExpiresAt DATETIME2 NOT NULL,
-    RevokedAt DATETIME2 NULL,
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+	SessionID INT PRIMARY KEY IDENTITY(1, 1),
+	AdminID INT NOT NULL,
+	TokenHash CHAR(64) NOT NULL UNIQUE,
+	ExpiresAt DATETIME2 NOT NULL,
+	RevokedAt DATETIME2 NULL,
+	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
 
-    CONSTRAINT FK_AdminSession_Admin
-        FOREIGN KEY (AdminID)
+	CONSTRAINT FK_AdminSession_Admin
+		FOREIGN KEY (AdminID)
 			REFERENCES Admin(AdminID)
+);
+
+CREATE TABLE MedicalCondition (
+	ConditionID INT PRIMARY KEY IDENTITY(1, 1),
+	ConditionName NVARCHAR(50) UNIQUE NOT NULL,
+	ConditionType NVARCHAR(100) NULL
 );
 
 CREATE TABLE WellnessForm (
 	FormID INT PRIMARY KEY IDENTITY(1, 1),
 	PatientID INT NOT NULL,
-	PhysicianID INT NOT NULL,
+	-- NULL while the form is still a draft and no physician has been assigned yet
+	PhysicianID INT NULL,
+	-- 'Draft' (Save as Draft) or 'Submitted' (Submit)
+	-- NOTE: on a DB built by EF migrations this column sits last physically,
+	-- because it was added by ALTER TABLE. Listed here for readability.
+	Status VARCHAR(20) NOT NULL DEFAULT 'Draft',
 	FormDate DATE NOT NULL DEFAULT CAST(SYSDATETIME() AS DATE),
 	-- DECIMAL -> 5 digits, 2 floating points (999.99kg max)
 	WeightKg DECIMAL(5, 2) NULL,
@@ -62,7 +78,7 @@ CREATE TABLE WellnessForm (
 	IdealBMI DECIMAL(5, 2) NULL,
 	BPSystolic SMALLINT NULL,
 	BPDiastolic SMALLINT NULL,
-	-- 3 igits, 1 floating point (36.5, 99.9)
+	-- 3 digits, 1 floating point (36.5, 99.9)
 	TempCelsius DECIMAL(3, 1) NULL,
 	HeartRate SMALLINT NULL,
 	RespRate SMALLINT NULL,
@@ -74,7 +90,7 @@ CREATE TABLE WellnessForm (
 	UpdatedByAdminID INT NULL,
 
 	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+	UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
 
 	-- FOREIGN KEYS (PatientID & PhysicianID)
 	CONSTRAINT FK_WellnessForm_Patient
@@ -96,12 +112,6 @@ CREATE TABLE WellnessForm (
 			ON DELETE NO ACTION
 );
 
-CREATE TABLE MedicalCondition (
-	ConditionID INT PRIMARY KEY IDENTITY(1, 1),
-	ConditionName NVARCHAR(50) UNIQUE NOT NULL,
-	ConditionType NVARCHAR(100) NULL
-);
-
 CREATE TABLE SocialHistory (
 	SocialHistoryID INT PRIMARY KEY IDENTITY(1, 1),
 	FormID INT NOT NULL UNIQUE,
@@ -109,14 +119,14 @@ CREATE TABLE SocialHistory (
 	AlcoholType NVARCHAR(50) NULL,
 	DrinkFrequency NVARCHAR(50) NULL,
 	DrinksPerSession NVARCHAR(20) NULL,
-	HasBeenDrunk bit NULL,
+	HasBeenDrunk BIT NULL,
 	DrunkFrequency NVARCHAR(50) NULL,
 	ExerciseFrequency NVARCHAR(50) NULL,
 	-- may contain many exercise types
 	ExerciseType NVARCHAR(100) NULL,
 
 	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+	UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
 
 	CONSTRAINT FK_SocialHistory_WellnessForm
 		FOREIGN KEY (FormID)
@@ -129,14 +139,14 @@ CREATE TABLE FamilyMedicalHistory (
 	ConditionID INT NULL,
 	ConditionOther NVARCHAR(100) NULL,
 	FamilyMember NVARCHAR(50) NULL,
-	IsNone bit NULL DEFAULT 0,
+	IsNone BIT NULL DEFAULT 0,
 
 	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
 	UpdatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
 
-	CONSTRAINT FK_FMH_WellnessForm	
+	CONSTRAINT FK_FMH_WellnessForm
 		FOREIGN KEY (FormID)
-			REFERENCES WellnessForm(FormId),
+			REFERENCES WellnessForm(FormID),
 	CONSTRAINT FK_FMH_Condition
 		FOREIGN KEY (ConditionID)
 			REFERENCES MedicalCondition (ConditionID)
@@ -164,7 +174,15 @@ CREATE TABLE PastMedicalHistory (
 			REFERENCES MedicalCondition (ConditionID)
 );
 
+-- Non-key indexes created by EF for the FK columns.
+CREATE INDEX IX_AdminSession_AdminID ON AdminSession (AdminID);
+CREATE INDEX IX_WellnessForm_PatientID ON WellnessForm (PatientID);
+CREATE INDEX IX_WellnessForm_PhysicianID ON WellnessForm (PhysicianID);
+CREATE INDEX IX_WellnessForm_CreatedByAdminID ON WellnessForm (CreatedByAdminID);
+CREATE INDEX IX_WellnessForm_UpdatedByAdminID ON WellnessForm (UpdatedByAdminID);
+CREATE INDEX IX_FamilyMedicalHistory_FormID ON FamilyMedicalHistory (FormID);
+CREATE INDEX IX_FamilyMedicalHistory_ConditionID ON FamilyMedicalHistory (ConditionID);
+CREATE INDEX IX_PastMedicalHistory_FormID ON PastMedicalHistory (FormID);
+CREATE INDEX IX_PastMedicalHistory_ConditionID ON PastMedicalHistory (ConditionID);
+
 */
-
-
-SELECT * FROM Patient;
