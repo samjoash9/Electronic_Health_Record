@@ -152,7 +152,6 @@ export default function PatientRecord() {
 
                                         <td className="py-4 px-4">
                                             <div className="flex items-center space-x-3">
-                                                <img src={patient.avatar || "https://ui-avatars.com/api/?name=" + patient.name} alt={patient.name} className="w-10 h-10 rounded-full object-cover border border-gray-100" />
                                                 <div>
                                                     <p className="text-sm font-semibold text-gray-900">{patient.name}</p>
                                                     <p className="text-xs text-gray-400">{patient.demographics}</p>
@@ -161,7 +160,6 @@ export default function PatientRecord() {
                                         </td>
                                         <td className="py-4 px-4">
                                             <p className="text-sm font-medium text-gray-700">{patient.phone}</p>
-                                            <a className="text-xs text-blue-600">{patient.email}</a>
                                         </td>
                                         <td className="py-4 px-4">
                                             <span className="text-sm font-medium text-gray-600">{patient.lastVisit}</span>
