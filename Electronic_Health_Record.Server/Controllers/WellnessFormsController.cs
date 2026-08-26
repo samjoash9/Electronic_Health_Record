@@ -46,7 +46,7 @@ namespace Electronic_Health_Record.Server.Controllers
 
         // create a wellness form
         // handles both footer buttons: "Save as Draft" sends Status="Draft", "Submit" sends Status="Submitted".
-        // a draft only needs a PatientID; a submission also needs a resolvable physician.
+        // a draft only needs a PatientID; a submission also needs a PhysicianID.
         [HttpPost("")]
         public async Task<IActionResult> CreateWellnessForm([FromBody] CreateWellnessFormDto dto)
         {
@@ -61,21 +61,15 @@ namespace Electronic_Health_Record.Server.Controllers
                 if (!await _context.Patients.AnyAsync(p => p.PatientID == dto.PatientID))
                     return BadRequest($"Patient with ID {dto.PatientID} was not found.");
 
-                // physician is looked up by PRC license: required on submit, optional on draft
-                int? physicianId = null;
-                if (!string.IsNullOrWhiteSpace(dto.PRCLicenseNo))
+                // physician is required on submit, optional on draft
+                if (dto.PhysicianID.HasValue)
                 {
-                    var physician = await _context.Physicians
-                        .FirstOrDefaultAsync(p => p.PRCLicenseNo == dto.PRCLicenseNo);
-
-                    if (physician == null)
-                        return BadRequest($"Physician with PRC license '{dto.PRCLicenseNo}' was not found.");
-
-                    physicianId = physician.PhysicianID;
+                    if (!await _context.Physicians.AnyAsync(p => p.PhysicianID == dto.PhysicianID.Value))
+                        return BadRequest($"Physician with ID {dto.PhysicianID.Value} was not found.");
                 }
                 else if (isSubmit)
                 {
-                    return BadRequest("PRCLicenseNo is required when submitting a wellness form.");
+                    return BadRequest("PhysicianID is required when submitting a wellness form.");
                 }
 
                 if (dto.CreatedByAdminID.HasValue &&
@@ -124,7 +118,7 @@ namespace Electronic_Health_Record.Server.Controllers
                     var form = new WellnessForm
                     {
                         PatientID = dto.PatientID,
-                        PhysicianID = physicianId,
+                        PhysicianID = dto.PhysicianID,
                         Status = isSubmit ? StatusSubmitted : StatusDraft,
                         WeightKg = dto.WeightKg,
                         HeightCm = dto.HeightCm,

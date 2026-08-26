@@ -12,9 +12,8 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         [Required]
         public int PatientID { get; set; }
 
-        // resolved to a PhysicianID server-side; required only when submitting
-        [MaxLength(20)]
-        public string? PRCLicenseNo { get; set; }
+        // null while the form is still a draft; required only when submitting
+        public int? PhysicianID { get; set; }
 
         [DataType(DataType.Date)]
         public DateTime? FormDate { get; set; }
