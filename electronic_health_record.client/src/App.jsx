@@ -25,7 +25,6 @@ export default function App() {
                     <Route path="/doctors" element={<DoctorsPage />} />
                     <Route path="/activity" element={<ActivityPage />} />
                 </Route>
-
                 {/* Fallback catch-all redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
