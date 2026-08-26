@@ -6,7 +6,9 @@ import {
     Users,
     ClipboardClock,
     LogOut,
-    Info
+    Info,
+    Logs,
+    ShieldUser,
 } from 'lucide-react';
 import PHO_logo from '../../assets/images/PHO_logo.jpg';
 
@@ -17,6 +19,8 @@ export default function Sidebar() {
         { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { id: 'patient-records', label: 'Patient Records', path: '/patient-records', icon: Users },
         { id: 'appointment', label: 'Appointment', path: '/appointment', icon: ClipboardClock },
+        { id: 'doctors', label: 'Doctors', path: '/doctors', icon: ShieldUser },
+        { id: 'activity', label: 'Activity Logs', path: '/activity', icon: Logs },
     ];
 
     return (
