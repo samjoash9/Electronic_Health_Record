@@ -15,6 +15,10 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         // null while the form is still a draft; required only when submitting
         public int? PhysicianID { get; set; }
 
+        // signature pad output as a base64 data URL; required only when submitting.
+        // no MaxLength: the column is nvarchar(max)
+        public string? Signature { get; set; }
+
         [DataType(DataType.Date)]
         public DateTime? FormDate { get; set; }
 

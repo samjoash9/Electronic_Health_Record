@@ -1,5 +1,5 @@
 ﻿-- Electronic Health Record - full schema, runnable.
--- Matches EF migrations through 20260826012402_AddWellnessFormStatusAndNullablePhysician.
+-- Matches EF migrations through 20260827065909_AddWellnessFormSignature.
 -- Run against an empty database. Tables are created parent-first so the FKs resolve.
 
 
@@ -83,6 +83,10 @@ CREATE TABLE WellnessForm (
 	-- NOTE: on a DB built by EF migrations this column sits last physically,
 	-- because it was added by ALTER TABLE. Listed here for readability.
 	Status VARCHAR(20) NOT NULL DEFAULT 'Draft',
+	-- physician's digital signature as a base64 data URL; required before Status can be 'Submitted'
+	-- NOTE: like Status, these two sit last physically on an EF-migrated DB (added by ALTER TABLE).
+	Signature NVARCHAR(MAX) NULL,
+	SignedAt DATETIME2 NULL,
 	FormDate DATE NOT NULL DEFAULT CAST(SYSDATETIME() AS DATE),
 	-- DECIMAL -> 5 digits, 2 floating points (999.99kg max)
 	WeightKg DECIMAL(5, 2) NULL,
@@ -200,4 +204,4 @@ CREATE INDEX IX_PastMedicalHistory_ConditionID ON PastMedicalHistory (ConditionI
 */
 
 
-SELECT * FROM MedicalCondition;
+SELECT * FROM WellnessForm;
