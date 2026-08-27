@@ -10,8 +10,11 @@ import PhysicianCertification from './PhysicianCertification';
 import CloseConfirmationModal from './CloseConfirmationModal';
 
 export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
+    const isManualEntry = !phoData?.patientID;
+
     const [wellnessResponse, setWellnessResponse] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    // FIX: Initialize loading state dynamically to avoid double-renders
+    const [isLoading, setIsLoading] = useState(!isManualEntry);
     const [isSaving, setIsSaving] = useState(false);
 
     // State to control the close confirmation modal
@@ -29,17 +32,15 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
         address: phoData?.address || '',
     });
 
-    const isManualEntry = !phoData?.patientID;
-
     useEffect(() => {
         const patientId = phoData?.patientID;
 
+        // FIX: Simply return if no ID exists. No synchronous state updates needed!
         if (!patientId) {
-            setIsLoading(false);
-            setWellnessResponse(null);
             return;
         }
 
+        setIsLoading(true);
         axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
             .then(response => {
                 setWellnessResponse(response.data);
