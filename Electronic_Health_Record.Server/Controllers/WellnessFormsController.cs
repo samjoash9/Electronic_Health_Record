@@ -72,6 +72,10 @@ namespace Electronic_Health_Record.Server.Controllers
                     return BadRequest("PhysicianID is required when submitting a wellness form.");
                 }
 
+                // a submitted form is a finalized clinical record, so it must carry the physician's signature
+                if (isSubmit && string.IsNullOrWhiteSpace(dto.Signature))
+                    return BadRequest("Signature is required when submitting a wellness form.");
+
                 if (dto.CreatedByAdminID.HasValue &&
                     !await _context.Admins.AnyAsync(a => a.AdminID == dto.CreatedByAdminID.Value))
                 {
@@ -120,6 +124,8 @@ namespace Electronic_Health_Record.Server.Controllers
                         PatientID = dto.PatientID,
                         PhysicianID = dto.PhysicianID,
                         Status = isSubmit ? StatusSubmitted : StatusDraft,
+                        Signature = dto.Signature,
+                        SignedAt = string.IsNullOrWhiteSpace(dto.Signature) ? null : DateTime.UtcNow,
                         WeightKg = dto.WeightKg,
                         HeightCm = dto.HeightCm,
                         BMI = dto.BMI,
@@ -237,6 +243,10 @@ namespace Electronic_Health_Record.Server.Controllers
                     return BadRequest("PhysicianID is required when submitting a wellness form.");
                 }
 
+                // a submitted form is a finalized clinical record, so it must carry the physician's signature
+                if (isSubmit && string.IsNullOrWhiteSpace(dto.Signature))
+                    return BadRequest("Signature is required when submitting a wellness form.");
+
                 if (dto.UpdatedByAdminID.HasValue &&
                     !await _context.Admins.AnyAsync(a => a.AdminID == dto.UpdatedByAdminID.Value))
                 {
@@ -283,6 +293,13 @@ namespace Electronic_Health_Record.Server.Controllers
                     form.PatientID = dto.PatientID;
                     form.PhysicianID = dto.PhysicianID;
                     form.Status = isSubmit ? StatusSubmitted : StatusDraft;
+
+                    // only re-stamp SignedAt when the signature actually changes, so re-saving an
+                    // already-signed form keeps the original signing time
+                    if (form.Signature != dto.Signature)
+                        form.SignedAt = string.IsNullOrWhiteSpace(dto.Signature) ? null : DateTime.UtcNow;
+                    form.Signature = dto.Signature;
+
                     form.WeightKg = dto.WeightKg;
                     form.HeightCm = dto.HeightCm;
                     form.BMI = dto.BMI;

@@ -40,7 +40,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
             return;
         }
 
-        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
+        axios.get(`https://localhost:7165/api/WellnessForms/${patientId}`)
             .then(response => {
                 setWellnessResponse(response.data);
                 setIsLoading(false);
@@ -87,11 +87,11 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
         try {
             if (isManualEntry || !patientId) {
                 // POST for creating a brand-new record
-                await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
+                await axios.post(`https://localhost:7165/api/WellnessForms`, payload);
                 alert("New wellness record successfully created and saved!");
             } else {
                 // PUT for updating an existing record
-                await axios.put(`http://localhost:5084/api/WellnessForms/${patientId}`, payload);
+                await axios.put(`https://localhost:7165/api/WellnessForms/${patientId}`, payload);
                 alert("Wellness record successfully updated!");
             }
             onCancel(); // Close the modal ONLY on success

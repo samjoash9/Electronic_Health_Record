@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827065909_AddWellnessFormSignature")]
+    partial class AddWellnessFormSignature
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
