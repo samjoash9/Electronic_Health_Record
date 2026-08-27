@@ -46,7 +46,7 @@ export default function PastMedicalHistory({ data }) {
             {/* Header Title */}
             <div className="bg-gray-50 p-3 border-b border-gray-200">
                 <h3 className="text-md font-bold text-gray-800">
-                    <i>Past Medical History</i>  <span className="font-normal italic text-gray-500">(List expandable and editable)</span>
+                    <i>Past Medical History</i>  
                 </h3>
             </div>
 
@@ -79,7 +79,7 @@ export default function PastMedicalHistory({ data }) {
                                         value={record.condition}
                                         onChange={(e) => handleInputChange(record.id, 'condition', e.target.value)}
                                         placeholder="e.g. Hypertension"
-                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white"
+                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm bg-white"
                                     />
                                 </td>
 
@@ -90,7 +90,7 @@ export default function PastMedicalHistory({ data }) {
                                         value={record.year}
                                         onChange={(e) => handleInputChange(record.id, 'year', e.target.value)}
                                         placeholder="YYYY"
-                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white"
+                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm bg-white"
                                     />
                                 </td>
 
@@ -101,7 +101,7 @@ export default function PastMedicalHistory({ data }) {
                                         value={record.drugs}
                                         onChange={(e) => handleInputChange(record.id, 'drugs', e.target.value)}
                                         placeholder="Enter maintenance drugs..."
-                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white transition-all"
+                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm bg-white transition-all"
                                     />
                                 </td>
 
