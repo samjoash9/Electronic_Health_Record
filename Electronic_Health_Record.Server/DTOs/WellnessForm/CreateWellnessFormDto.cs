@@ -93,9 +93,6 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         [MaxLength(100)]
         public string? ConditionOther { get; set; }
 
-        [MaxLength(50)]
-        public string? FamilyMember { get; set; }
-
         // true for the single "None (No known history)" row
         public bool? IsNone { get; set; }
     }

@@ -164,7 +164,6 @@ namespace Electronic_Health_Record.Server.Controllers
                             FormID = form.FormID,
                             ConditionID = item.ConditionID,
                             ConditionOther = item.ConditionOther,
-                            FamilyMember = item.FamilyMember,
                             IsNone = item.IsNone ?? false
                         });
                     }

@@ -174,7 +174,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     FormID = table.Column<int>(type: "int", nullable: false),
                     ConditionID = table.Column<int>(type: "int", nullable: true),
                     ConditionOther = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    FamilyMember = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     IsNone = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSDATETIME()"),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSDATETIME()")
@@ -269,6 +268,19 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 table: "Admin",
                 column: "Username",
                 unique: true);
+
+            migrationBuilder.InsertData(
+                table: "MedicalCondition",
+                columns: new[] { "ConditionID", "ConditionName", "ConditionType" },
+                values: new object[,]
+                {
+                    { 1, "Hypertension", null },
+                    { 2, "Stroke", null },
+                    { 3, "Diabetes Mellitus", null },
+                    { 4, "Tuberculosis", null },
+                    { 5, "Bronchial Asthma", null },
+                    { 6, "Cancer", null }
+                });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AdminSession_AdminID",

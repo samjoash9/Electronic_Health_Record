@@ -1,4 +1,4 @@
--- Electronic Health Record - full schema, runnable.
+﻿-- Electronic Health Record - full schema, runnable.
 -- Matches EF migrations through 20260826012402_AddWellnessFormStatusAndNullablePhysician.
 -- Run against an empty database. Tables are created parent-first so the FKs resolve.
 
@@ -60,6 +60,19 @@ CREATE TABLE MedicalCondition (
 	ConditionName NVARCHAR(50) UNIQUE NOT NULL,
 	ConditionType NVARCHAR(100) NULL
 );
+
+-- fixed condition list the wellness form checkbox grids bind to.
+-- seeded by the EF migration; IDs are stable and referenced by
+-- FamilyMedicalHistory.ConditionID / PastMedicalHistory.ConditionID.
+SET IDENTITY_INSERT MedicalCondition ON;
+INSERT INTO MedicalCondition (ConditionID, ConditionName, ConditionType) VALUES
+	(1, 'Hypertension', NULL),
+	(2, 'Stroke', NULL),
+	(3, 'Diabetes Mellitus', NULL),
+	(4, 'Tuberculosis', NULL),
+	(5, 'Bronchial Asthma', NULL),
+	(6, 'Cancer', NULL);
+SET IDENTITY_INSERT MedicalCondition OFF;
 
 CREATE TABLE WellnessForm (
 	FormID INT PRIMARY KEY IDENTITY(1, 1),
@@ -138,7 +151,6 @@ CREATE TABLE FamilyMedicalHistory (
 	FormID INT NOT NULL,
 	ConditionID INT NULL,
 	ConditionOther NVARCHAR(100) NULL,
-	FamilyMember NVARCHAR(50) NULL,
 	IsNone BIT NULL DEFAULT 0,
 
 	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
