@@ -7,11 +7,15 @@ import FamilyMedicalHistory from './FamilyMedicalHistory';
 import SocialHistory from './SocialHistory';
 import RecommendedDiagnosticTest from './RecommendedDiagnosticTest';
 import PhysicianCertification from './PhysicianCertification';
+import CloseConfirmationModal from './CloseConfirmationModal';
 
 export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
     const [wellnessResponse, setWellnessResponse] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+
+    // State to control the close confirmation modal
+    const [showCloseModal, setShowCloseModal] = useState(false);
 
     // Editable state for manual or existing patient entries
     const [patientInfo, setPatientInfo] = useState({
@@ -36,7 +40,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
             return;
         }
 
-        axios.get(`/api/WellnessForms/${patientId}`)
+        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
             .then(response => {
                 setWellnessResponse(response.data);
                 setIsLoading(false);
@@ -51,15 +55,13 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
         setPatientInfo(prev => ({ ...prev, [field]: value }));
     };
 
-    // FUNCTIONAL SAVE HANDLER TO UPDATE THE DATABASE
-    const handleSaveRecord = async () => {
+    // FUNCTIONAL REUSABLE SAVE HANDLER
+    const submitForm = async (targetStatus) => {
         setIsSaving(true);
-
         const patientId = phoData?.patientID;
 
-        // Construct payload matching your backend DTO expectations
         const payload = {
-            status: "Saved",
+            status: targetStatus,
             patientID: patientId || null,
             physicianID: wellnessResponse?.form?.physicianID || 1,
             formDate: new Date().toISOString(),
@@ -79,25 +81,24 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
             pastMedicalHistory: wellnessResponse?.pastMedicalHistory || [],
             familyMedicalHistory: wellnessResponse?.familyMedicalHistory || [],
             socialHistory: wellnessResponse?.socialHistory || null,
-            // If it's a manual entry, include patient details so backend can create or link them
             newPatientInfo: isManualEntry ? patientInfo : null
         };
 
         try {
             if (isManualEntry || !patientId) {
                 // POST for creating a brand-new record
-                await axios.post(`https://localhost:7165/api/WellnessForms`, payload);
+                await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
                 alert("New wellness record successfully created and saved!");
             } else {
                 // PUT for updating an existing record
-                await axios.put(`https://localhost:7165/api/WellnessForms/${patientId}`, payload);
+                await axios.put(`http://localhost:5084/api/WellnessForms/${patientId}`, payload);
                 alert("Wellness record successfully updated!");
             }
-            if (onSave) onSave();
-            onCancel();
+            onCancel(); // Close the modal ONLY on success
         } catch (error) {
             console.error("Failed to save wellness record:", error);
-            alert("Error saving record. Please verify your backend server connection.");
+            // Show error toast, but keep the modal open so they don't lose their data!
+            if (onSave) onSave("Error saving record. Please verify your backend server connection.", 'error');
         } finally {
             setIsSaving(false);
         }
@@ -106,14 +107,21 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
     const formStatus = wellnessResponse?.form?.status || 'Draft';
     const isSubmitted = formStatus.toLowerCase() === 'submitted';
 
+    // Trigger our custom modal
     const handleCloseClick = () => {
-        if (window.confirm("Are you sure you want to close? Any unsaved changes will be lost.")) {
-            onCancel();
-        }
+        setShowCloseModal(true);
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-10">
+        <div className="w-full max-w-5xl mx-auto bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-10 relative">
+
+            {/* Custom Close Confirmation Modal */}
+            <CloseConfirmationModal
+                isOpen={showCloseModal}
+                onConfirm={onCancel}
+                onCancel={() => setShowCloseModal(false)}
+            />
+
             {/* Header */}
             <div className="p-4 border-b border-gray-200 bg-[#0F2756] text-white flex justify-between items-center">
                 <div className="flex items-center space-x-3">
@@ -125,7 +133,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
                         {formStatus}
                     </span>
                 </div>
-                <button onClick={handleCloseClick} className="hover:bg-blue-800 p-1 rounded-md transition-colors">
+                <button onClick={handleCloseClick} className="hover:bg-blue-800 p-1 rounded-md transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                 </button>
             </div>
@@ -242,7 +250,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
                 {/* Footer Buttons */}
                 <div className="flex flex-col sm:flex-row justify-between items-center pt-6 mt-6 border-t border-gray-200 space-y-3 sm:space-y-0 sm:space-x-3">
                     <button
-                        onClick={handleSaveRecord}
+                        onClick={() => submitForm('Saved')}
                         disabled={isSaving}
                         className="uppercase w-full sm:w-auto flex-1 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-bold shadow-sm cursor-pointer flex items-center justify-center"
                     >
@@ -250,7 +258,11 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
                         Save
                     </button>
                     <div className="flex space-x-3 w-full sm:w-auto">
-                        <button className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
+                        <button
+                            onClick={() => submitForm('Draft')}
+                            disabled={isSaving}
+                            className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center"
+                        >
                             Save as Draft
                         </button>
                         <button onClick={handleCloseClick} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
