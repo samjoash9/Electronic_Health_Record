@@ -86,11 +86,11 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
         try {
             if (isManualEntry || !patientId) {
                 // POST for creating a brand-new record
-                await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
+                await axios.post(`https://localhost:7165/api/WellnessForms`, payload);
                 alert("New wellness record successfully created and saved!");
             } else {
                 // PUT for updating an existing record
-                await axios.put(`http://localhost:5084/api/WellnessForms/${patientId}`, payload);
+                await axios.put(`https://localhost:7165/api/WellnessForms/${patientId}`, payload);
                 alert("Wellness record successfully updated!");
             }
             if (onSave) onSave();
