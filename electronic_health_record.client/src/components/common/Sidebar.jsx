@@ -17,7 +17,7 @@ export default function Sidebar() {
 
     const navLinks = [
         { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { id: 'patient-records', label: 'Patient Records', path: '/patient-records', icon: Users },
+        { id: 'patient-records', label: 'Health Records', path: '/patient-records', icon: Users },
         { id: 'appointment', label: 'Appointment', path: '/appointment', icon: ClipboardClock },
         { id: 'doctors', label: 'Doctors', path: '/doctors', icon: ShieldUser },
         { id: 'activity', label: 'Activity Logs', path: '/activity', icon: Logs },

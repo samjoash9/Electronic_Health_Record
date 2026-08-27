@@ -95,7 +95,7 @@ export default function PhysicianCertification() {
 
             {/* Header */}
             <div className="bg-gray-50 p-3 border-b border-gray-200">
-                <h3 className="text-sm font-bold text-gray-800">
+                <h3 className="text-md font-bold text-gray-800">
                     Physician Certification
                 </h3>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function SocialHistory({ data }) {
+export default function SocialHistory({ data, onChange }) {
     const [smoking, setSmoking] = useState('');
     const [drinkFreq, setDrinkFreq] = useState('');
     const [drinksPerSession, setDrinksPerSession] = useState('');
@@ -10,7 +10,7 @@ export default function SocialHistory({ data }) {
 
     useEffect(() => {
         if (data) {
-            const sh = data; // Since wellnessResponse.socialHistory is passed directly as 'data'
+            const sh = data;
             setSmoking(sh.smokingSticksPerDay ?? '');
             setDrinkFreq(sh.drinkFrequency || '');
             setDrinksPerSession(sh.drinksPerSession || '');
@@ -20,11 +20,32 @@ export default function SocialHistory({ data }) {
         }
     }, [data]);
 
+    // Helper to update state and bubble changes up if an onChange handler is provided
+    const handleChange = (field, value) => {
+        if (field === 'smoking') setSmoking(value);
+        if (field === 'drinkFreq') setDrinkFreq(value);
+        if (field === 'drinksPerSession') setDrinksPerSession(value);
+        if (field === 'exerciseFreq') setExerciseFreq(value);
+        if (field === 'drunkFreq') setDrunkFreq(value);
+        if (field === 'exerciseType') setExerciseType(value);
+
+        if (onChange) {
+            onChange({
+                smokingSticksPerDay: field === 'smoking' ? value : smoking,
+                drinkFrequency: field === 'drinkFreq' ? value : drinkFreq,
+                drinksPerSession: field === 'drinksPerSession' ? value : drinksPerSession,
+                exerciseFrequency: field === 'exerciseFreq' ? value : exerciseFreq,
+                drunkFrequency: field === 'drunkFreq' ? value : drunkFreq,
+                exerciseType: field === 'exerciseType' ? value : exerciseType,
+            });
+        }
+    };
+
     return (
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
+        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6 shadow-xs">
             <div className="bg-gray-50 p-3 border-b border-gray-200">
                 <h3 className="text-md font-bold text-gray-800">
-                    <i>Social History</i>
+                    <i>Social History</i> 
                 </h3>
             </div>
 
@@ -35,8 +56,8 @@ export default function SocialHistory({ data }) {
                     <input
                         type="number"
                         value={smoking}
-                        disabled={true}
-                        className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700"
+                        onChange={(e) => handleChange('smoking', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm text-gray-700 transition-all"
                         placeholder="0"
                     />
                 </div>
@@ -48,32 +69,32 @@ export default function SocialHistory({ data }) {
                         <input
                             type="text"
                             value={drinkFreq}
-                            disabled={true}
-                            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700"
-                            placeholder="N/A"
+                            onChange={(e) => handleChange('drinkFreq', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm text-gray-700 transition-all"
+                            placeholder="e.g. Occasional"
                         />
                     </div>
                     <div className="w-full sm:w-1/3 mt-auto">
                         <input
                             type="text"
                             value={drinksPerSession}
-                            disabled={true}
-                            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700"
+                            onChange={(e) => handleChange('drinksPerSession', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm text-gray-700 transition-all"
                             placeholder="Per Session"
                         />
                     </div>
                 </div>
 
-                {/* Exercise (Exercise Frequency + Exercise Type) */}
+                {/* Exercise (Exercise Frequency) */}
                 <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Exercise: Frequency</label>
                     <div className="flex space-x-2">
                         <input
                             type="text"
                             value={exerciseFreq}
-                            disabled={true}
-                            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700"
-                            placeholder="N/A"
+                            onChange={(e) => handleChange('exerciseFreq', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm text-gray-700 transition-all"
+                            placeholder="e.g. 3x a week"
                         />
                     </div>
                 </div>
@@ -87,17 +108,17 @@ export default function SocialHistory({ data }) {
                         <input
                             type="text"
                             value={drunkFreq}
-                            disabled={true}
-                            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700"
-                            placeholder="N/A"
+                            onChange={(e) => handleChange('drunkFreq', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm text-gray-700 transition-all"
+                            placeholder="e.g. Never"
                         />
                     </div>
                     <div className="w-full sm:w-1/3 mt-auto">
                         <input
                             type="text"
                             value={exerciseType}
-                            disabled={true}
-                            className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700"
+                            onChange={(e) => handleChange('exerciseType', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm text-gray-700 transition-all"
                             placeholder="Specify"
                         />
                     </div>
