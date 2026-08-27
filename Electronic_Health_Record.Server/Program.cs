@@ -1,6 +1,7 @@
 using Scalar.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +14,15 @@ builder.Services.AddDbContext<ElectronicHealthRecordDbContext>(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Register application services
+builder.Services.AddScoped<TokenService>();
+
 var app = builder.Build();
+
+
+
+// Configure JWT authentication using settings from appsettings.json
+var jwtSection = builder.Configuration.GetSection("Jwt");
 
 using (var scope = app.Services.CreateScope())
 {
