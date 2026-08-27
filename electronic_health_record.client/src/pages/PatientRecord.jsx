@@ -42,8 +42,8 @@ export default function PatientRecord() {
     };
 
     useEffect(() => {
-        // Connected to your C# Backend via Scalar port 5084
-        axios.get('http://localhost:5084/api/patients')
+        // Proxied to C# backend by Vite (see vite.config.js) — avoids cross-origin/CORS entirely
+        axios.get('/api/patients')
             .then(response => {
                 const patientData = Array.isArray(response.data)
                     ? response.data

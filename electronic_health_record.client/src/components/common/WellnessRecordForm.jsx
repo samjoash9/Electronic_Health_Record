@@ -15,7 +15,7 @@ export default function WellnessRecordForm({ phoData, onCancel }) {
     useEffect(() => {
         const patientId = phoData?.patientID || phoData?.id || 1;
 
-        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
+        axios.get(`/api/WellnessForms/${patientId}`)
             .then(response => {
                 setWellnessResponse(response.data);
                 setIsLoading(false);

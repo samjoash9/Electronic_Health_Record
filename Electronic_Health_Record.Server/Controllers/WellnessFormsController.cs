@@ -205,7 +205,169 @@ namespace Electronic_Health_Record.Server.Controllers
             }
         }
 
-        // PUT   /api/wellnessforms/:id → full update (edit a draft, or promote a draft to Submitted)
+        // full update of a wellness form (edit a draft, or promote a draft to Submitted).
+        // checkbox-style child rows (Past/Family Medical History) are sent as the complete
+        // current set, so the existing rows are replaced wholesale rather than merged —
+        // an unchecked condition (e.g. Stroke, Diabetes Mellitus) must disappear, not linger.
+        [HttpPut("{FormId}")]
+        public async Task<IActionResult> UpdateWellnessForm(int FormId, [FromBody] UpdateWellnessFormDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var isSubmit = dto.Status == StatusSubmitted;
+
+            try
+            {
+                var form = await _context.WellnessForms.FindAsync(FormId);
+                if (form == null)
+                    return NotFound($"Wellness form with ID {FormId} was not found.");
+
+                if (!await _context.Patients.AnyAsync(p => p.PatientID == dto.PatientID))
+                    return BadRequest($"Patient with ID {dto.PatientID} was not found.");
+
+                // physician is required on submit, optional on draft
+                if (dto.PhysicianID.HasValue)
+                {
+                    if (!await _context.Physicians.AnyAsync(p => p.PhysicianID == dto.PhysicianID.Value))
+                        return BadRequest($"Physician with ID {dto.PhysicianID.Value} was not found.");
+                }
+                else if (isSubmit)
+                {
+                    return BadRequest("PhysicianID is required when submitting a wellness form.");
+                }
+
+                if (dto.UpdatedByAdminID.HasValue &&
+                    !await _context.Admins.AnyAsync(a => a.AdminID == dto.UpdatedByAdminID.Value))
+                {
+                    return BadRequest($"Admin with ID {dto.UpdatedByAdminID.Value} was not found.");
+                }
+
+                // the UI always renders one blank Past Medical History row, so drop rows the user never filled in
+                var pastHistory = dto.PastMedicalHistory
+                    .Where(p => p.ConditionID.HasValue
+                             || !string.IsNullOrWhiteSpace(p.ConditionOther)
+                             || p.YearDiagnosed.HasValue
+                             || !string.IsNullOrWhiteSpace(p.MaintenanceDrugGeneric))
+                    .ToList();
+
+                // likewise for the family history checkbox grid: keep checked conditions and the "None" row only
+                var familyHistory = dto.FamilyMedicalHistory
+                    .Where(f => f.ConditionID.HasValue
+                             || !string.IsNullOrWhiteSpace(f.ConditionOther)
+                             || f.IsNone == true)
+                    .ToList();
+
+                // fail fast on unknown conditions instead of letting the FK blow up mid-transaction
+                var conditionIds = pastHistory.Where(p => p.ConditionID.HasValue).Select(p => p.ConditionID!.Value)
+                    .Concat(familyHistory.Where(f => f.ConditionID.HasValue).Select(f => f.ConditionID!.Value))
+                    .Distinct()
+                    .ToList();
+
+                if (conditionIds.Count > 0)
+                {
+                    var knownIds = await _context.MedicalConditions
+                        .Where(c => conditionIds.Contains(c.ConditionID))
+                        .Select(c => c.ConditionID)
+                        .ToListAsync();
+
+                    var unknownIds = conditionIds.Except(knownIds).ToList();
+                    if (unknownIds.Count > 0)
+                        return BadRequest($"Unknown medical condition ID(s): {string.Join(", ", unknownIds)}.");
+                }
+
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    form.PatientID = dto.PatientID;
+                    form.PhysicianID = dto.PhysicianID;
+                    form.Status = isSubmit ? StatusSubmitted : StatusDraft;
+                    form.WeightKg = dto.WeightKg;
+                    form.HeightCm = dto.HeightCm;
+                    form.BMI = dto.BMI;
+                    form.IdealBMI = dto.IdealBMI;
+                    form.BPSystolic = dto.BPSystolic;
+                    form.BPDiastolic = dto.BPDiastolic;
+                    form.TempCelsius = dto.TempCelsius;
+                    form.HeartRate = dto.HeartRate;
+                    form.RespRate = dto.RespRate;
+                    form.RecommendedDiagnosticTest = dto.RecommendedDiagnosticTest;
+                    form.ImpressionClinical = dto.ImpressionClinical;
+                    form.ManagementTreatment = dto.ManagementTreatment;
+                    form.UpdatedByAdminID = dto.UpdatedByAdminID;
+                    form.UpdatedAt = DateTime.UtcNow;
+
+                    if (dto.FormDate.HasValue)
+                        form.FormDate = dto.FormDate.Value;
+
+                    // replace child rows wholesale: delete the existing set, then insert the current one
+                    var oldPastHistory = _context.PastMedicalHistories.Where(p => p.FormID == FormId);
+                    var oldFamilyHistory = _context.FamilyMedicalHistories.Where(f => f.FormID == FormId);
+                    var oldSocialHistory = _context.SocialHistories.Where(s => s.FormID == FormId);
+
+                    _context.PastMedicalHistories.RemoveRange(oldPastHistory);
+                    _context.FamilyMedicalHistories.RemoveRange(oldFamilyHistory);
+                    _context.SocialHistories.RemoveRange(oldSocialHistory);
+
+                    foreach (var item in pastHistory)
+                    {
+                        _context.PastMedicalHistories.Add(new PastMedicalHistory
+                        {
+                            FormID = FormId,
+                            ConditionID = item.ConditionID,
+                            ConditionOther = item.ConditionOther,
+                            YearDiagnosed = item.YearDiagnosed,
+                            MaintenanceDrugGeneric = item.MaintenanceDrugGeneric,
+                            Dosage = item.Dosage,
+                            Frequency = item.Frequency
+                        });
+                    }
+
+                    foreach (var item in familyHistory)
+                    {
+                        _context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
+                        {
+                            FormID = FormId,
+                            ConditionID = item.ConditionID,
+                            ConditionOther = item.ConditionOther,
+                            IsNone = item.IsNone ?? false
+                        });
+                    }
+
+                    if (dto.SocialHistory != null)
+                    {
+                        _context.SocialHistories.Add(new SocialHistory
+                        {
+                            FormID = FormId,
+                            SmokingSticksPerDay = dto.SocialHistory.SmokingSticksPerDay,
+                            AlcoholType = dto.SocialHistory.AlcoholType,
+                            DrinkFrequency = dto.SocialHistory.DrinkFrequency,
+                            DrinksPerSession = dto.SocialHistory.DrinksPerSession,
+                            HasBeenDrunk = dto.SocialHistory.HasBeenDrunk,
+                            DrunkFrequency = dto.SocialHistory.DrunkFrequency,
+                            ExerciseFrequency = dto.SocialHistory.ExerciseFrequency,
+                            ExerciseType = dto.SocialHistory.ExerciseType
+                        });
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return Ok(await BuildFormResponseAsync(form));
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to update wellness form {FormId}.", FormId);
+                return StatusCode(500, "An error occurred while updating the wellness form.");
+            }
+        }
 
         // GET   /api/wellnessforms?patientId=:id → list a patient's forms
 

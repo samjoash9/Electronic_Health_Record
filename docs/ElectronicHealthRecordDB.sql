@@ -198,3 +198,6 @@ CREATE INDEX IX_PastMedicalHistory_FormID ON PastMedicalHistory (FormID);
 CREATE INDEX IX_PastMedicalHistory_ConditionID ON PastMedicalHistory (ConditionID);
 
 */
+
+
+SELECT * FROM MedicalCondition;
