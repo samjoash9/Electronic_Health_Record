@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
-import smartDrugDatabase from '../../data/mockSmartDrug';
 
-// SMART DATABASE: Mock data for auto-recommendations
-export default function PastMedicalHistory() {
+export default function PastMedicalHistory({ data }) {
     // State to manage dynamic rows
     const [records, setRecords] = useState([
         { id: 1, condition: '', year: '', drugs: '' }
     ]);
+
+    // Populate rows from backend database array
+    useEffect(() => {
+        if (Array.isArray(data) && data.length > 0) {
+            const mappedRecords = data.map((item, index) => ({
+                id: item.pmhid || index + 1,
+                condition: item.conditionID ? `Condition ID: ${item.conditionID}` : (item.conditionOther || 'Condition'),
+                year: item.yearDiagnosed ? String(item.yearDiagnosed) : '',
+                drugs: [item.maintenanceDrugGeneric, item.dosage, item.frequency].filter(Boolean).join(', ')
+            }));
+            setRecords(mappedRecords);
+        }
+    }, [data]);
 
     const addRecord = () => {
         setRecords([...records, { id: Date.now(), condition: '', year: '', drugs: '' }]);
@@ -27,24 +38,6 @@ export default function PastMedicalHistory() {
             }
             return record;
         }));
-    };
-
-    // 💡 SMART FEATURE: Check for drug recommendations when the user finishes typing the condition
-    const handleConditionBlur = (id, currentCondition, currentDrugs) => {
-        if (!currentCondition) return;
-
-        const lookupKey = currentCondition.trim().toLowerCase();
-        const recommendedDrug = smartDrugDatabase[lookupKey];
-
-        // Only auto-fill if we found a match AND the doctor hasn't already typed something in the drugs field
-        if (recommendedDrug && !currentDrugs) {
-            setRecords(records.map(record => {
-                if (record.id === id) {
-                    return { ...record, drugs: recommendedDrug };
-                }
-                return record;
-            }));
-        }
     };
 
     return (
@@ -85,7 +78,6 @@ export default function PastMedicalHistory() {
                                         type="text"
                                         value={record.condition}
                                         onChange={(e) => handleInputChange(record.id, 'condition', e.target.value)}
-                                        onBlur={() => handleConditionBlur(record.id, record.condition, record.drugs)}
                                         placeholder="e.g. Hypertension"
                                         className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white"
                                     />
@@ -108,7 +100,7 @@ export default function PastMedicalHistory() {
                                         type="text"
                                         value={record.drugs}
                                         onChange={(e) => handleInputChange(record.id, 'drugs', e.target.value)}
-                                        placeholder="Auto-suggests known drugs..."
+                                        placeholder="Enter maintenance drugs..."
                                         className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white transition-all"
                                     />
                                 </td>
