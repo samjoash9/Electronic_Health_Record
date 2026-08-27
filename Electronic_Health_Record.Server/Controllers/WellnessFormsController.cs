@@ -369,9 +369,52 @@ namespace Electronic_Health_Record.Server.Controllers
             }
         }
 
-        // GET   /api/wellnessforms?patientId=:id → list a patient's forms
-
         // DELETE /api/wellnessforms/:id → discard a draft
+        // DELETE /api/wellnessforms/:id → discard a draft.
+        // only drafts can be deleted; a submitted form is a finalized clinical record.
+        [HttpDelete("{FormId}")]
+        public async Task<IActionResult> DeleteWellnessForm(int FormId)
+        {
+            try
+            {
+                var form = await _context.WellnessForms.FindAsync(FormId);
+                if (form == null)
+                    return NotFound($"Wellness form with ID {FormId} was not found.");
+
+                if (form.Status != StatusDraft)
+                    return BadRequest("Only draft wellness forms can be deleted.");
+
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                try
+                {
+                    var pastHistory = _context.PastMedicalHistories.Where(p => p.FormID == FormId);
+                    var familyHistory = _context.FamilyMedicalHistories.Where(f => f.FormID == FormId);
+                    var socialHistory = _context.SocialHistories.Where(s => s.FormID == FormId);
+
+                    _context.PastMedicalHistories.RemoveRange(pastHistory);
+                    _context.FamilyMedicalHistories.RemoveRange(familyHistory);
+                    _context.SocialHistories.RemoveRange(socialHistory);
+
+                    _context.WellnessForms.Remove(form);
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return NoContent();
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to delete wellness form {FormId}.", FormId);
+                return StatusCode(500, "An error occurred while deleting the wellness form.");
+            }
+        }
 
         private async Task<object> BuildFormResponseAsync(WellnessForm form)
         {
