@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X } from 'lucide-react';
 import WellnessRecordForm from '../components/common/WellnessRecordForm';
+import Toast from '../components/common/Toast';
 
-// --- SUB-COMPONENT: PATIENT SELECTOR MODAL (WITHOUT MANUAL ENTRY) ---
+// --- SUB-COMPONENT: PATIENT SELECTOR MODAL ---
 function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
     const [query, setQuery] = useState('');
     if (!isOpen) return null;
@@ -17,7 +18,7 @@ function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-4 bg-[#0F2756] text-white flex justify-between items-center">
-                    <h3 className="text-md font-bold uppercase tracking-wide">Select Patient for New Wellness Form</h3>
+                    <h3 className="text-md font-bold uppercase tracking-wide">Select Patient to Start Wellness Form</h3>
                     <button onClick={onClose} className="hover:bg-blue-800 p-1 rounded-md transition-colors"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5">
@@ -44,7 +45,7 @@ function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
                                         <p className="text-sm font-bold text-gray-800">{patient.surname}, {patient.firstName} {patient.middleName}</p>
                                         <p className="text-xs text-gray-400">Contact: {patient.contactNo || 'N/A'} | Office: {patient.agencyOffice || 'N/A'}</p>
                                     </div>
-                                    <span className="text-xs font-semibold px-2.5 py-1 bg-teal-100 text-teal-700 rounded-md">Select</span>
+                                    <span className="text-xs font-semibold px-2.5 py-1 bg-teal-100 text-teal-700 rounded-md">Create Form</span>
                                 </div>
                             ))
                         )}
@@ -70,6 +71,7 @@ export default function PatientRecord() {
     const [pendingPatient, setPendingPatient] = useState(null);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
+    const [toast, setToast] = useState({ message: '', type: 'success' });
 
     // Close filter dropdown when clicking outside
     useEffect(() => {
@@ -144,15 +146,29 @@ export default function PatientRecord() {
         }
     };
 
+    const handleFormSave = (message, type) => {
+        setToast({ message, type });
+        if (type === 'success') {
+            fetchPatients(); // Only refresh table if it was a successful save
+        }
+    };
+
     return (
         <div className="w-full max-w-7xl mx-auto pb-10 relative">
+            {/* NEW TOAST COMPONENT */}
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast({ message: '', type: 'success' })}
+            />
+
             {selectedPatient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
                     <div className="w-full max-w-5xl my-auto animate-in fade-in zoom-in-95 duration-200">
                         <WellnessRecordForm
                             phoData={selectedPatient}
                             onCancel={() => setSelectedPatient(null)}
-                            onSave={fetchPatients}
+                            onSave={handleFormSave}
                         />
                     </div>
                 </div>
@@ -214,8 +230,8 @@ export default function PatientRecord() {
                             <button
                                 onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
                                 className={`flex items-center justify-center space-x-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors shadow-2xs cursor-pointer ${statusFilter !== 'All'
-                                        ? 'bg-teal-50 border-teal-300 text-teal-700 shadow-xs'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-teal-50/50 hover:border-teal-200 hover:text-teal-700'
+                                    ? 'bg-teal-50 border-teal-300 text-teal-700 shadow-xs'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-teal-50/50 hover:border-teal-200 hover:text-teal-700'
                                     }`}
                             >
                                 <Filter className="w-4 h-4" />
@@ -259,6 +275,7 @@ export default function PatientRecord() {
                                 <th className="py-4 pl-6 pr-4 w-12 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">#</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Contact</th>
+                                <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Form Created</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Visit</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
@@ -266,16 +283,21 @@ export default function PatientRecord() {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
-                                <tr><td colSpan="6" className="py-10 text-center text-gray-400"><Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" /><p>Loading patient records...</p></td></tr>
+                                <tr><td colSpan="7" className="py-10 text-center text-gray-400"><Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" /><p>Loading patient records...</p></td></tr>
                             ) : filteredPatients.length === 0 ? (
-                                <tr><td colSpan="6" className="py-10 text-center text-gray-400"><p>No matching patient records found.</p></td></tr>
+                                <tr><td colSpan="7" className="py-10 text-center text-gray-400"><p>No matching patient records found.</p></td></tr>
                             ) : (
                                 filteredPatients.map((patient, index) => (
                                     <tr key={patient.patientID || index} onClick={() => handlePatientClick(patient)} className="hover:bg-teal-50/40 transition-colors group cursor-pointer">
                                         <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{index + 1}</span></td>
                                         <td className="py-4 px-4"><p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname}</p></td>
                                         <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{patient.contactNo || 'N/A'}</p></td>
-                                        <td className="py-4 px-4"><span className="text-sm font-medium text-gray-600">{patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString() : 'N/A'}</span></td>
+                                        <td className="py-4 px-4">
+                                            <span className="text-sm font-medium text-gray-600">
+                                                {patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-4"><span className="text-sm font-medium text-gray-600">{patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></td>
                                         <td className="py-4 px-4"><span className="inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full bg-emerald-100 text-emerald-700">Saved</span></td>
                                         <td className="py-4 px-4"><button onClick={(e) => e.stopPropagation()} className="text-gray-500 hover:text-teal-600 hover:bg-teal-50 p-1.5 rounded-lg transition-colors"><MoreVertical className="w-5 h-5" /></button></td>
                                     </tr>
