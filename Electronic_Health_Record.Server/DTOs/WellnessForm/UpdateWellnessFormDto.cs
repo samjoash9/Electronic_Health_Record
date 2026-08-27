@@ -19,7 +19,7 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         public DateTime? FormDate { get; set; }
 
         // vital signs
-        [Range(0, 999.99)]
+                [Range(0, 999.99)]
         public decimal? WeightKg { get; set; }
 
         [Range(0, 999.99)]
