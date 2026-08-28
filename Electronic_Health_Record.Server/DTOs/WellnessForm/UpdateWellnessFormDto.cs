@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Electronic_Health_Record.Server.DTOs.WellnessForm
 {
-    public class CreateWellnessFormDto
+    public class UpdateWellnessFormDto
     {
         // "Draft" (Save as Draft) or "Submitted" (Submit)
         [Required]
@@ -23,7 +23,7 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         public DateTime? FormDate { get; set; }
 
         // vital signs
-        [Range(0, 999.99)]
+                [Range(0, 999.99)]
         public decimal? WeightKg { get; set; }
 
         [Range(0, 999.99)]
@@ -59,71 +59,14 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         [MaxLength(300)]
         public string? ManagementTreatment { get; set; }
 
-        public int? CreatedByAdminID { get; set; }
+        public int? UpdatedByAdminID { get; set; }
 
+        // full replacement lists — checked/unchecked condition rows (e.g. Stroke, Diabetes Mellitus)
+        // are sent as the complete current set, and the server swaps out the old rows for these.
         public List<PastMedicalHistoryItemDto> PastMedicalHistory { get; set; } = new();
 
         public List<FamilyMedicalHistoryItemDto> FamilyMedicalHistory { get; set; } = new();
 
         public SocialHistoryDto? SocialHistory { get; set; }
-    }
-
-    public class PastMedicalHistoryItemDto
-    {
-        // either a known condition from MedicalCondition, or free text in ConditionOther
-        public int? ConditionID { get; set; }
-
-        [MaxLength(100)]
-        public string? ConditionOther { get; set; }
-
-        [Range(1900, 2200)]
-        public short? YearDiagnosed { get; set; }
-
-        [MaxLength(100)]
-        public string? MaintenanceDrugGeneric { get; set; }
-
-        [MaxLength(20)]
-        public string? Dosage { get; set; }
-
-        [MaxLength(50)]
-        public string? Frequency { get; set; }
-    }
-
-    public class FamilyMedicalHistoryItemDto
-    {
-        public int? ConditionID { get; set; }
-
-        // free text for "Others (Specify)" and the cancer type box
-        [MaxLength(100)]
-        public string? ConditionOther { get; set; }
-
-        // true for the single "None (No known history)" row
-        public bool? IsNone { get; set; }
-    }
-
-    public class SocialHistoryDto
-    {
-        [Range(0, 999)]
-        public short? SmokingSticksPerDay { get; set; }
-
-        [MaxLength(50)]
-        public string? AlcoholType { get; set; }
-
-        [MaxLength(50)]
-        public string? DrinkFrequency { get; set; }
-
-        [MaxLength(20)]
-        public string? DrinksPerSession { get; set; }
-
-        public bool? HasBeenDrunk { get; set; }
-
-        [MaxLength(50)]
-        public string? DrunkFrequency { get; set; }
-
-        [MaxLength(50)]
-        public string? ExerciseFrequency { get; set; }
-
-        [MaxLength(100)]
-        public string? ExerciseType { get; set; }
     }
 }

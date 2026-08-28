@@ -41,18 +41,7 @@ namespace Electronic_Health_Record.Server.Data
 
             var currentAdmin = await context.Admins.FirstOrDefaultAsync(a => a.Username == "admin");
 
-            // Seed MedicalConditions
-            if (!await context.MedicalConditions.AnyAsync())
-            {
-                context.MedicalConditions.AddRange(
-                    new MedicalCondition { ConditionName = "Hypertension", ConditionType = "Chronic" },
-                    new MedicalCondition { ConditionName = "Diabetes Mellitus Type 2", ConditionType = "Chronic" },
-                    new MedicalCondition { ConditionName = "Asthma", ConditionType = "Chronic" },
-                    new MedicalCondition { ConditionName = "COVID-19", ConditionType = "Infectious" },
-                    new MedicalCondition { ConditionName = "Allergic Rhinitis", ConditionType = "Allergy" }
-                );
-                await context.SaveChangesAsync();
-            }
+            // MedicalConditions come from the migration (HasData), so nothing to seed here
 
             // Seed Patients
             if (!await context.Patients.AnyAsync())
@@ -124,13 +113,16 @@ namespace Electronic_Health_Record.Server.Data
                 var patient = await context.Patients.FirstAsync();
                 var physician = await context.Physicians.FirstAsync();
                 var conditionHypertension = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Hypertension");
-                var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Diabetes Mellitus Type 2");
+                var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Diabetes Mellitus");
 
                 var form = new WellnessForm
                 {
                     PatientID = patient.PatientID,
                     PhysicianID = physician.PhysicianID,
                     Status = "Submitted",
+                    // a submitted form must be signed, so the seed carries a placeholder signature
+                    Signature = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+                    SignedAt = DateTime.UtcNow,
                     FormDate = DateTime.UtcNow.Date,
                     WeightKg = 75.5m,
                     HeightCm = 175.0m,
@@ -173,7 +165,6 @@ namespace Electronic_Health_Record.Server.Data
                 {
                     FormID = form.FormID,
                     ConditionID = conditionHypertension.ConditionID,
-                    FamilyMember = "Father",
                     IsNone = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

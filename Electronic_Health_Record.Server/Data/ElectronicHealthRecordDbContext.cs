@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Electronic_Health_Record.Server.Models;
 
 namespace Electronic_Health_Record.Server.Data
@@ -136,6 +136,17 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(c => c.ConditionName).HasMaxLength(50).IsRequired();
                 entity.HasIndex(c => c.ConditionName).IsUnique();
                 entity.Property(c => c.ConditionType).HasMaxLength(100).IsRequired(false);
+
+                // the fixed condition list the wellness form checkbox grids bind to;
+                // the frontend sends back the matching ConditionID
+                entity.HasData(
+                    new MedicalCondition { ConditionID = 1, ConditionName = "Hypertension" },
+                    new MedicalCondition { ConditionID = 2, ConditionName = "Stroke" },
+                    new MedicalCondition { ConditionID = 3, ConditionName = "Diabetes Mellitus" },
+                    new MedicalCondition { ConditionID = 4, ConditionName = "Tuberculosis" },
+                    new MedicalCondition { ConditionID = 5, ConditionName = "Bronchial Asthma" },
+                    new MedicalCondition { ConditionID = 6, ConditionName = "Cancer" }
+                );
             });
 
             modelBuilder.Entity<SocialHistory>(entity =>
@@ -162,7 +173,6 @@ namespace Electronic_Health_Record.Server.Data
                 entity.ToTable("FamilyMedicalHistory");
                 entity.HasKey(f => f.FMHID);
                 entity.Property(f => f.ConditionOther).HasMaxLength(100);
-                entity.Property(f => f.FamilyMember).HasMaxLength(50);
                 entity.Property(f => f.IsNone).HasDefaultValue(false);
                 entity.Property(f => f.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(f => f.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");

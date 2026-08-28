@@ -8,6 +8,11 @@
         public int? PhysicianID { get; set; }
         // "Draft" or "Submitted"
         public string Status { get; set; } = "Draft";
+        // physician's digital signature, stored as the signature pad's base64 data URL;
+        // a form cannot reach "Submitted" without one
+        public string? Signature { get; set; }
+        // when the signature was captured; only re-stamped when the signature itself changes
+        public DateTime? SignedAt { get; set; }
         public DateTime FormDate { get; set; }
         public decimal? WeightKg { get; set; }
         public decimal? HeightCm { get; set; }

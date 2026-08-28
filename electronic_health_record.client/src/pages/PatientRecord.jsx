@@ -1,111 +1,271 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Filter, Plus, MoreVertical, ShieldAlert, Loader2 } from 'lucide-react';
-import { mockDataFallback } from '../data/mockPatients';
+import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X } from 'lucide-react';
 import WellnessRecordForm from '../components/common/WellnessRecordForm';
+import Toast from '../components/common/Toast';
+
+// --- SUB-COMPONENT: PATIENT SELECTOR MODAL ---
+function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
+    const [query, setQuery] = useState('');
+    if (!isOpen) return null;
+
+    const filtered = patients.filter(p => {
+        const fullName = `${p.firstName || ''} ${p.surname || ''}`.toLowerCase();
+        return fullName.includes(query.toLowerCase());
+    });
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-4 bg-[#0F2756] text-white flex justify-between items-center">
+                    <h3 className="text-md font-bold uppercase tracking-wide">Select Patient to Start Wellness Form</h3>
+                    <button onClick={onClose} className="hover:bg-blue-800 p-1 rounded-md transition-colors"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="p-5">
+                    <div className="relative mb-4">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400"><Search className="w-4 h-4" /></span>
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Search system patients (e.g. Doe, John)..."
+                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                            autoFocus
+                        />
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg">
+                        {filtered.length === 0 ? (
+                            <div className="p-6 text-center text-sm text-gray-400">
+                                No matching patients found in the system registry.
+                            </div>
+                        ) : (
+                            filtered.map(patient => (
+                                <div key={patient.patientID} onClick={() => onSelectPatient(patient)} className="p-3 hover:bg-teal-50 cursor-pointer flex justify-between items-center transition-colors">
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-800">{patient.surname}, {patient.firstName} {patient.middleName}</p>
+                                        <p className="text-xs text-gray-400">Contact: {patient.contactNo || 'N/A'} | Office: {patient.agencyOffice || 'N/A'}</p>
+                                    </div>
+                                    <span className="text-xs font-semibold px-2.5 py-1 bg-teal-100 text-teal-700 rounded-md">Create Form</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function PatientRecord() {
-    const [activeTab, setActiveTab] = useState('Active Patients');
     const [patients, setPatients] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    // Tracks which patient was clicked to open the modal
+    // FILTER STATES
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    const [isSelectingPatient, setIsSelectingPatient] = useState(false);
+    const [pendingPatient, setPendingPatient] = useState(null);
+    const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
+    const [toast, setToast] = useState({ message: '', type: 'success' });
 
+    // Close filter dropdown when clicking outside
     useEffect(() => {
-        axios.get('https://localhost:7000/api/patients')
-            .then(response => {
-                setPatients(response.data);
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsFilterDropdownOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const calculateAge = (birthdateString) => {
+        if (!birthdateString) return '';
+        const today = new Date();
+        const birthDate = new Date(birthdateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+        return age;
+    };
+
+    const fetchPatients = () => {
+        setIsLoading(true);
+        axios.get('http://localhost:5084/api/patients')
+            .then(res => {
+                setPatients(Array.isArray(res.data) ? res.data : (res.data.data || []));
                 setIsLoading(false);
             })
             .catch(err => {
-                console.warn("Backend not reached. Using mock data instead.");
-                setError("Cannot connect to server. Displaying offline mock data.");
-                setPatients(mockDataFallback);
+                console.error("Failed to fetch patients:", err);
+                setError("Cannot connect to server. Ensure your C# API is running.");
                 setIsLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchPatients();
     }, []);
 
+    const filteredPatients = patients.filter(patient => {
+        const fullName = `${patient.firstName || ''} ${patient.middleName || ''} ${patient.surname || ''}`.toLowerCase();
+        const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || (patient.contactNo || '').toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || (patient.status || 'Saved').toLowerCase() === statusFilter.toLowerCase();
+        return matchesSearch && matchesStatus;
+    });
+
     const handlePatientClick = (patient) => {
-        const nameParts = patient.name.split(' ');
-        const demoParts = patient.demographics.split(',');
+        setSelectedPatient({
+            patientID: patient.patientID,
+            firstName: patient.firstName || '',
+            lastName: patient.surname || '',
+            middleName: patient.middleName || '',
+            sex: patient.sex || '',
+            age: calculateAge(patient.birthdate),
+            birthdate: patient.birthdate ? patient.birthdate.split('T')[0] : '',
+            civilStatus: patient.civilStatus || 'Single',
+            address: patient.address || '',
+        });
+    };
 
-        const formattedPhoData = {
-            firstName: nameParts[0] || '',
-            lastName: nameParts[1] || '',
-            middleName: "",
-            sex: demoParts[0] ? demoParts[0].trim() : '',
-            age: demoParts[1] ? parseInt(demoParts[1]) : '',
-            birthdate: "1981-01-01",
-            civilStatus: "Single",
-            address: "Patin-ay, Prosperidad, Agusan del Sur",
-        };
+    const handleSelectPatientForNewForm = async (patient) => {
+        setIsSelectingPatient(false);
+        try {
+            const res = await axios.get(`http://localhost:5084/api/WellnessForms/${patient.patientID}`);
 
-        setSelectedPatient(formattedPhoData);
+            if (res.data && res.data.form) {
+                setPendingPatient(patient);
+                setShowDuplicateWarning(true);
+            } else {
+                handlePatientClick(patient);
+            }
+
+        } catch (error) {
+            handlePatientClick(patient);
+        }
+    };
+
+    const handleFormSave = (message, type) => {
+        setToast({ message, type });
+        if (type === 'success') {
+            fetchPatients(); 
+        }
     };
 
     return (
         <div className="w-full max-w-7xl mx-auto pb-10 relative">
+            {/* NEW TOAST COMPONENT */}
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast({ message: '', type: 'success' })}
+            />
 
-            {/* MODAL OVERLAY */}
             {selectedPatient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
                     <div className="w-full max-w-5xl my-auto animate-in fade-in zoom-in-95 duration-200">
                         <WellnessRecordForm
                             phoData={selectedPatient}
                             onCancel={() => setSelectedPatient(null)}
+                            onSave={handleFormSave}
                         />
                     </div>
                 </div>
             )}
 
-            <div className="flex border-b border-gray-200 mb-6 space-x-8">
-                {['Active Patients', 'Archived Records'].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`pb-3 text-sm font-semibold transition-colors focus:outline-none ${activeTab === tab
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
-            </div>
-
-            {error && (
-                <div className="mb-4 p-3 bg-orange-50 border border-orange-200 text-orange-700 text-sm rounded-lg flex items-center">
-                    <ShieldAlert className="w-4 h-4 mr-2" />
-                    {error}
+            {/* Duplicate Warning Modal */}
+            {showDuplicateWarning && pendingPatient && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-xl shadow-xl border w-full max-w-md p-6 text-center">
+                        <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Existing Record Found</h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                            Patient <span className="font-semibold">{pendingPatient.surname}, {pendingPatient.firstName}</span> already has a wellness record. Redirect to it?
+                        </p>
+                        <div className="flex space-x-3">
+                            <button onClick={() => { setShowDuplicateWarning(false); handlePatientClick(pendingPatient); setPendingPatient(null); }} className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold transition-colors">Yes, Redirect</button>
+                            <button onClick={() => { setShowDuplicateWarning(false); setPendingPatient(null); }} className="flex-1 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-semibold transition-colors">No, Go Back</button>
+                        </div>
+                    </div>
                 </div>
             )}
 
+            <PatientSelectModal
+                isOpen={isSelectingPatient}
+                onClose={() => setIsSelectingPatient(false)}
+                patients={patients}
+                onSelectPatient={handleSelectPatientForNewForm}
+            />
+
+            {error && <div className="mb-4 p-3 bg-orange-50 border border-orange-200 text-orange-700 text-sm rounded-lg flex items-center"><ShieldAlert className="w-4 h-4 mr-2" />{error}</div>}
+
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-50">
-                    <div className="flex items-center space-x-3 mb-4 sm:mb-0">
-                        <div className="p-2 bg-gray-100 rounded-lg text-gray-500">
-                            <ShieldAlert className="w-5 h-5" />
-                        </div>
+                <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gray-100 rounded-lg text-gray-500"><ShieldAlert className="w-5 h-5" /></div>
                         <div className="flex items-baseline space-x-2">
-                            {isLoading ? (
-                                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                            ) : (
-                                <span className="text-2xl font-bold text-gray-800">{patients.length}</span>
-                            )}
-                            <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">Patients</span>
+                            {isLoading ? <Loader2 className="w-6 h-6 animate-spin text-teal-600" /> : <span className="text-2xl font-bold text-gray-800">{filteredPatients.length}</span>}
+                            <span className="text-sm font-medium text-gray-400 uppercase tracking-wide">Health Care Wellness Forms</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                        <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                            <Filter className="w-4 h-4" />
-                            <span>Filters</span>
-                        </button>
-                        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        {/* TEAL-THEMED SEARCH INPUT */}
+                        <div className="relative min-w-[260px]">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400"><Search className="w-4 h-4" /></span>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search by name, contact, office..."
+                                className="w-full pl-10 pr-4 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-2xs"
+                            />
+                        </div>
+
+                        {/* TEAL-THEMED FILTER DROPDOWN */}
+                        <div className="relative" ref={dropdownRef}>
+                            <button
+                                onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                                className={`flex items-center justify-center space-x-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors shadow-2xs cursor-pointer ${statusFilter !== 'All'
+                                    ? 'bg-teal-50 border-teal-300 text-teal-700 shadow-xs'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-teal-50/50 hover:border-teal-200 hover:text-teal-700'
+                                    }`}
+                            >
+                                <Filter className="w-4 h-4" />
+                                <span>{statusFilter === 'All' ? 'Filters' : `Status: ${statusFilter}`}</span>
+                            </button>
+
+                            {isFilterDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                                        Filter By Status
+                                    </div>
+                                    {['All', 'Saved', 'Draft'].map((status) => (
+                                        <button
+                                            key={status}
+                                            onClick={() => {
+                                                setStatusFilter(status);
+                                                setIsFilterDropdownOpen(false);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-teal-50 hover:text-teal-600 flex items-center justify-between transition-colors cursor-pointer"
+                                        >
+                                            <span>{status}</span>
+                                            {statusFilter === status && <Check className="w-4 h-4 text-teal-600" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* TEAL-THEMED ADD FORM BUTTON */}
+                        <button onClick={() => setIsSelectingPatient(true)} className="flex items-center justify-center space-x-2 px-4 py-2 bg-teal-600 rounded-lg text-sm font-medium text-white hover:bg-teal-700 transition-colors shadow-sm cursor-pointer">
                             <Plus className="w-4 h-4" />
-                            <span>Add Patient</span>
+                            <span>Add Form</span>
                         </button>
                     </div>
                 </div>
@@ -114,78 +274,34 @@ export default function PatientRecord() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-gray-100">
-                                {/* Changed Header to '#' */}
                                 <th className="py-4 pl-6 pr-4 w-12 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">#</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Contact</th>
+                                <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Form Created</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Visit</th>
-                                <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Primary Condition</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
                             </tr>
                         </thead>
-
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
-                                <tr>
-                                    <td colSpan="7" className="py-10 text-center text-gray-400">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-2" />
-                                            <p>Loading patient records...</p>
-                                        </div>
-                                    </td>
-                                </tr>
+                                <tr><td colSpan="7" className="py-10 text-center text-gray-400"><Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" /><p>Loading patient records...</p></td></tr>
+                            ) : filteredPatients.length === 0 ? (
+                                <tr><td colSpan="7" className="py-10 text-center text-gray-400"><p>No matching patient records found.</p></td></tr>
                             ) : (
-                                // Added 'index' here to generate the numbers
-                                patients.map((patient, index) => (
-                                    <tr
-                                        key={patient.id}
-                                        onClick={() => handlePatientClick(patient)}
-                                        className="hover:bg-blue-50 transition-colors group cursor-pointer"
-                                    >
-                                        {/* Replaced Checkbox with Row Number */}
-                                        <td className="py-4 pl-6 pr-4 text-center">
-                                            <span className="text-sm font-bold text-gray-400 group-hover:text-blue-600 transition-colors">
-                                                {index + 1}
+                                filteredPatients.map((patient, index) => (
+                                    <tr key={patient.patientID || index} onClick={() => handlePatientClick(patient)} className="hover:bg-teal-50/40 transition-colors group cursor-pointer">
+                                        <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{index + 1}</span></td>
+                                        <td className="py-4 px-4"><p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname}</p></td>
+                                        <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{patient.contactNo || 'N/A'}</p></td>
+                                        <td className="py-4 px-4">
+                                            <span className="text-sm font-medium text-gray-600">
+                                                {patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                                             </span>
                                         </td>
-
-                                        <td className="py-4 px-4">
-                                            <div className="flex items-center space-x-3">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-900">{patient.name}</p>
-                                                    <p className="text-xs text-gray-400">{patient.demographics}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <p className="text-sm font-medium text-gray-700">{patient.phone}</p>
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <span className="text-sm font-medium text-gray-600">{patient.lastVisit}</span>
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <span className="text-sm text-gray-700 truncate block max-w-[200px]" title={patient.condition}>
-                                                {patient.condition}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <span className={`inline-flex px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full ${patient.status === 'PRIORITY'
-                                                ? 'bg-orange-100 text-orange-700'
-                                                : 'bg-emerald-100 text-emerald-700'
-                                                }`}>
-                                                {patient.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <button
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="text-gray-500 hover:text-blue-600 hover:bg-blue-100 p-1.5 rounded-lg focus:outline-none transition-colors"
-                                                title="More Actions"
-                                            >
-                                                <MoreVertical className="w-5 h-5" />
-                                            </button>
-                                        </td>
+                                        <td className="py-4 px-4"><span className="text-sm font-medium text-gray-600">{patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></td>
+                                        <td className="py-4 px-4"><span className="inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full bg-emerald-100 text-emerald-700">Completed</span></td>
+                                        <td className="py-4 px-4"><button onClick={(e) => e.stopPropagation()} className="text-gray-500 hover:text-teal-600 hover:bg-teal-50 p-1.5 rounded-lg transition-colors"><MoreVertical className="w-5 h-5" /></button></td>
                                     </tr>
                                 ))
                             )}

@@ -1,5 +1,5 @@
--- Electronic Health Record - full schema, runnable.
--- Matches EF migrations through 20260826012402_AddWellnessFormStatusAndNullablePhysician.
+﻿-- Electronic Health Record - full schema, runnable.
+-- Matches EF migrations through 20260827065909_AddWellnessFormSignature.
 -- Run against an empty database. Tables are created parent-first so the FKs resolve.
 
 
@@ -61,6 +61,19 @@ CREATE TABLE MedicalCondition (
 	ConditionType NVARCHAR(100) NULL
 );
 
+-- fixed condition list the wellness form checkbox grids bind to.
+-- seeded by the EF migration; IDs are stable and referenced by
+-- FamilyMedicalHistory.ConditionID / PastMedicalHistory.ConditionID.
+SET IDENTITY_INSERT MedicalCondition ON;
+INSERT INTO MedicalCondition (ConditionID, ConditionName, ConditionType) VALUES
+	(1, 'Hypertension', NULL),
+	(2, 'Stroke', NULL),
+	(3, 'Diabetes Mellitus', NULL),
+	(4, 'Tuberculosis', NULL),
+	(5, 'Bronchial Asthma', NULL),
+	(6, 'Cancer', NULL);
+SET IDENTITY_INSERT MedicalCondition OFF;
+
 CREATE TABLE WellnessForm (
 	FormID INT PRIMARY KEY IDENTITY(1, 1),
 	PatientID INT NOT NULL,
@@ -70,6 +83,10 @@ CREATE TABLE WellnessForm (
 	-- NOTE: on a DB built by EF migrations this column sits last physically,
 	-- because it was added by ALTER TABLE. Listed here for readability.
 	Status VARCHAR(20) NOT NULL DEFAULT 'Draft',
+	-- physician's digital signature as a base64 data URL; required before Status can be 'Submitted'
+	-- NOTE: like Status, these two sit last physically on an EF-migrated DB (added by ALTER TABLE).
+	Signature NVARCHAR(MAX) NULL,
+	SignedAt DATETIME2 NULL,
 	FormDate DATE NOT NULL DEFAULT CAST(SYSDATETIME() AS DATE),
 	-- DECIMAL -> 5 digits, 2 floating points (999.99kg max)
 	WeightKg DECIMAL(5, 2) NULL,
@@ -138,7 +155,6 @@ CREATE TABLE FamilyMedicalHistory (
 	FormID INT NOT NULL,
 	ConditionID INT NULL,
 	ConditionOther NVARCHAR(100) NULL,
-	FamilyMember NVARCHAR(50) NULL,
 	IsNone BIT NULL DEFAULT 0,
 
 	CreatedAt DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
@@ -186,3 +202,5 @@ CREATE INDEX IX_PastMedicalHistory_FormID ON PastMedicalHistory (FormID);
 CREATE INDEX IX_PastMedicalHistory_ConditionID ON PastMedicalHistory (ConditionID);
 
 */
+
+

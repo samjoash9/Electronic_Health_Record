@@ -135,10 +135,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("SYSDATETIME()");
 
-                    b.Property<string>("FamilyMember")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<int>("FormID")
                         .HasColumnType("int");
 
@@ -184,6 +180,38 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("MedicalCondition", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            ConditionID = 1,
+                            ConditionName = "Hypertension"
+                        },
+                        new
+                        {
+                            ConditionID = 2,
+                            ConditionName = "Stroke"
+                        },
+                        new
+                        {
+                            ConditionID = 3,
+                            ConditionName = "Diabetes Mellitus"
+                        },
+                        new
+                        {
+                            ConditionID = 4,
+                            ConditionName = "Tuberculosis"
+                        },
+                        new
+                        {
+                            ConditionID = 5,
+                            ConditionName = "Bronchial Asthma"
+                        },
+                        new
+                        {
+                            ConditionID = 6,
+                            ConditionName = "Cancer"
+                        });
                 });
 
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.PastMedicalHistory", b =>
@@ -471,6 +499,12 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.Property<short?>("RespRate")
                         .HasColumnType("smallint");
+
+                    b.Property<string>("Signature")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("SignedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()

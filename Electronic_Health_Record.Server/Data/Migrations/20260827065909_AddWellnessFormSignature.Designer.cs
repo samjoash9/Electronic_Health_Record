@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    [Migration("20260826012402_AddWellnessFormStatusAndNullablePhysician")]
-    partial class AddWellnessFormStatusAndNullablePhysician
+    [Migration("20260827065909_AddWellnessFormSignature")]
+    partial class AddWellnessFormSignature
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -502,6 +502,12 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.Property<short?>("RespRate")
                         .HasColumnType("smallint");
+
+                    b.Property<string>("Signature")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("SignedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()

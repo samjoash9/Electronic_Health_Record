@@ -1,50 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
-import smartDrugDatabase from '../../data/mockSmartDrug';
 
-// SMART DATABASE: Mock data for auto-recommendations
-export default function PastMedicalHistory() {
+export default function PastMedicalHistory({ data, onChange }) { // <--- Added onChange prop
     // State to manage dynamic rows
     const [records, setRecords] = useState([
         { id: 1, condition: '', year: '', drugs: '' }
     ]);
 
+    // Populate rows from backend database array
+    useEffect(() => {
+        if (Array.isArray(data) && data.length > 0) {
+            const mappedRecords = data.map((item, index) => ({
+                id: item.pmhid || index + 1,
+                condition: item.conditionID ? `Condition ID: ${item.conditionID}` : (item.conditionOther || 'Condition'),
+                year: item.yearDiagnosed ? String(item.yearDiagnosed) : '',
+                drugs: [item.maintenanceDrugGeneric, item.dosage, item.frequency].filter(Boolean).join(', ')
+            }));
+            setRecords(mappedRecords);
+        }
+    }, [data]);
+
+    // Helper to format and send data to parent
+    const notifyParent = (updatedRecords) => {
+        if (onChange) {
+            // Translating the UI state back to the DTO structure your C# API likely expects
+            const payload = updatedRecords.map(record => ({
+                pmhid: typeof record.id === 'number' && record.id < 1000000000000 ? record.id : 0,
+                conditionOther: record.condition,
+                yearDiagnosed: parseInt(record.year) || null,
+                maintenanceDrugGeneric: record.drugs,
+                dosage: '',
+                frequency: ''
+            }));
+            onChange(payload);
+        }
+    };
+
     const addRecord = () => {
-        setRecords([...records, { id: Date.now(), condition: '', year: '', drugs: '' }]);
+        const newRecords = [...records, { id: Date.now(), condition: '', year: '', drugs: '' }];
+        setRecords(newRecords);
+        notifyParent(newRecords); // <--- Sync with parent
     };
 
     const removeRecord = (id) => {
         if (records.length > 1) {
-            setRecords(records.filter(record => record.id !== id));
+            const newRecords = records.filter(record => record.id !== id);
+            setRecords(newRecords);
+            notifyParent(newRecords); // <--- Sync with parent
         }
     };
 
     // Handle typing in the inputs
     const handleInputChange = (id, field, value) => {
-        setRecords(records.map(record => {
+        const newRecords = records.map(record => {
             if (record.id === id) {
                 return { ...record, [field]: value };
             }
             return record;
-        }));
-    };
-
-    // 💡 SMART FEATURE: Check for drug recommendations when the user finishes typing the condition
-    const handleConditionBlur = (id, currentCondition, currentDrugs) => {
-        if (!currentCondition) return;
-
-        const lookupKey = currentCondition.trim().toLowerCase();
-        const recommendedDrug = smartDrugDatabase[lookupKey];
-
-        // Only auto-fill if we found a match AND the doctor hasn't already typed something in the drugs field
-        if (recommendedDrug && !currentDrugs) {
-            setRecords(records.map(record => {
-                if (record.id === id) {
-                    return { ...record, drugs: recommendedDrug };
-                }
-                return record;
-            }));
-        }
+        });
+        setRecords(newRecords);
+        notifyParent(newRecords); // <--- Sync with parent
     };
 
     return (
@@ -53,7 +68,7 @@ export default function PastMedicalHistory() {
             {/* Header Title */}
             <div className="bg-gray-50 p-3 border-b border-gray-200">
                 <h3 className="text-md font-bold text-gray-800">
-                    <i>Past Medical History</i>  <span className="font-normal italic text-gray-500">(List expandable and editable)</span>
+                    <i>Past Medical History</i>
                 </h3>
             </div>
 
@@ -85,9 +100,8 @@ export default function PastMedicalHistory() {
                                         type="text"
                                         value={record.condition}
                                         onChange={(e) => handleInputChange(record.id, 'condition', e.target.value)}
-                                        onBlur={() => handleConditionBlur(record.id, record.condition, record.drugs)}
                                         placeholder="e.g. Hypertension"
-                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white"
+                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm bg-white"
                                     />
                                 </td>
 
@@ -98,7 +112,7 @@ export default function PastMedicalHistory() {
                                         value={record.year}
                                         onChange={(e) => handleInputChange(record.id, 'year', e.target.value)}
                                         placeholder="YYYY"
-                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white"
+                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm bg-white"
                                     />
                                 </td>
 
@@ -108,8 +122,8 @@ export default function PastMedicalHistory() {
                                         type="text"
                                         value={record.drugs}
                                         onChange={(e) => handleInputChange(record.id, 'drugs', e.target.value)}
-                                        placeholder="Auto-suggests known drugs..."
-                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm bg-white transition-all"
+                                        placeholder="Enter maintenance drugs..."
+                                        className="w-full p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm bg-white transition-all"
                                     />
                                 </td>
 

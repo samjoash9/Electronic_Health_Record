@@ -1,4 +1,4 @@
-﻿using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Patient;
 using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -13,7 +13,7 @@ using System.Runtime.InteropServices;
 namespace Electronic_Health_Record.Server.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")]  
     public class PatientsController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;
