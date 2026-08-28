@@ -1,4 +1,5 @@
 using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,20 +21,24 @@ namespace Electronic_Health_Record.Server.Data
             // Seed Admins
             if (!await context.Admins.AnyAsync())
             {
+                var passwordHasher = new PasswordHasher<Admin>();
+
                 var admin = new Admin
                 {
                     Username = "admin",
                     Email = "admin@hospital.com",
-                    PasswordHash = HashPassword("password123"),
                     FullName = "System Administrator",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
+
+                admin.PasswordHash = passwordHasher.HashPassword(admin, "password123");
+
                 context.Admins.Add(admin);
                 await context.SaveChangesAsync();
             }
-            
+
             var currentAdmin = await context.Admins.FirstOrDefaultAsync(a => a.Username == "admin");
 
             // Seed MedicalConditions

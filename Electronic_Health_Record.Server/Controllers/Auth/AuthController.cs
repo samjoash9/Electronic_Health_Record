@@ -34,6 +34,14 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<LoginResponse>> Register(
         RegisterRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.FullName) ||
+        string.IsNullOrWhiteSpace(request.Username) ||
+        string.IsNullOrWhiteSpace(request.Email) ||
+        string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new { message = "All fields are required." });
+        }
+
         // Check if email already exists
         if (await _db.Admins.AnyAsync(a => a.Email == request.Email))
         {
@@ -97,6 +105,8 @@ public class AuthController : ControllerBase
         });
     }
 
+
+    //[Authorize]
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(
         LoginRequest request)

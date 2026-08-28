@@ -1,8 +1,9 @@
+using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.DTOs.WellnessForm;
+using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Electronic_Health_Record.Server.Data;
-using Electronic_Health_Record.Server.Models;
-using Electronic_Health_Record.Server.DTOs.WellnessForm;
 
 namespace Electronic_Health_Record.Server.Controllers
 {
@@ -25,6 +26,7 @@ namespace Electronic_Health_Record.Server.Controllers
         }
 
         // get specific wellness form with its child records
+        [Authorize]
         [HttpGet("{FormId}")]
         public async Task<IActionResult> GetWellnessForm(int FormId)
         {
@@ -43,7 +45,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 return StatusCode(500, "An error occurred while retrieving the wellness form.");
             }
         }
-
+        [Authorize]
         // create a wellness form
         // handles both footer buttons: "Save as Draft" sends Status="Draft", "Submit" sends Status="Submitted".
         // a draft only needs a PatientID; a submission also needs a PhysicianID.
