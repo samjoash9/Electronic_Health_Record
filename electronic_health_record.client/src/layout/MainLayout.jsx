@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Aside from './Aside';
-import Footer from './Footer';
+// import Footer from './Footer';
 
 export default function MainLayout() {
     return (
@@ -22,7 +22,7 @@ export default function MainLayout() {
                     </div>
 
                     <div className="mt-8">
-                        <Footer />
+                        {/* <Footer /> */}
                     </div>
                 </main>
             </div>

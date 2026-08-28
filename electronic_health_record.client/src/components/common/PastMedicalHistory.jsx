@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 
-export default function PastMedicalHistory({ data }) {
+export default function PastMedicalHistory({ data, onChange }) { // <--- Added onChange prop
     // State to manage dynamic rows
     const [records, setRecords] = useState([
         { id: 1, condition: '', year: '', drugs: '' }
@@ -20,24 +20,46 @@ export default function PastMedicalHistory({ data }) {
         }
     }, [data]);
 
+    // Helper to format and send data to parent
+    const notifyParent = (updatedRecords) => {
+        if (onChange) {
+            // Translating the UI state back to the DTO structure your C# API likely expects
+            const payload = updatedRecords.map(record => ({
+                pmhid: typeof record.id === 'number' && record.id < 1000000000000 ? record.id : 0,
+                conditionOther: record.condition,
+                yearDiagnosed: parseInt(record.year) || null,
+                maintenanceDrugGeneric: record.drugs,
+                dosage: '',
+                frequency: ''
+            }));
+            onChange(payload);
+        }
+    };
+
     const addRecord = () => {
-        setRecords([...records, { id: Date.now(), condition: '', year: '', drugs: '' }]);
+        const newRecords = [...records, { id: Date.now(), condition: '', year: '', drugs: '' }];
+        setRecords(newRecords);
+        notifyParent(newRecords); // <--- Sync with parent
     };
 
     const removeRecord = (id) => {
         if (records.length > 1) {
-            setRecords(records.filter(record => record.id !== id));
+            const newRecords = records.filter(record => record.id !== id);
+            setRecords(newRecords);
+            notifyParent(newRecords); // <--- Sync with parent
         }
     };
 
     // Handle typing in the inputs
     const handleInputChange = (id, field, value) => {
-        setRecords(records.map(record => {
+        const newRecords = records.map(record => {
             if (record.id === id) {
                 return { ...record, [field]: value };
             }
             return record;
-        }));
+        });
+        setRecords(newRecords);
+        notifyParent(newRecords); // <--- Sync with parent
     };
 
     return (
@@ -46,7 +68,7 @@ export default function PastMedicalHistory({ data }) {
             {/* Header Title */}
             <div className="bg-gray-50 p-3 border-b border-gray-200">
                 <h3 className="text-md font-bold text-gray-800">
-                    <i>Past Medical History</i>  
+                    <i>Past Medical History</i>
                 </h3>
             </div>
 

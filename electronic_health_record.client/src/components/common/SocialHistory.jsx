@@ -20,7 +20,7 @@ export default function SocialHistory({ data, onChange }) {
         }
     }, [data]);
 
-    // Helper to update state and bubble changes up if an onChange handler is provided
+    // Helper to update state and bubble changes up safely
     const handleChange = (field, value) => {
         if (field === 'smoking') setSmoking(value);
         if (field === 'drinkFreq') setDrinkFreq(value);
@@ -30,8 +30,16 @@ export default function SocialHistory({ data, onChange }) {
         if (field === 'exerciseType') setExerciseType(value);
 
         if (onChange) {
+            // Safely parse smoking to an integer or null for the C# backend
+            let parsedSmoking = field === 'smoking' ? value : smoking;
+            if (parsedSmoking === '') {
+                parsedSmoking = null;
+            } else if (parsedSmoking !== null && !isNaN(parsedSmoking)) {
+                parsedSmoking = parseInt(parsedSmoking, 10);
+            }
+
             onChange({
-                smokingSticksPerDay: field === 'smoking' ? value : smoking,
+                smokingSticksPerDay: parsedSmoking,
                 drinkFrequency: field === 'drinkFreq' ? value : drinkFreq,
                 drinksPerSession: field === 'drinksPerSession' ? value : drinksPerSession,
                 exerciseFrequency: field === 'exerciseFreq' ? value : exerciseFreq,
@@ -45,7 +53,7 @@ export default function SocialHistory({ data, onChange }) {
         <div className="border border-gray-200 rounded-lg overflow-hidden mb-6 shadow-xs">
             <div className="bg-gray-50 p-3 border-b border-gray-200">
                 <h3 className="text-md font-bold text-gray-800">
-                    <i>Social History</i> 
+                    <i>Social History</i>
                 </h3>
             </div>
 
