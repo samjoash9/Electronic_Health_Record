@@ -25,7 +25,7 @@ export default function DoctorsPage() {
     const fetchDoctors = async () => {
         setIsLoading(true);
         try {
-            const response = await axios.get('https://localhost:7165/api/Physicians');
+            const response = await axios.get('/api/Physicians');
             const data = Array.isArray(response.data) ? response.data : response.data.data || response.data.items || [];
             setDoctors(data);
         } catch (error) {
@@ -46,7 +46,7 @@ export default function DoctorsPage() {
 
         try {
             // Send the exact payload to the backend
-            await axios.post('https://localhost:7165/api/Physicians', formData);
+            await axios.post('/api/Physicians', formData);
 
             // Refresh list and reset form on success
             await fetchDoctors();
