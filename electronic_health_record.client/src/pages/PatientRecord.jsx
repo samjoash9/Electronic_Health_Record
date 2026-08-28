@@ -94,14 +94,15 @@ export default function PatientRecord() {
 
     const fetchPatients = () => {
         setIsLoading(true);
-        axios.get('http://localhost:5084/api/patients')
+        axios.get('/api/patients')
             .then(res => {
                 setPatients(Array.isArray(res.data) ? res.data : (res.data.data || []));
                 setIsLoading(false);
             })
             .catch(err => {
                 console.error("Failed to fetch patients:", err);
-                setError("Cannot connect to server. Ensure your C# API is running.");
+                const serverMessage = err.response?.data;
+                setError(typeof serverMessage === 'string' ? serverMessage : "Cannot connect to server. Ensure your C# API is running.");
                 setIsLoading(false);
             });
     };
@@ -134,7 +135,7 @@ export default function PatientRecord() {
     const handleSelectPatientForNewForm = async (patient) => {
         setIsSelectingPatient(false);
         try {
-            const res = await axios.get(`http://localhost:5084/api/WellnessForms/${patient.patientID}`);
+            const res = await axios.get(`/api/WellnessForms/${patient.patientID}`);
 
             if (res.data && res.data.form) {
                 setPendingPatient(patient);
@@ -151,7 +152,7 @@ export default function PatientRecord() {
     const handleFormSave = (message, type) => {
         setToast({ message, type });
         if (type === 'success') {
-            fetchPatients(); 
+            fetchPatients();
         }
     };
 
