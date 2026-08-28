@@ -53,10 +53,11 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+app.UseHttpsRedirection();
+
 // 3. Enable CORS Middleware (Must be before MapControllers)
 app.UseCors("AllowReactFrontend");
 
-app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapFallbackToFile("/index.html");

@@ -94,7 +94,7 @@ export default function PatientRecord() {
 
     const fetchPatients = () => {
         setIsLoading(true);
-        axios.get('http://localhost:5084/api/patients')
+        axios.get('https://localhost:7165/api/patients')
             .then(res => {
                 setPatients(Array.isArray(res.data) ? res.data : (res.data.data || []));
                 setIsLoading(false);
@@ -135,7 +135,7 @@ export default function PatientRecord() {
     const handleSelectPatientForNewForm = async (patient) => {
         setIsSelectingPatient(false);
         try {
-            const res = await axios.get(`http://localhost:5084/api/WellnessForms/${patient.patientID}`);
+            const res = await axios.get(`https://localhost:7165/api/WellnessForms/${patient.patientID}`);
 
             if (res.data && res.data.form) {
                 setPendingPatient(patient);
@@ -152,7 +152,7 @@ export default function PatientRecord() {
     const handleFormSave = (message, type) => {
         setToast({ message, type });
         if (type === 'success') {
-            fetchPatients(); 
+            fetchPatients();
         }
     };
 
