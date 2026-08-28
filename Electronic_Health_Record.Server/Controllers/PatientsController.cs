@@ -2,16 +2,13 @@
 using Microsoft.EntityFrameworkCore;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Models;
-using System.Runtime.InteropServices;
-using Microsoft.EntityFrameworkCore.Query;
 using Electronic_Health_Record.Server.DTOs.Patient;
-using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 
 
 namespace Electronic_Health_Record.Server.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")]  
     public class PatientsController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;

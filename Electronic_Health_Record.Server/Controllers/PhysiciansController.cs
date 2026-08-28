@@ -3,8 +3,6 @@ using Electronic_Health_Record.Server.DTOs.Physician;
 using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Electronic_Health_Record.Server.Controllers
 {
@@ -35,6 +33,22 @@ namespace Electronic_Health_Record.Server.Controllers
             {
                 _logger.LogError(e, "Failed to retrieve physicians.");
                 return StatusCode(500, "An error occurred while retrieving physicians.");
+            }
+        }
+
+        // GET count of physicians
+        [HttpGet("count")]
+        public async Task<IActionResult> GetPhysicianCount()
+        {
+            try
+            {
+                var count = await _context.Physicians.CountAsync();
+                return Ok(count);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to retrieve physicians count.");
+                return StatusCode(500, "An error occured while retrieving the physician count.");
             }
         }
 

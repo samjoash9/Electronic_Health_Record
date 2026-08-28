@@ -204,4 +204,3 @@ CREATE INDEX IX_PastMedicalHistory_ConditionID ON PastMedicalHistory (ConditionI
 */
 
 
-SELECT * FROM WellnessForm;

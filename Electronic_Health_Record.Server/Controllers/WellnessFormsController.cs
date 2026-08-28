@@ -1,8 +1,8 @@
+using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.DTOs.WellnessForm;
+using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Electronic_Health_Record.Server.Data;
-using Electronic_Health_Record.Server.Models;
-using Electronic_Health_Record.Server.DTOs.WellnessForm;
 
 namespace Electronic_Health_Record.Server.Controllers
 {
@@ -41,6 +41,22 @@ namespace Electronic_Health_Record.Server.Controllers
             {
                 _logger.LogError(e, "Failed to retrieve wellness form {FormId}.", FormId);
                 return StatusCode(500, "An error occurred while retrieving the wellness form.");
+            }
+        }
+
+        // GET count of health records
+        [HttpGet("count")]
+        public async Task<IActionResult> GetHealthRecordCount()
+        {
+            try
+            {
+                var count = await _context.WellnessForms.CountAsync();
+                return Ok(count);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to retrieve health record count.");
+                return StatusCode(500, "An error occurred while retrieving the wellness form count.");
             }
         }
 

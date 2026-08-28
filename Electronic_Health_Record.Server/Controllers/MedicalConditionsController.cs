@@ -1,6 +1,5 @@
-﻿using Electronic_Health_Record.Server.Models;
-using Microsoft.AspNetCore.Mvc;
-using static System.Net.WebRequestMethods;
+﻿using Microsoft.AspNetCore.Mvc;
+
 
 namespace Electronic_Health_Record.Server.Controllers
 {
