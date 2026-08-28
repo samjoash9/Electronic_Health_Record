@@ -115,6 +115,9 @@ namespace Electronic_Health_Record.Server.Data
                     PatientID = patient.PatientID,
                     PhysicianID = physician.PhysicianID,
                     Status = "Submitted",
+                    // a submitted form must be signed, so the seed carries a placeholder signature
+                    Signature = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+                    SignedAt = DateTime.UtcNow,
                     FormDate = DateTime.UtcNow.Date,
                     WeightKg = 75.5m,
                     HeightCm = 175.0m,
