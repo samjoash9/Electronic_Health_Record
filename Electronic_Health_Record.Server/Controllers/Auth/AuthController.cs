@@ -176,7 +176,6 @@ public class AuthController : ControllerBase
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
