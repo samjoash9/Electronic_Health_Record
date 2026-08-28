@@ -24,7 +24,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
             };
             let foundNone = false;
             let cancerText = '';
-            let otherText = '';
+            let otherText = []; // Changed to array to safely catch multiple 'other' conditions
 
             data.forEach(item => {
                 if (item.isNone) foundNone = true;
@@ -35,7 +35,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
                         cancerText = item.conditionOther;
                     } else {
                         newConditions.Others = true;
-                        otherText = item.conditionOther;
+                        otherText.push(item.conditionOther);
                     }
                 }
                 if (item.conditionID === 1) newConditions.Hypertension = true;
@@ -48,7 +48,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
             setIsNone(foundNone);
             setConditions(newConditions);
             setCancerDetails(cancerText);
-            setOtherDetails(otherText);
+            setOtherDetails(otherText.join(', ')); // Safely join multiple others
         }
     }, [data]);
 
@@ -67,7 +67,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
             if (updatedConds.Tuberculosis) formattedList.push({ conditionID: 4 });
             if (updatedConds.Asthma) formattedList.push({ conditionID: 5 });
             if (updatedConds.Cancer) formattedList.push({ conditionOther: updatedCancer || 'Cancer' });
-            if (updatedConds.Others) formattedList.push({ conditionOther: updatedOther });
+            if (updatedConds.Others && updatedOther.trim() !== '') formattedList.push({ conditionOther: updatedOther });
         }
 
         onChange(formattedList);
@@ -112,17 +112,17 @@ export default function FamilyMedicalHistory({ data, onChange }) {
         const isChecked = conditions[stateKey];
         return (
             <label
-                className={`flex items-center space-x-2 border p-2 rounded-md cursor-pointer transition-all duration-200 
+                className={`flex items-center space-x-2 border p-2 rounded-md transition-all duration-200 
                 ${isNone ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200'
-                        : isChecked ? 'bg-teal-50 border-teal-400 ring-1 ring-teal-400'
-                            : 'bg-white border-gray-200 hover:bg-teal-50/30'}`}
+                        : isChecked ? 'bg-teal-50 border-teal-400 ring-1 ring-teal-400 cursor-pointer'
+                            : 'bg-white border-gray-200 hover:bg-teal-50/30 cursor-pointer'}`}
             >
                 <input
                     type="checkbox"
                     checked={isChecked}
                     disabled={isNone}
                     onChange={() => handleConditionToggle(stateKey)}
-                    className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer"
+                    className={`rounded border-gray-300 text-teal-600 focus:ring-teal-500 w-4 h-4 ${isNone ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 />
                 <span className={`text-sm select-none ${isNone ? 'text-gray-400' : isChecked ? 'text-teal-900 font-medium' : 'text-gray-700'}`}>
                     {label}
@@ -135,7 +135,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
         <div className="border border-gray-200 rounded-lg overflow-hidden mb-6 shadow-xs">
             <div className="bg-gray-50 p-3 border-b border-gray-200">
                 <h3 className="text-md font-bold text-gray-800">
-                    <i>Family Medical History</i> 
+                    <i>Family Medical History</i>
                 </h3>
             </div>
 
@@ -169,7 +169,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
                         value={cancerDetails}
                         disabled={isNone || !conditions.Cancer}
                         onChange={(e) => handleTextChange('cancer', e.target.value)}
-                        className={`w-full p-2 border rounded-md text-sm transition-all ${isNone || !conditions.Cancer ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500 text-gray-700'}`}
+                        className={`w-full p-2 border rounded-md text-sm transition-all ${isNone || !conditions.Cancer ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500 text-gray-700 outline-none'}`}
                         placeholder="Specify Cancer type..."
                     />
                 </div>
@@ -181,7 +181,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
                         value={otherDetails}
                         disabled={isNone || !conditions.Others}
                         onChange={(e) => handleTextChange('other', e.target.value)}
-                        className={`w-full p-2 border rounded-md text-sm transition-all ${isNone || !conditions.Others ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500 text-gray-700'}`}
+                        className={`w-full p-2 border rounded-md text-sm transition-all ${isNone || !conditions.Others ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500 text-gray-700 outline-none'}`}
                         placeholder="Specify other conditions..."
                     />
                 </div>

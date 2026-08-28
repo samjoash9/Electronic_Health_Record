@@ -1,452 +1,429 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Electronic_Health_Record.Server.Data;
-using Electronic_Health_Record.Server.Models;
-using Electronic_Health_Record.Server.DTOs.WellnessForm;
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { X, Loader2 } from 'lucide-react';
+import VitalSigns from './VitalSigns';
+import PastMedicalHistory from './PastMedicalHistory';
+import FamilyMedicalHistory from './FamilyMedicalHistory';
+import SocialHistory from './SocialHistory';
+import RecommendedDiagnosticTest from './RecommendedDiagnosticTest';
+import PhysicianCertification from './PhysicianCertification';
+import CloseConfirmationModal from './CloseConfirmationModal';
 
-namespace Electronic_Health_Record.Server.Controllers
-{
-    [ApiController]
-    [Route("api/[controller]")]
-    public class WellnessFormsController : ControllerBase
-    {
-        private const string StatusDraft = "Draft";
-        private const string StatusSubmitted = "Submitted";
+export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
+    const isManualEntry = !phoData?.patientID && !phoData?.PatientID;
+    const [isLoading, setIsLoading] = useState(!isManualEntry);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showCloseModal, setShowCloseModal] = useState(false);
 
-        private readonly ElectronicHealthRecordDbContext _context;
-        private readonly ILogger<WellnessFormsController> _logger;
+    // Live state to track all clinical edits
+    const [clinicalData, setClinicalData] = useState({
+        form: {},
+        pastMedicalHistory: [],
+        familyMedicalHistory: [],
+        socialHistory: null
+    });
 
-        public WellnessFormsController(
-            ElectronicHealthRecordDbContext context,
-            ILogger<WellnessFormsController> logger)
-        {
-            _context = context;
-            _logger = logger;
+    const [patientInfo, setPatientInfo] = useState({
+        lastName: phoData?.lastName || phoData?.Surname || '',
+        firstName: phoData?.firstName || '',
+        middleName: phoData?.middleName || '',
+        birthdate: phoData?.birthdate ? phoData.birthdate.split('T')[0] : '',
+        age: phoData?.age || '',
+        sex: phoData?.sex || '',
+        civilStatus: phoData?.civilStatus || 'Single',
+        address: phoData?.address || '',
+    });
+
+    // Safely handle patient ID casing variations
+    const patientId = phoData?.patientID || phoData?.PatientID;
+
+    useEffect(() => {
+        if (!patientId) {
+            setIsLoading(false);
+            return;
         }
 
-        // get specific wellness form with its child records
-        [HttpGet("{FormId}")]
-        public async Task<IActionResult> GetWellnessForm(int FormId)
-        {
-            try
-            {
-                var form = await _context.WellnessForms.FindAsync(FormId);
+        setIsLoading(true);
+        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
+            .then(response => {
+                const resData = response.data || {};
+                setClinicalData({
+                    form: resData.form || {},
+                    pastMedicalHistory: resData.pastMedicalHistory || [],
+                    familyMedicalHistory: resData.familyMedicalHistory || [],
+                    socialHistory: resData.socialHistory || null
+                });
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.warn("Could not fetch specific wellness form, starting fresh.", err);
+                setIsLoading(false);
+            });
+    }, [phoData, patientId]);
 
-                if (form == null)
-                    return NotFound($"Wellness form with ID {FormId} was not found.");
+    const handlePatientInfoChange = (field, value) => {
+        setPatientInfo(prev => ({ ...prev, [field]: value }));
+    };
 
-                return Ok(await BuildFormResponseAsync(form));
+    const handleFormChange = (updatedFields) => {
+        setClinicalData(prev => ({ ...prev, form: { ...prev.form, ...updatedFields } }));
+    };
+
+    const handleSectionChange = (sectionName, data) => {
+        setClinicalData(prev => ({ ...prev, [sectionName]: data }));
+    };
+
+    const submitForm = async (targetStatus) => {
+        setIsSaving(true);
+        // Extract the exact form ID (if it exists)
+        const formId = clinicalData.form?.formID || clinicalData.form?.FormID;
+        const isNewForm = !formId || formId === 0;
+
+        // THE FIX: Flatten the payload! 
+        // By putting "...clinicalData.form" at the root, WeightKg, ImpressionClinical, 
+        // and Signature map perfectly to your C# UpdateWellnessFormDto properties.
+        const payload = {
+            ...clinicalData.form, 
+            
+            patientID: patientId || null, 
+            status: targetStatus,
+            formDate: new Date().toISOString(),
+            createdByAdminID: clinicalData.form?.createdByAdminID || 1,
+            updatedByAdminID: 1, // Add updatedByAdminID for the PUT DTO
+            
+            pastMedicalHistory: clinicalData.pastMedicalHistory || [],
+            familyMedicalHistory: clinicalData.familyMedicalHistory || [],
+            socialHistory: clinicalData.socialHistory || null
+        };
+
+        try {
+            if (isManualEntry || isNewForm || !patientId) {
+                // CREATE (POST)
+                const response = await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
+                if (response.data && response.data.form) {
+                    setClinicalData(prev => ({ ...prev, form: response.data.form }));
+                }
+                if (onSave) onSave(`New wellness record successfully created and marked as ${targetStatus}!`, 'success');
+            } else {
+                // UPDATE (PUT) - Ensure we are targeting the FormId in the URL, not the PatientId!
+                await axios.put(`http://localhost:5084/api/WellnessForms/${formId}`, payload);
+                if (onSave) onSave(`Wellness record successfully updated as ${targetStatus}!`, 'success');
             }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Failed to retrieve wellness form {FormId}.", FormId);
-                return StatusCode(500, "An error occurred while retrieving the wellness form.");
-            }
+            onCancel();
+        } catch (error) {
+            console.error("Failed to save wellness record:", error);
+            if (onSave) onSave("Error saving record. Please verify your backend server connection.", 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const formStatus = clinicalData.form?.status || 'Draft';
+    const isSubmitted = formStatus.toLowerCase() === 'saved' || formStatus.toLowerCase() === 'submitted';
+
+    const handleCloseClick = () => {
+        setShowCloseModal(true);
+    };
+
+    return (
+        <div className="w-full max-w-5xl mx-auto bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-10 relative">
+            <CloseConfirmationModal isOpen={showCloseModal} onConfirm={onCancel} onCancel={() => setShowCloseModal(false)} />
+
+            <div className="p-4 border-b border-gray-200 bg-[#0F2756] text-white flex justify-between items-center">
+                <div className="flex items-center space-x-3">
+                    <h2 className="text-xl font-bold tracking-wide uppercase">Electronic Health Care Wellness Record</h2>
+                    <span className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-full shadow-2xs ${isSubmitted ? 'bg-emerald-500 text-white' : 'bg-gray-400 text-gray-900'}`}>
+                        {formStatus}
+                    </span>
+                </div>
+                <button onClick={handleCloseClick} className="hover:bg-blue-800 p-1 rounded-md transition-colors cursor-pointer">
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+
+            <div className="p-6">
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-teal-600 mb-2" />
+                        <p className="text-sm text-gray-500">Loading patient clinical details...</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
+                            <div className="bg-gray-50 p-3 border-b border-gray-200">
+                                <h3 className="text-md font-bold text-gray-800">
+                                    <i>Patient Information</i> {isManualEntry && <span className="text-xs text-teal-600 font-normal">(New Manual Entry)</span>}
+                                </h3>
+                            </div>
+                            <div className="p-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Surname</label><input type="text" value={patientInfo.lastName} onChange={(e) => handlePatientInfoChange('lastName', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">First Name</label><input type="text" value={patientInfo.firstName} onChange={(e) => handlePatientInfoChange('firstName', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Middle Name</label><input type="text" value={patientInfo.middleName} onChange={(e) => handlePatientInfoChange('middleName', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Birthdate</label><input type="date" value={patientInfo.birthdate} onChange={(e) => handlePatientInfoChange('birthdate', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Age</label><input type="number" value={patientInfo.age} onChange={(e) => handlePatientInfoChange('age', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Sex</label><input type="text" value={patientInfo.sex} onChange={(e) => handlePatientInfoChange('sex', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Civil Status</label><input type="text" value={patientInfo.civilStatus} onChange={(e) => handlePatientInfoChange('civilStatus', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div className="md:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Address</label><input type="text" value={patientInfo.address} onChange={(e) => handlePatientInfoChange('address', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                            </div>
+                        </div>
+
+                        {/* Clinical Sections */}
+                        <VitalSigns
+                            data={clinicalData.form}
+                            onChange={(vitals) => handleFormChange(vitals)}
+                        />
+                        <PastMedicalHistory
+                            data={clinicalData.pastMedicalHistory}
+                            onChange={(data) => handleSectionChange('pastMedicalHistory', data)}
+                        />
+                        <FamilyMedicalHistory
+                            data={clinicalData.familyMedicalHistory}
+                            onChange={(data) => handleSectionChange('familyMedicalHistory', data)}
+                        />
+                        <SocialHistory
+                            data={clinicalData.socialHistory}
+                            onChange={(data) => handleSectionChange('socialHistory', data)}
+                        />
+                        <RecommendedDiagnosticTest
+                            data={clinicalData.form}
+                            onChange={(data) => handleFormChange(data)}
+                        />
+                        <PhysicianCertification
+                            data={clinicalData.form}
+                            onChange={(data) => handleFormChange(data)}
+                        />
+                    </>
+                )}
+
+                {/* Footer Buttons */}
+                <div className="flex flex-col sm:flex-row justify-between items-center pt-6 mt-6 border-t border-gray-200 space-y-3 sm:space-y-0 sm:space-x-3">
+                    <button onClick={() => submitForm('Submitted')} disabled={isSaving} className="uppercase w-full sm:w-auto flex-1 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-bold shadow-sm cursor-pointer flex items-center justify-center">
+                        {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Submit
+                    </button>
+                    <div className="flex space-x-3 w-full sm:w-auto">
+                        <button onClick={() => submitForm('Draft')} disabled={isSaving} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center">
+                            Save as Draft
+                        </button>
+                        <button onClick={handleCloseClick} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { X, Loader2 } from 'lucide-react';
+import VitalSigns from './VitalSigns';
+import PastMedicalHistory from './PastMedicalHistory';
+import FamilyMedicalHistory from './FamilyMedicalHistory';
+import SocialHistory from './SocialHistory';
+import RecommendedDiagnosticTest from './RecommendedDiagnosticTest';
+import PhysicianCertification from './PhysicianCertification';
+import CloseConfirmationModal from './CloseConfirmationModal';
+
+export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
+    const isManualEntry = !phoData?.patientID && !phoData?.PatientID;
+    const [isLoading, setIsLoading] = useState(!isManualEntry);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showCloseModal, setShowCloseModal] = useState(false);
+
+    // Live state to track all clinical edits
+    const [clinicalData, setClinicalData] = useState({
+        form: {},
+        pastMedicalHistory: [],
+        familyMedicalHistory: [],
+        socialHistory: null
+    });
+
+    const [patientInfo, setPatientInfo] = useState({
+        lastName: phoData?.lastName || phoData?.Surname || '',
+        firstName: phoData?.firstName || '',
+        middleName: phoData?.middleName || '',
+        birthdate: phoData?.birthdate ? phoData.birthdate.split('T')[0] : '',
+        age: phoData?.age || '',
+        sex: phoData?.sex || '',
+        civilStatus: phoData?.civilStatus || 'Single',
+        address: phoData?.address || '',
+    });
+
+    // Safely handle patient ID casing variations
+    const patientId = phoData?.patientID || phoData?.PatientID;
+
+    useEffect(() => {
+        if (!patientId) {
+            setIsLoading(false);
+            return;
         }
 
-        // create a wellness form
-        // handles both footer buttons: "Save as Draft" sends Status="Draft", "Submit" sends Status="Submitted".
-        // a draft only needs a PatientID; a submission also needs a PhysicianID.
-        [HttpPost("")]
-        public async Task<IActionResult> CreateWellnessForm([FromBody] CreateWellnessFormDto dto)
-        {
-            // check if input is valid
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+        setIsLoading(true);
+        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
+            .then(response => {
+                const resData = response.data || {};
+                setClinicalData({
+                    form: resData.form || {},
+                    pastMedicalHistory: resData.pastMedicalHistory || [],
+                    familyMedicalHistory: resData.familyMedicalHistory || [],
+                    socialHistory: resData.socialHistory || null
+                });
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.warn("Could not fetch specific wellness form, starting fresh.", err);
+                setIsLoading(false);
+            });
+    }, [phoData, patientId]);
 
-            var isSubmit = dto.Status == StatusSubmitted;
+    const handlePatientInfoChange = (field, value) => {
+        setPatientInfo(prev => ({ ...prev, [field]: value }));
+    };
 
-            try
-            {
-                if (!await _context.Patients.AnyAsync(p => p.PatientID == dto.PatientID))
-                    return BadRequest($"Patient with ID {dto.PatientID} was not found.");
+    const handleFormChange = (updatedFields) => {
+        setClinicalData(prev => ({ ...prev, form: { ...prev.form, ...updatedFields } }));
+    };
 
-                // physician is required on submit, optional on draft
-                if (dto.PhysicianID.HasValue)
-                {
-                    if (!await _context.Physicians.AnyAsync(p => p.PhysicianID == dto.PhysicianID.Value))
-                        return BadRequest($"Physician with ID {dto.PhysicianID.Value} was not found.");
+    const handleSectionChange = (sectionName, data) => {
+        setClinicalData(prev => ({ ...prev, [sectionName]: data }));
+    };
+
+    const submitForm = async (targetStatus) => {
+        setIsSaving(true);
+        // Extract the exact form ID (if it exists)
+        const formId = clinicalData.form?.formID || clinicalData.form?.FormID;
+        const isNewForm = !formId || formId === 0;
+
+        // THE FIX: Flatten the payload! 
+        // By putting "...clinicalData.form" at the root, WeightKg, ImpressionClinical, 
+        // and Signature map perfectly to your C# UpdateWellnessFormDto properties.
+        const payload = {
+            ...clinicalData.form, 
+            
+            patientID: patientId || null, 
+            status: targetStatus,
+            formDate: new Date().toISOString(),
+            createdByAdminID: clinicalData.form?.createdByAdminID || 1,
+            updatedByAdminID: 1, // Add updatedByAdminID for the PUT DTO
+            
+            pastMedicalHistory: clinicalData.pastMedicalHistory || [],
+            familyMedicalHistory: clinicalData.familyMedicalHistory || [],
+            socialHistory: clinicalData.socialHistory || null
+        };
+
+        try {
+            if (isManualEntry || isNewForm || !patientId) {
+                // CREATE (POST)
+                const response = await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
+                if (response.data && response.data.form) {
+                    setClinicalData(prev => ({ ...prev, form: response.data.form }));
                 }
-                else if (isSubmit)
-                {
-                    return BadRequest("PhysicianID is required when submitting a wellness form.");
-                }
-
-                // a submitted form is a finalized clinical record, so it must carry the physician's signature
-                if (isSubmit && string.IsNullOrWhiteSpace(dto.Signature))
-                    return BadRequest("Signature is required when submitting a wellness form.");
-
-                if (dto.CreatedByAdminID.HasValue &&
-                    !await _context.Admins.AnyAsync(a => a.AdminID == dto.CreatedByAdminID.Value))
-                {
-                    return BadRequest($"Admin with ID {dto.CreatedByAdminID.Value} was not found.");
-                }
-
-                // the UI always renders one blank Past Medical History row, so drop rows the user never filled in
-                var pastHistory = dto.PastMedicalHistory
-                    .Where(p => p.ConditionID.HasValue
-                             || !string.IsNullOrWhiteSpace(p.ConditionOther)
-                             || p.YearDiagnosed.HasValue
-                             || !string.IsNullOrWhiteSpace(p.MaintenanceDrugGeneric))
-                    .ToList();
-
-                // likewise for the family history checkbox grid: keep checked conditions and the "None" row only
-                var familyHistory = dto.FamilyMedicalHistory
-                    .Where(f => f.ConditionID.HasValue
-                             || !string.IsNullOrWhiteSpace(f.ConditionOther)
-                             || f.IsNone == true)
-                    .ToList();
-
-                // fail fast on unknown conditions instead of letting the FK blow up mid-transaction
-                var conditionIds = pastHistory.Where(p => p.ConditionID.HasValue).Select(p => p.ConditionID!.Value)
-                    .Concat(familyHistory.Where(f => f.ConditionID.HasValue).Select(f => f.ConditionID!.Value))
-                    .Distinct()
-                    .ToList();
-
-                if (conditionIds.Count > 0)
-                {
-                    var knownIds = await _context.MedicalConditions
-                        .Where(c => conditionIds.Contains(c.ConditionID))
-                        .Select(c => c.ConditionID)
-                        .ToListAsync();
-
-                    var unknownIds = conditionIds.Except(knownIds).ToList();
-                    if (unknownIds.Count > 0)
-                        return BadRequest($"Unknown medical condition ID(s): {string.Join(", ", unknownIds)}.");
-                }
-
-                await using var transaction = await _context.Database.BeginTransactionAsync();
-
-                try
-                {
-                    var form = new WellnessForm
-                    {
-                        PatientID = dto.PatientID,
-                        PhysicianID = dto.PhysicianID,
-                        Status = isSubmit ? StatusSubmitted : StatusDraft,
-                        Signature = dto.Signature,
-                        SignedAt = string.IsNullOrWhiteSpace(dto.Signature) ? null : DateTime.UtcNow,
-                        WeightKg = dto.WeightKg,
-                        HeightCm = dto.HeightCm,
-                        BMI = dto.BMI,
-                        IdealBMI = dto.IdealBMI,
-                        BPSystolic = dto.BPSystolic,
-                        BPDiastolic = dto.BPDiastolic,
-                        TempCelsius = dto.TempCelsius,
-                        HeartRate = dto.HeartRate,
-                        RespRate = dto.RespRate,
-                        RecommendedDiagnosticTest = dto.RecommendedDiagnosticTest,
-                        ImpressionClinical = dto.ImpressionClinical,
-                        ManagementTreatment = dto.ManagementTreatment,
-                        CreatedByAdminID = dto.CreatedByAdminID
-                        // for the CreatedAt and UpdatedAt is handled by DB defaults
-                    };
-
-                    // left unset so the DB default (today's date) applies
-                    if (dto.FormDate.HasValue)
-                        form.FormDate = dto.FormDate.Value;
-
-                    _context.WellnessForms.Add(form);
-                    await _context.SaveChangesAsync(); // assigns FormID for the child rows below
-
-                    foreach (var item in pastHistory)
-                    {
-                        _context.PastMedicalHistories.Add(new PastMedicalHistory
-                        {
-                            FormID = form.FormID,
-                            ConditionID = item.ConditionID,
-                            ConditionOther = item.ConditionOther,
-                            YearDiagnosed = item.YearDiagnosed,
-                            MaintenanceDrugGeneric = item.MaintenanceDrugGeneric,
-                            Dosage = item.Dosage,
-                            Frequency = item.Frequency
-                        });
-                    }
-
-                    foreach (var item in familyHistory)
-                    {
-                        _context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
-                        {
-                            FormID = form.FormID,
-                            ConditionID = item.ConditionID,
-                            ConditionOther = item.ConditionOther,
-                            IsNone = item.IsNone ?? false
-                        });
-                    }
-
-                    if (dto.SocialHistory != null)
-                    {
-                        _context.SocialHistories.Add(new SocialHistory
-                        {
-                            FormID = form.FormID,
-                            SmokingSticksPerDay = dto.SocialHistory.SmokingSticksPerDay,
-                            AlcoholType = dto.SocialHistory.AlcoholType,
-                            DrinkFrequency = dto.SocialHistory.DrinkFrequency,
-                            DrinksPerSession = dto.SocialHistory.DrinksPerSession,
-                            HasBeenDrunk = dto.SocialHistory.HasBeenDrunk,
-                            DrunkFrequency = dto.SocialHistory.DrunkFrequency,
-                            ExerciseFrequency = dto.SocialHistory.ExerciseFrequency,
-                            ExerciseType = dto.SocialHistory.ExerciseType
-                        });
-                    }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return CreatedAtAction(
-                            nameof(GetWellnessForm),
-                            new { FormId = form.FormID },
-                            await BuildFormResponseAsync(form));
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                if (onSave) onSave(`New wellness record successfully created and marked as ${targetStatus}!`, 'success');
+            } else {
+                // UPDATE (PUT) - Ensure we are targeting the FormId in the URL, not the PatientId!
+                await axios.put(`http://localhost:5084/api/WellnessForms/${formId}`, payload);
+                if (onSave) onSave(`Wellness record successfully updated as ${targetStatus}!`, 'success');
             }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Failed to create wellness form for patient {PatientID}.", dto.PatientID);
-                return StatusCode(500, "An error occurred while creating the wellness form.");
-            }
+            onCancel();
+        } catch (error) {
+            console.error("Failed to save wellness record:", error);
+            if (onSave) onSave("Error saving record. Please verify your backend server connection.", 'error');
+        } finally {
+            setIsSaving(false);
         }
+    };
 
-        // full update of a wellness form (edit a draft, or promote a draft to Submitted).
-        // checkbox-style child rows (Past/Family Medical History) are sent as the complete
-        // current set, so the existing rows are replaced wholesale rather than merged —
-        // an unchecked condition (e.g. Stroke, Diabetes Mellitus) must disappear, not linger.
-        [HttpPut("{FormId}")]
-        public async Task<IActionResult> UpdateWellnessForm(int FormId, [FromBody] UpdateWellnessFormDto dto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+    const formStatus = clinicalData.form?.status || 'Draft';
+    const isSubmitted = formStatus.toLowerCase() === 'saved' || formStatus.toLowerCase() === 'submitted';
 
-            var isSubmit = dto.Status == StatusSubmitted;
+    const handleCloseClick = () => {
+        setShowCloseModal(true);
+    };
 
-            try
-            {
-                var form = await _context.WellnessForms.FindAsync(FormId);
-                if (form == null)
-                    return NotFound($"Wellness form with ID {FormId} was not found.");
+    return (
+        <div className="w-full max-w-5xl mx-auto bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-10 relative">
+            <CloseConfirmationModal isOpen={showCloseModal} onConfirm={onCancel} onCancel={() => setShowCloseModal(false)} />
 
-                if (!await _context.Patients.AnyAsync(p => p.PatientID == dto.PatientID))
-                    return BadRequest($"Patient with ID {dto.PatientID} was not found.");
+            <div className="p-4 border-b border-gray-200 bg-[#0F2756] text-white flex justify-between items-center">
+                <div className="flex items-center space-x-3">
+                    <h2 className="text-xl font-bold tracking-wide uppercase">Electronic Health Care Wellness Record</h2>
+                    <span className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-full shadow-2xs ${isSubmitted ? 'bg-emerald-500 text-white' : 'bg-gray-400 text-gray-900'}`}>
+                        {formStatus}
+                    </span>
+                </div>
+                <button onClick={handleCloseClick} className="hover:bg-blue-800 p-1 rounded-md transition-colors cursor-pointer">
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
 
-                // physician is required on submit, optional on draft
-                if (dto.PhysicianID.HasValue)
-                {
-                    if (!await _context.Physicians.AnyAsync(p => p.PhysicianID == dto.PhysicianID.Value))
-                        return BadRequest($"Physician with ID {dto.PhysicianID.Value} was not found.");
-                }
-                else if (isSubmit)
-                {
-                    return BadRequest("PhysicianID is required when submitting a wellness form.");
-                }
+            <div className="p-6">
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-teal-600 mb-2" />
+                        <p className="text-sm text-gray-500">Loading patient clinical details...</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
+                            <div className="bg-gray-50 p-3 border-b border-gray-200">
+                                <h3 className="text-md font-bold text-gray-800">
+                                    <i>Patient Information</i> {isManualEntry && <span className="text-xs text-teal-600 font-normal">(New Manual Entry)</span>}
+                                </h3>
+                            </div>
+                            <div className="p-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Surname</label><input type="text" value={patientInfo.lastName} onChange={(e) => handlePatientInfoChange('lastName', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">First Name</label><input type="text" value={patientInfo.firstName} onChange={(e) => handlePatientInfoChange('firstName', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Middle Name</label><input type="text" value={patientInfo.middleName} onChange={(e) => handlePatientInfoChange('middleName', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Birthdate</label><input type="date" value={patientInfo.birthdate} onChange={(e) => handlePatientInfoChange('birthdate', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Age</label><input type="number" value={patientInfo.age} onChange={(e) => handlePatientInfoChange('age', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Sex</label><input type="text" value={patientInfo.sex} onChange={(e) => handlePatientInfoChange('sex', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Civil Status</label><input type="text" value={patientInfo.civilStatus} onChange={(e) => handlePatientInfoChange('civilStatus', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                                <div className="md:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Address</label><input type="text" value={patientInfo.address} onChange={(e) => handlePatientInfoChange('address', e.target.value)} disabled={!isManualEntry} className={`w-full p-2 border rounded-md text-sm ${!isManualEntry ? 'bg-gray-100 text-gray-500' : 'bg-white border-gray-300 focus:ring-2 focus:ring-teal-500'}`} /></div>
+                            </div>
+                        </div>
 
-                // a submitted form is a finalized clinical record, so it must carry the physician's signature
-                if (isSubmit && string.IsNullOrWhiteSpace(dto.Signature))
-                    return BadRequest("Signature is required when submitting a wellness form.");
+                        {/* Clinical Sections */}
+                        <VitalSigns
+                            data={clinicalData.form}
+                            onChange={(vitals) => handleFormChange(vitals)}
+                        />
+                        <PastMedicalHistory
+                            data={clinicalData.pastMedicalHistory}
+                            onChange={(data) => handleSectionChange('pastMedicalHistory', data)}
+                        />
+                        <FamilyMedicalHistory
+                            data={clinicalData.familyMedicalHistory}
+                            onChange={(data) => handleSectionChange('familyMedicalHistory', data)}
+                        />
+                        <SocialHistory
+                            data={clinicalData.socialHistory}
+                            onChange={(data) => handleSectionChange('socialHistory', data)}
+                        />
+                        <RecommendedDiagnosticTest
+                            data={clinicalData.form}
+                            onChange={(data) => handleFormChange(data)}
+                        />
+                        <PhysicianCertification
+                            data={clinicalData.form}
+                            onChange={(data) => handleFormChange(data)}
+                        />
+                    </>
+                )}
 
-                if (dto.UpdatedByAdminID.HasValue &&
-                    !await _context.Admins.AnyAsync(a => a.AdminID == dto.UpdatedByAdminID.Value))
-                {
-                    return BadRequest($"Admin with ID {dto.UpdatedByAdminID.Value} was not found.");
-                }
-
-                // the UI always renders one blank Past Medical History row, so drop rows the user never filled in
-                var pastHistory = dto.PastMedicalHistory
-                    .Where(p => p.ConditionID.HasValue
-                             || !string.IsNullOrWhiteSpace(p.ConditionOther)
-                             || p.YearDiagnosed.HasValue
-                             || !string.IsNullOrWhiteSpace(p.MaintenanceDrugGeneric))
-                    .ToList();
-
-                // likewise for the family history checkbox grid: keep checked conditions and the "None" row only
-                var familyHistory = dto.FamilyMedicalHistory
-                    .Where(f => f.ConditionID.HasValue
-                             || !string.IsNullOrWhiteSpace(f.ConditionOther)
-                             || f.IsNone == true)
-                    .ToList();
-
-                // fail fast on unknown conditions instead of letting the FK blow up mid-transaction
-                var conditionIds = pastHistory.Where(p => p.ConditionID.HasValue).Select(p => p.ConditionID!.Value)
-                    .Concat(familyHistory.Where(f => f.ConditionID.HasValue).Select(f => f.ConditionID!.Value))
-                    .Distinct()
-                    .ToList();
-
-                if (conditionIds.Count > 0)
-                {
-                    var knownIds = await _context.MedicalConditions
-                        .Where(c => conditionIds.Contains(c.ConditionID))
-                        .Select(c => c.ConditionID)
-                        .ToListAsync();
-
-                    var unknownIds = conditionIds.Except(knownIds).ToList();
-                    if (unknownIds.Count > 0)
-                        return BadRequest($"Unknown medical condition ID(s): {string.Join(", ", unknownIds)}.");
-                }
-
-                await using var transaction = await _context.Database.BeginTransactionAsync();
-
-                try
-                {
-                    form.PatientID = dto.PatientID;
-                    form.PhysicianID = dto.PhysicianID;
-                    form.Status = isSubmit ? StatusSubmitted : StatusDraft;
-
-                    // only re-stamp SignedAt when the signature actually changes, so re-saving an
-                    // already-signed form keeps the original signing time
-                    if (form.Signature != dto.Signature)
-                        form.SignedAt = string.IsNullOrWhiteSpace(dto.Signature) ? null : DateTime.UtcNow;
-                    form.Signature = dto.Signature;
-
-                    form.WeightKg = dto.WeightKg;
-                    form.HeightCm = dto.HeightCm;
-                    form.BMI = dto.BMI;
-                    form.IdealBMI = dto.IdealBMI;
-                    form.BPSystolic = dto.BPSystolic;
-                    form.BPDiastolic = dto.BPDiastolic;
-                    form.TempCelsius = dto.TempCelsius;
-                    form.HeartRate = dto.HeartRate;
-                    form.RespRate = dto.RespRate;
-                    form.RecommendedDiagnosticTest = dto.RecommendedDiagnosticTest;
-                    form.ImpressionClinical = dto.ImpressionClinical;
-                    form.ManagementTreatment = dto.ManagementTreatment;
-                    form.UpdatedByAdminID = dto.UpdatedByAdminID;
-                    form.UpdatedAt = DateTime.UtcNow;
-
-                    if (dto.FormDate.HasValue)
-                        form.FormDate = dto.FormDate.Value;
-
-                    // replace child rows wholesale: delete the existing set, then insert the current one
-                    var oldPastHistory = _context.PastMedicalHistories.Where(p => p.FormID == FormId);
-                    var oldFamilyHistory = _context.FamilyMedicalHistories.Where(f => f.FormID == FormId);
-                    var oldSocialHistory = _context.SocialHistories.Where(s => s.FormID == FormId);
-
-                    _context.PastMedicalHistories.RemoveRange(oldPastHistory);
-                    _context.FamilyMedicalHistories.RemoveRange(oldFamilyHistory);
-                    _context.SocialHistories.RemoveRange(oldSocialHistory);
-
-                    foreach (var item in pastHistory)
-                    {
-                        _context.PastMedicalHistories.Add(new PastMedicalHistory
-                        {
-                            FormID = FormId,
-                            ConditionID = item.ConditionID,
-                            ConditionOther = item.ConditionOther,
-                            YearDiagnosed = item.YearDiagnosed,
-                            MaintenanceDrugGeneric = item.MaintenanceDrugGeneric,
-                            Dosage = item.Dosage,
-                            Frequency = item.Frequency
-                        });
-                    }
-
-                    foreach (var item in familyHistory)
-                    {
-                        _context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
-                        {
-                            FormID = FormId,
-                            ConditionID = item.ConditionID,
-                            ConditionOther = item.ConditionOther,
-                            IsNone = item.IsNone ?? false
-                        });
-                    }
-
-                    if (dto.SocialHistory != null)
-                    {
-                        _context.SocialHistories.Add(new SocialHistory
-                        {
-                            FormID = FormId,
-                            SmokingSticksPerDay = dto.SocialHistory.SmokingSticksPerDay,
-                            AlcoholType = dto.SocialHistory.AlcoholType,
-                            DrinkFrequency = dto.SocialHistory.DrinkFrequency,
-                            DrinksPerSession = dto.SocialHistory.DrinksPerSession,
-                            HasBeenDrunk = dto.SocialHistory.HasBeenDrunk,
-                            DrunkFrequency = dto.SocialHistory.DrunkFrequency,
-                            ExerciseFrequency = dto.SocialHistory.ExerciseFrequency,
-                            ExerciseType = dto.SocialHistory.ExerciseType
-                        });
-                    }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return Ok(await BuildFormResponseAsync(form));
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Failed to update wellness form {FormId}.", FormId);
-                return StatusCode(500, "An error occurred while updating the wellness form.");
-            }
-        }
-
-        // DELETE /api/wellnessforms/:id → discard a draft
-        // DELETE /api/wellnessforms/:id → discard a draft.
-        // only drafts can be deleted; a submitted form is a finalized clinical record.
-        [HttpDelete("{FormId}")]
-        public async Task<IActionResult> DeleteWellnessForm(int FormId)
-        {
-            try
-            {
-                var form = await _context.WellnessForms.FindAsync(FormId);
-                if (form == null)
-                    return NotFound($"Wellness form with ID {FormId} was not found.");
-
-                if (form.Status != StatusDraft)
-                    return BadRequest("Only draft wellness forms can be deleted.");
-
-                await using var transaction = await _context.Database.BeginTransactionAsync();
-
-                try
-                {
-                    var pastHistory = _context.PastMedicalHistories.Where(p => p.FormID == FormId);
-                    var familyHistory = _context.FamilyMedicalHistories.Where(f => f.FormID == FormId);
-                    var socialHistory = _context.SocialHistories.Where(s => s.FormID == FormId);
-
-                    _context.PastMedicalHistories.RemoveRange(pastHistory);
-                    _context.FamilyMedicalHistories.RemoveRange(familyHistory);
-                    _context.SocialHistories.RemoveRange(socialHistory);
-
-                    _context.WellnessForms.Remove(form);
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return NoContent();
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Failed to delete wellness form {FormId}.", FormId);
-                return StatusCode(500, "An error occurred while deleting the wellness form.");
-            }
-        }
-
-        private async Task<object> BuildFormResponseAsync(WellnessForm form)
-        {
-            return new
-            {
-                form,
-                pastMedicalHistory = await _context.PastMedicalHistories
-                    .Where(p => p.FormID == form.FormID)
-                    .ToListAsync(),
-                familyMedicalHistory = await _context.FamilyMedicalHistories
-                    .Where(f => f.FormID == form.FormID)
-                    .ToListAsync(),
-                socialHistory = await _context.SocialHistories
-                    .FirstOrDefaultAsync(s => s.FormID == form.FormID)
-            };
-        }
-    }
+                {/* Footer Buttons */}
+                <div className="flex flex-col sm:flex-row justify-between items-center pt-6 mt-6 border-t border-gray-200 space-y-3 sm:space-y-0 sm:space-x-3">
+                    <button onClick={() => submitForm('Submitted')} disabled={isSaving} className="uppercase w-full sm:w-auto flex-1 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-bold shadow-sm cursor-pointer flex items-center justify-center">
+                        {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Submit
+                    </button>
+                    <div className="flex space-x-3 w-full sm:w-auto">
+                        <button onClick={() => submitForm('Draft')} disabled={isSaving} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center">
+                            Save as Draft
+                        </button>
+                        <button onClick={handleCloseClick} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
