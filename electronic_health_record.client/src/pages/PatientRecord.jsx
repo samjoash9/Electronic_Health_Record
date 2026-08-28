@@ -101,7 +101,8 @@ export default function PatientRecord() {
             })
             .catch(err => {
                 console.error("Failed to fetch patients:", err);
-                setError("Cannot connect to server. Ensure your C# API is running.");
+                const serverMessage = err.response?.data;
+                setError(typeof serverMessage === 'string' ? serverMessage : "Cannot connect to server. Ensure your C# API is running.");
                 setIsLoading(false);
             });
     };
