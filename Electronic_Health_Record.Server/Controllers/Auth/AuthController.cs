@@ -175,5 +175,33 @@ public class AuthController : ControllerBase
 
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var authHeader = Request.Headers.Authorization.ToString();
+
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            return Unauthorized(new { message = "Token is missing." });
+
+        var token = authHeader["Bearer ".Length..].Trim();
+        var tokenHash = HashToken(token);
+
+        var session = await _db.AdminSessions
+            .AsTracking()   // ensure EF tracks this entity for the update
+            .FirstOrDefaultAsync(s => s.TokenHash == tokenHash);
+
+        if (session == null)
+            return NotFound(new { message = "Session not found." });
+
+        if (session.RevokedAt != null)
+            return Ok(new { message = "Already logged out." });
+
+        session.RevokedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Logged out successfully." });
+    }
 }
 

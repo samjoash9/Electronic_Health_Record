@@ -1,5 +1,8 @@
 using Scalar.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Services;
 
@@ -11,18 +14,39 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<ElectronicHealthRecordDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
 builder.Services.AddOpenApi();
 
 // Register application services
 builder.Services.AddScoped<TokenService>();
 
-var app = builder.Build();
-
-
-
-// Configure JWT authentication using settings from appsettings.json
+// --- JWT authentication ---
 var jwtSection = builder.Configuration.GetSection("Jwt");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSection["Issuer"],
+        ValidAudience = jwtSection["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtSection["Key"]!))
+    };
+});
+
+builder.Services.AddAuthorization();
+// --- end JWT authentication ---
+
+var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -41,7 +65,6 @@ using (var scope = app.Services.CreateScope())
 app.UseDefaultFiles();
 app.MapStaticAssets();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -50,6 +73,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();   // <-- added: must come before UseAuthorization
 app.UseAuthorization();
 
 app.MapControllers();
