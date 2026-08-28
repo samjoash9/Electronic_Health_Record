@@ -298,7 +298,7 @@ export default function PatientRecord() {
                                             </span>
                                         </td>
                                         <td className="py-4 px-4"><span className="text-sm font-medium text-gray-600">{patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></td>
-                                        <td className="py-4 px-4"><span className="inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full bg-emerald-100 text-emerald-700">Saved</span></td>
+                                        <td className="py-4 px-4"><span className="inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full bg-emerald-100 text-emerald-700">Completed</span></td>
                                         <td className="py-4 px-4"><button onClick={(e) => e.stopPropagation()} className="text-gray-500 hover:text-teal-600 hover:bg-teal-50 p-1.5 rounded-lg transition-colors"><MoreVertical className="w-5 h-5" /></button></td>
                                     </tr>
                                 ))
