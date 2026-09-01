@@ -24,20 +24,29 @@ export default function FamilyMedicalHistory({ data, onChange }) {
             };
             let foundNone = false;
             let cancerText = '';
-            let otherText = []; // Changed to array to safely catch multiple 'other' conditions
+            let otherText = [];
 
             data.forEach(item => {
                 if (item.isNone) foundNone = true;
-                if (item.conditionOther) {
+
+                // FIX 1: Safely check for string type to prevent dropping empty fields
+                if (typeof item.conditionOther === 'string') {
                     const text = item.conditionOther.toLowerCase();
-                    if (text.includes('cancer')) {
+
+                    if (text === 'cancer' || text.includes('cancer')) {
                         newConditions.Cancer = true;
-                        cancerText = item.conditionOther;
+                        // Prevent the input from auto-filling with the backend fallback string
+                        if (text !== 'cancer') {
+                            cancerText = item.conditionOther;
+                        }
                     } else {
                         newConditions.Others = true;
-                        otherText.push(item.conditionOther);
+                        if (item.conditionOther.trim() !== '') {
+                            otherText.push(item.conditionOther);
+                        }
                     }
                 }
+
                 if (item.conditionID === 1) newConditions.Hypertension = true;
                 if (item.conditionID === 2) newConditions.Stroke = true;
                 if (item.conditionID === 3) newConditions.Diabetes = true;
@@ -48,7 +57,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
             setIsNone(foundNone);
             setConditions(newConditions);
             setCancerDetails(cancerText);
-            setOtherDetails(otherText.join(', ')); // Safely join multiple others
+            setOtherDetails(otherText.join(', '));
         }
     }, [data]);
 
@@ -56,7 +65,6 @@ export default function FamilyMedicalHistory({ data, onChange }) {
     const triggerChange = (updatedNone, updatedConds, updatedCancer, updatedOther) => {
         if (!onChange) return;
 
-        // Build array structure expected by backend
         const formattedList = [];
         if (updatedNone) {
             formattedList.push({ isNone: true });
@@ -66,8 +74,16 @@ export default function FamilyMedicalHistory({ data, onChange }) {
             if (updatedConds.Diabetes) formattedList.push({ conditionID: 3 });
             if (updatedConds.Tuberculosis) formattedList.push({ conditionID: 4 });
             if (updatedConds.Asthma) formattedList.push({ conditionID: 5 });
-            if (updatedConds.Cancer) formattedList.push({ conditionOther: updatedCancer || 'Cancer' });
-            if (updatedConds.Others && updatedOther.trim() !== '') formattedList.push({ conditionOther: updatedOther });
+
+            if (updatedConds.Cancer) {
+                // Send typed text, or fallback to 'Cancer' so the backend registers the checkbox
+                formattedList.push({ conditionOther: updatedCancer.trim() !== '' ? updatedCancer : 'Cancer' });
+            }
+
+            if (updatedConds.Others) {
+                // FIX 2: Removed the trim() block. Always push the object so the React UI keeps the box checked
+                formattedList.push({ conditionOther: updatedOther || '' });
+            }
         }
 
         onChange(formattedList);
@@ -77,7 +93,6 @@ export default function FamilyMedicalHistory({ data, onChange }) {
         const nextNone = !isNone;
         setIsNone(nextNone);
         if (nextNone) {
-            // Reset everything else if "None" is checked
             const clearedConditions = {
                 Hypertension: false, Stroke: false, Diabetes: false,
                 Tuberculosis: false, Asthma: false, Cancer: false, Others: false
@@ -92,7 +107,7 @@ export default function FamilyMedicalHistory({ data, onChange }) {
     };
 
     const handleConditionToggle = (stateKey) => {
-        if (isNone) return; // Cannot check conditions if "None" is active
+        if (isNone) return;
         const nextConditions = { ...conditions, [stateKey]: !conditions[stateKey] };
         setConditions(nextConditions);
         triggerChange(false, nextConditions, cancerDetails, otherDetails);

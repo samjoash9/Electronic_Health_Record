@@ -7,8 +7,7 @@ export default function Navbar({ onToggleSidebar, user }) {
 
     const currentUser = user || {
         name: "MelJun Makunat",
-        role: "System Admin",
-        // Notice I updated the avatar placeholder colors to match the slate/teal theme!
+        role: "NURSE",
         avatar: meljun
     };
 
@@ -38,7 +37,8 @@ export default function Navbar({ onToggleSidebar, user }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-            </div>
+            </div> 
+            
 
             {/* Right Section: User Profile & Dropdown */}
             <div className="relative" ref={dropdownRef}>

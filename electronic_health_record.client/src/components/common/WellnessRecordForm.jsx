@@ -9,7 +9,7 @@ import RecommendedDiagnosticTest from './RecommendedDiagnosticTest';
 import PhysicianCertification from './PhysicianCertification';
 import CloseConfirmationModal from './CloseConfirmationModal';
 
-export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
+export default function WellnessRecordForm({ phoData, onCancel, onSave, userRole = 'admin' }) {
     const isManualEntry = !phoData?.patientID && !phoData?.PatientID;
     const [isLoading, setIsLoading] = useState(!isManualEntry);
     const [isSaving, setIsSaving] = useState(false);
@@ -42,7 +42,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
         }
 
         setIsLoading(true);
-        axios.get(`/api/WellnessForms/${patientId}`)
+        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
             .then(response => {
                 const resData = response.data || {};
                 setClinicalData({
@@ -71,13 +71,15 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
         setClinicalData(prev => ({ ...prev, [sectionName]: data }));
     };
 
-    const submitForm = async (targetStatus) => {
+    const submitForm = async (action) => {
         setIsSaving(true);
         const formId = clinicalData.form?.formID || clinicalData.form?.FormID;
         const isNewForm = !formId || formId === 0;
 
-        // THE FIX: Explicitly map every property. This bypasses any spread operator bugs 
-        // and guarantees the JSON strictly matches your C# UpdateWellnessFormDto.
+        // If the admin "Submits" to a doctor, it stays a 'Draft' in the database 
+        // because the backend requires a signature to mark it 'Submitted'.
+        const targetStatus = action === 'AdminSubmit' ? 'Draft' : action;
+
         const payload = {
             status: targetStatus,
             patientID: patientId || null,
@@ -85,7 +87,6 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
             signature: clinicalData.form?.signature || null,
             formDate: clinicalData.form?.formDate || new Date().toISOString(),
 
-            // Explicitly Map Vital Signs
             weightKg: clinicalData.form?.weightKg ?? null,
             heightCm: clinicalData.form?.heightCm ?? null,
             bmi: clinicalData.form?.bmi ?? null,
@@ -96,7 +97,6 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
             heartRate: clinicalData.form?.heartRate ?? null,
             respRate: clinicalData.form?.respRate ?? null,
 
-            // Explicitly Map Diagnostic Tests
             recommendedDiagnosticTest: clinicalData.form?.recommendedDiagnosticTest || null,
             impressionClinical: clinicalData.form?.impressionClinical || null,
             managementTreatment: clinicalData.form?.managementTreatment || null,
@@ -104,22 +104,32 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
             createdByAdminID: clinicalData.form?.createdByAdminID || 1,
             updatedByAdminID: 1,
 
-            // History Sections
             pastMedicalHistory: clinicalData.pastMedicalHistory || [],
             familyMedicalHistory: clinicalData.familyMedicalHistory || [],
             socialHistory: clinicalData.socialHistory || null
         };
 
         try {
+            // Dynamic Toast Message Generation
+            let successMsg = `Wellness record successfully marked as ${targetStatus}!`;
+
+            if (action === 'AdminSubmit') {
+                const docName = clinicalData.form?.physicianName || 'Assigned Doctor';
+                const formattedName = docName.toLowerCase().startsWith('dr') ? docName : `Dr. ${docName}`;
+                successMsg = `Successfully submitted to ${formattedName}`;
+            } else if (action === 'Draft') {
+                successMsg = `Wellness record successfully saved as Draft!`;
+            }
+
             if (isManualEntry || isNewForm || !patientId) {
-                const response = await axios.post(`/api/WellnessForms`, payload);
+                const response = await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
                 if (response.data && response.data.form) {
                     setClinicalData(prev => ({ ...prev, form: response.data.form }));
                 }
-                if (onSave) onSave(`New wellness record successfully created and marked as ${targetStatus}!`, 'success');
+                if (onSave) onSave(successMsg, 'success');
             } else {
-                await axios.put(`/api/WellnessForms/${formId}`, payload);
-                if (onSave) onSave(`Wellness record successfully updated as ${targetStatus}!`, 'success');
+                await axios.put(`http://localhost:5084/api/WellnessForms/${formId}`, payload);
+                if (onSave) onSave(successMsg, 'success');
             }
             onCancel();
         } catch (error) {
@@ -179,47 +189,52 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave }) {
                             </div>
                         </div>
 
-                        {/* Clinical Sections */}
-                        <VitalSigns
-                            data={clinicalData.form}
-                            onChange={(vitals) => handleFormChange(vitals)}
-                        />
-                        <PastMedicalHistory
-                            data={clinicalData.pastMedicalHistory}
-                            onChange={(data) => handleSectionChange('pastMedicalHistory', data)}
-                        />
-                        <FamilyMedicalHistory
-                            data={clinicalData.familyMedicalHistory}
-                            onChange={(data) => handleSectionChange('familyMedicalHistory', data)}
-                        />
-                        <SocialHistory
-                            data={clinicalData.socialHistory}
-                            onChange={(data) => handleSectionChange('socialHistory', data)}
-                        />
-                        <RecommendedDiagnosticTest
-                            data={clinicalData.form}
-                            onChange={(data) => handleFormChange(data)}
-                        />
+                        <VitalSigns data={clinicalData.form} onChange={(vitals) => handleFormChange(vitals)} />
+                        <PastMedicalHistory data={clinicalData.pastMedicalHistory} onChange={(data) => handleSectionChange('pastMedicalHistory', data)} />
+                        <FamilyMedicalHistory data={clinicalData.familyMedicalHistory} onChange={(data) => handleSectionChange('familyMedicalHistory', data)} />
+                        <SocialHistory data={clinicalData.socialHistory} onChange={(data) => handleSectionChange('socialHistory', data)} />
+                        <RecommendedDiagnosticTest data={clinicalData.form} onChange={(data) => handleFormChange(data)} />
+
                         <PhysicianCertification
                             data={clinicalData.form}
                             onChange={(data) => handleFormChange(data)}
+                            userRole={userRole}
                         />
                     </>
                 )}
 
-                {/* Footer Buttons */}
                 <div className="flex flex-col sm:flex-row justify-between items-center pt-6 mt-6 border-t border-gray-200 space-y-3 sm:space-y-0 sm:space-x-3">
-                    <button onClick={() => submitForm('Submitted')} disabled={isSaving} className="uppercase w-full sm:w-auto flex-1 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-bold shadow-sm cursor-pointer flex items-center justify-center">
-                        {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Submit
-                    </button>
-                    <div className="flex space-x-3 w-full sm:w-auto">
-                        <button onClick={() => submitForm('Draft')} disabled={isSaving} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center">
-                            Save as Draft
-                        </button>
-                        <button onClick={handleCloseClick} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
-                            Close
-                        </button>
-                    </div>
+
+                    {userRole === 'doctor' ? (
+                        <>
+                            <button onClick={() => submitForm('Submitted')} disabled={isSaving} className="uppercase w-full sm:w-auto flex-1 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-bold shadow-sm cursor-pointer flex items-center justify-center">
+                                {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Sign & Complete
+                            </button>
+                            <div className="flex space-x-3 w-full sm:w-auto">
+                                <button onClick={() => submitForm('Draft')} disabled={isSaving} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center">
+                                    Save as Draft
+                                </button>
+                                <button onClick={handleCloseClick} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
+                                    Close
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={() => submitForm('AdminSubmit')} disabled={isSaving} className="uppercase w-full sm:w-auto flex-1 px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-bold shadow-sm cursor-pointer flex items-center justify-center">
+                                {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Submit
+                            </button>
+                            <div className="flex space-x-3 w-full sm:w-auto">
+                                <button onClick={() => submitForm('Draft')} disabled={isSaving} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center">
+                                    Save as Draft
+                                </button>
+                                <button onClick={handleCloseClick} className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer">
+                                    Close
+                                </button>
+                            </div>
+                        </>
+                    )}
+
                 </div>
             </div>
         </div>

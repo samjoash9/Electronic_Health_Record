@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X } from 'lucide-react';
+import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import WellnessRecordForm from '../components/common/WellnessRecordForm';
 import Toast from '../components/common/Toast';
 
@@ -67,6 +67,10 @@ export default function PatientRecord() {
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
 
+    // PAGINATION STATES
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
     const [isSelectingPatient, setIsSelectingPatient] = useState(false);
     const [pendingPatient, setPendingPatient] = useState(null);
     const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -81,6 +85,11 @@ export default function PatientRecord() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Reset to page 1 whenever filters or search change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, itemsPerPage]);
 
     const calculateAge = (birthdateString) => {
         if (!birthdateString) return '';
@@ -111,12 +120,19 @@ export default function PatientRecord() {
         fetchPatients();
     }, []);
 
+    // Filter Logic
     const filteredPatients = patients.filter(patient => {
         const fullName = `${patient.firstName || ''} ${patient.middleName || ''} ${patient.surname || ''}`.toLowerCase();
         const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || (patient.contactNo || '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || (patient.status || 'Saved').toLowerCase() === statusFilter.toLowerCase();
         return matchesSearch && matchesStatus;
     });
+
+    // Pagination Logic
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentPatients = filteredPatients.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
 
     const handlePatientClick = (patient) => {
         setSelectedPatient({
@@ -143,7 +159,6 @@ export default function PatientRecord() {
             } else {
                 handlePatientClick(patient);
             }
-
         } catch (error) {
             handlePatientClick(patient);
         }
@@ -158,7 +173,6 @@ export default function PatientRecord() {
 
     return (
         <div className="w-full max-w-7xl mx-auto pb-10 relative">
-            {/* NEW TOAST COMPONENT */}
             <Toast
                 message={toast.message}
                 type={toast.type}
@@ -216,7 +230,7 @@ export default function PatientRecord() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        {/* TEAL-THEMED SEARCH INPUT */}
+                        {/* SEARCH INPUT */}
                         <div className="relative min-w-[260px]">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400"><Search className="w-4 h-4" /></span>
                             <input
@@ -228,7 +242,7 @@ export default function PatientRecord() {
                             />
                         </div>
 
-                        {/* TEAL-THEMED FILTER DROPDOWN */}
+                        {/* FILTER DROPDOWN */}
                         <div className="relative" ref={dropdownRef}>
                             <button
                                 onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
@@ -263,7 +277,7 @@ export default function PatientRecord() {
                             )}
                         </div>
 
-                        {/* TEAL-THEMED ADD FORM BUTTON */}
+                        {/* ADD FORM BUTTON */}
                         <button onClick={() => setIsSelectingPatient(true)} className="flex items-center justify-center space-x-2 px-4 py-2 bg-teal-600 rounded-lg text-sm font-medium text-white hover:bg-teal-700 transition-colors shadow-sm cursor-pointer">
                             <Plus className="w-4 h-4" />
                             <span>Add Form</span>
@@ -279,7 +293,7 @@ export default function PatientRecord() {
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Contact</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Form Created</th>
-                                <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Last Visit</th>
+                                <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Updated</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
                             </tr>
@@ -287,12 +301,12 @@ export default function PatientRecord() {
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
                                 <tr><td colSpan="7" className="py-10 text-center text-gray-400"><Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" /><p>Loading patient records...</p></td></tr>
-                            ) : filteredPatients.length === 0 ? (
+                            ) : currentPatients.length === 0 ? (
                                 <tr><td colSpan="7" className="py-10 text-center text-gray-400"><p>No matching patient records found.</p></td></tr>
                             ) : (
-                                filteredPatients.map((patient, index) => (
+                                currentPatients.map((patient, index) => (
                                     <tr key={patient.patientID || index} onClick={() => handlePatientClick(patient)} className="hover:bg-teal-50/40 transition-colors group cursor-pointer">
-                                        <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{index + 1}</span></td>
+                                        <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{indexOfFirstItem + index + 1}</span></td>
                                         <td className="py-4 px-4"><p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname}</p></td>
                                         <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{patient.contactNo || 'N/A'}</p></td>
                                         <td className="py-4 px-4">
@@ -309,6 +323,50 @@ export default function PatientRecord() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* PAGINATION CONTROLS */}
+                {!isLoading && filteredPatients.length > 0 && (
+                    <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/30">
+                        <div className="text-sm text-gray-500">
+                            Showing <span className="font-semibold text-gray-900">{indexOfFirstItem + 1}</span> to <span className="font-semibold text-gray-900">{Math.min(indexOfLastItem, filteredPatients.length)}</span> of <span className="font-semibold text-gray-900">{filteredPatients.length}</span> entries
+                        </div>
+
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-500">Rows per page:</span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                    className="bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block p-1.5 cursor-pointer outline-none"
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={15}>15</option>
+                                    <option value={20}>20</option>
+                                </select>
+                            </div>
+
+                            <div className="flex items-center space-x-1">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="p-1.5 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <span className="text-sm font-medium text-gray-700 px-3">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="p-1.5 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
