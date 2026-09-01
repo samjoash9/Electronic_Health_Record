@@ -20,7 +20,7 @@ export default function Employee() {
     const fetchEmployees = async () => {
         setIsLoading(true);
         try {
-            const empRes = await axios.get('http://localhost:5084/api/Employees');
+            const empRes = await axios.get('/api/Employees');
             setEmployees(Array.isArray(empRes.data) ? empRes.data : empRes.data.items || []);
         } catch (error) {
             console.error("Failed to fetch employees:", error);
@@ -33,7 +33,7 @@ export default function Employee() {
         if (!window.confirm("Are you sure you want to remove this employee?")) return;
 
         try {
-            await axios.delete(`http://localhost:5084/api/Employees/${id}`);
+            await axios.delete(`/api/Employees/${id}`);
             await fetchEmployees();
         } catch (error) {
             console.error("Failed to delete employee:", error);

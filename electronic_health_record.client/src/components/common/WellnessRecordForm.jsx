@@ -42,7 +42,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave, userRole
         }
 
         setIsLoading(true);
-        axios.get(`http://localhost:5084/api/WellnessForms/${patientId}`)
+        axios.get(`/api/WellnessForms/${patientId}`)
             .then(response => {
                 const resData = response.data || {};
                 setClinicalData({
@@ -122,13 +122,13 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave, userRole
             }
 
             if (isManualEntry || isNewForm || !patientId) {
-                const response = await axios.post(`http://localhost:5084/api/WellnessForms`, payload);
+                const response = await axios.post(`/api/WellnessForms`, payload);
                 if (response.data && response.data.form) {
                     setClinicalData(prev => ({ ...prev, form: response.data.form }));
                 }
                 if (onSave) onSave(successMsg, 'success');
             } else {
-                await axios.put(`http://localhost:5084/api/WellnessForms/${formId}`, payload);
+                await axios.put(`/api/WellnessForms/${formId}`, payload);
                 if (onSave) onSave(successMsg, 'success');
             }
             onCancel();

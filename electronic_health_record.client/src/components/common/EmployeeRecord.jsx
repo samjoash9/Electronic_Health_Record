@@ -45,7 +45,7 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
 
     const fetchAvailableUsers = async () => {
         try {
-            const userRes = await axios.get('http://localhost:5084/api/Users/Available');
+            const userRes = await axios.get('/api/Users/Available');
             setAvailableUsers(Array.isArray(userRes.data) ? userRes.data : userRes.data.items || []);
         } catch (error) {
             console.error("Failed to fetch available users:", error);
@@ -99,9 +99,9 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
         setIsSaving(true);
         try {
             if (mode === 'add') {
-                await axios.post('http://localhost:5084/api/Employees', formData);
+                await axios.post('/api/Employees', formData);
             } else {
-                await axios.put(`http://localhost:5084/api/Employees/${formData.employeeID}`, formData);
+                await axios.put(`/api/Employees/${formData.employeeID}`, formData);
             }
 
             alert(`Employee successfully ${mode === 'add' ? 'added' : 'updated'}!`);
