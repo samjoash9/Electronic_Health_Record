@@ -1,4 +1,5 @@
 ﻿using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.DTOs.Admin;
 using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,10 @@ namespace Electronic_Health_Record.Server.Controllers
         {
             try
             {
-                var admins = await _context.Admins.ToListAsync();
+                // projected, never the entity: the Admin row carries a password hash
+                var admins = await _context.Admins
+                    .Select(a => AdminResponseDto.From(a))
+                    .ToListAsync();
                 return Ok(new { data = admins });
             }
             catch (Exception e)
@@ -50,7 +54,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 if (admin == null)
                     return NotFound($"Admin with ID {AdminID} was not found.");
 
-                return Ok(admin);
+                return Ok(AdminResponseDto.From(admin));
             }
             catch (Exception ex)
             {

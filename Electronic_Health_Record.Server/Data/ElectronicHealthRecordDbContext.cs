@@ -13,7 +13,7 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<Patient> Patients => Set<Patient>();
         public DbSet<Physician> Physicians => Set<Physician>();
         public DbSet<Admin> Admins => Set<Admin>();
-        public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
+        public DbSet<UserSession> UserSessions => Set<UserSession>();
         public DbSet<WellnessForm> WellnessForms => Set<WellnessForm>();
         public DbSet<MedicalCondition> MedicalConditions => Set<MedicalCondition>();
         public DbSet<SocialHistory> SocialHistories => Set<SocialHistory>();
@@ -42,36 +42,83 @@ namespace Electronic_Health_Record.Server.Data
 
             modelBuilder.Entity<Physician>(entity =>
             {
-                entity.ToTable("Physician");
+                entity.ToTable("Physician", t =>
+                {
+                    // credentials arrive as a complete set or not at all: a row is either a
+                    // directory-only entry or a full login account, never half of one
+                    t.HasCheckConstraint(
+                        "CK_Physician_CredentialSet",
+                        "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL)" +
+                        " OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
+                });
                 entity.HasKey(p => p.PhysicianID);
                 entity.Property(p => p.Surname).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.FirstName).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.MiddleName).HasMaxLength(50);
                 entity.Property(p => p.PRCLicenseNo).HasMaxLength(20).IsRequired();
                 entity.HasIndex(p => p.PRCLicenseNo).IsUnique();
+
+                // login credentials; null on a directory-only row, which is why the unique
+                // indexes below are filtered -- many nulls must not collide with each other
+                entity.Property(p => p.Username).HasMaxLength(30);
+                entity.Property(p => p.Email).HasMaxLength(255);
+                entity.Property(p => p.PasswordHash).HasMaxLength(255);
+                entity.Property(p => p.IsActive).HasDefaultValue(true).IsRequired();
+                entity.Property(p => p.MustChangePassword).HasDefaultValue(false).IsRequired();
+
+                entity.HasIndex(p => p.Username)
+                    .IsUnique()
+                    .HasFilter("[Username] IS NOT NULL")
+                    .HasDatabaseName("UQ_Physician_Username");
+                entity.HasIndex(p => p.Email)
+                    .IsUnique()
+                    .HasFilter("[Email] IS NOT NULL")
+                    .HasDatabaseName("UQ_Physician_Email");
+
                 entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
             });
 
             modelBuilder.Entity<Admin>(entity =>
             {
-                entity.ToTable("Admin");
+                entity.ToTable("Admin", t =>
+                {
+                    // "Physician" is deliberately not a legal value: physicians live in their own
+                    // table, so no staff account can ever satisfy the signing check
+                    t.HasCheckConstraint("CK_Admin_Role", "[Role] IN ('SuperAdmin','Admin')");
+                });
                 entity.HasKey(a => a.AdminID);
                 entity.Property(a => a.Username).HasMaxLength(30).IsRequired();
                 entity.Property(a => a.Email).HasMaxLength(255).IsRequired();
                 entity.Property(a => a.PasswordHash).HasMaxLength(255).IsRequired();
                 entity.Property(a => a.FullName).HasMaxLength(100).IsRequired();
+                entity.Property(a => a.Role)
+                    .HasMaxLength(20)
+                    .IsUnicode(false)
+                    .HasDefaultValue(Roles.Admin)
+                    .IsRequired();
                 entity.Property(a => a.IsActive).HasDefaultValue(true).IsRequired();
+                entity.Property(a => a.MustChangePassword).HasDefaultValue(false).IsRequired();
                 entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.HasIndex(a => a.Username).IsUnique();
                 entity.HasIndex(a => a.Email).IsUnique();
             });
 
-            modelBuilder.Entity<AdminSession>(entity =>
+            modelBuilder.Entity<UserSession>(entity =>
             {
-                entity.ToTable("AdminSession");
+                entity.ToTable("UserSession", t =>
+                {
+                    // a session belongs to a staff account or a physician account, never both
+                    // and never neither. spelled out longhand because T-SQL has no boolean type:
+                    // "([AdminID] IS NULL) <> ([PhysicianID] IS NULL)" cannot compare two predicates.
+                    t.HasCheckConstraint(
+                        "CK_UserSession_ExactlyOnePrincipal",
+                        "([AdminID] IS NOT NULL AND [PhysicianID] IS NULL)" +
+                        " OR ([AdminID] IS NULL AND [PhysicianID] IS NOT NULL)");
+                });
                 entity.HasKey(s => s.SessionID);
+                // char(64) is the exact width of SHA-256 rendered as lowercase hex
                 entity.Property(s => s.TokenHash).HasColumnType("char(64)").IsRequired();
                 entity.Property(s => s.ExpiresAt).IsRequired();
                 entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
@@ -80,17 +127,42 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasOne<Admin>()
                     .WithMany()
                     .HasForeignKey(s => s.AdminID)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<Physician>()
+                    .WithMany()
+                    .HasForeignKey(s => s.PhysicianID)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<WellnessForm>(entity =>
             {
-                entity.ToTable("WellnessForm");
+                entity.ToTable("WellnessForm", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_WellnessForm_Status",
+                        "[Status] IN ('Draft','PendingSignature','Signed')");
+
+                    // once a form leaves Draft it has been routed to a named physician
+                    t.HasCheckConstraint(
+                        "CK_WellnessForm_AssignedWhenPending",
+                        "[Status] = 'Draft' OR [AssignedPhysicianID] IS NOT NULL");
+
+                    // a signed form is a finalised clinical record: it carries all four facts
+                    // or none, so a partial write cannot fake an attestation
+                    t.HasCheckConstraint(
+                        "CK_WellnessForm_SignedIntegrity",
+                        "[Status] <> 'Signed' OR ([AssignedPhysicianID] IS NOT NULL" +
+                        " AND [SignedByPhysicianID] IS NOT NULL" +
+                        " AND [Signature] IS NOT NULL AND [SignedAt] IS NOT NULL)");
+                });
                 entity.HasKey(w => w.FormID);
                 entity.Property(w => w.Status)
                     .HasMaxLength(20)
                     .IsUnicode(false)
-                    .HasDefaultValue("Draft")
+                    .HasDefaultValue(FormStatus.Draft)
                     .IsRequired();
                 entity.Property(w => w.FormDate)
                     .HasColumnType("date")
@@ -111,10 +183,18 @@ namespace Electronic_Health_Record.Server.Data
                     .HasForeignKey(w => w.PatientID)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // optional: a draft may not have a physician assigned yet
+                // who the Admin routed this form to. optional: a draft may not be assigned yet
                 entity.HasOne<Physician>()
                     .WithMany()
-                    .HasForeignKey(w => w.PhysicianID)
+                    .HasForeignKey(w => w.AssignedPhysicianID)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // who actually signed. separate from the assignment so reassigning a form can
+                // never rewrite the attestation on one already signed
+                entity.HasOne<Physician>()
+                    .WithMany()
+                    .HasForeignKey(w => w.SignedByPhysicianID)
                     .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
@@ -127,6 +207,10 @@ namespace Electronic_Health_Record.Server.Data
                     .WithMany()
                     .HasForeignKey(w => w.UpdatedByAdminID)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // the physician's "awaiting my signature" queue
+                entity.HasIndex(w => new { w.Status, w.AssignedPhysicianID })
+                    .HasDatabaseName("IX_WellnessForm_Status_AssignedPhysicianID");
             });
 
             modelBuilder.Entity<MedicalCondition>(entity =>

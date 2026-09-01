@@ -1,17 +1,21 @@
-﻿namespace Electronic_Health_Record.Server.Models
+namespace Electronic_Health_Record.Server.Models
 {
     public class WellnessForm
     {
         public int FormID { get; set; }
         public int PatientID { get; set; }
-        // null while the form is still a draft and no physician has been assigned yet
-        public int? PhysicianID { get; set; }
-        // "Draft" or "Submitted"
-        public string Status { get; set; } = "Draft";
-        // physician's digital signature, stored as the signature pad's base64 data URL;
-        // a form cannot reach "Submitted" without one
+        // the physician the Admin routed this form to. a routing decision: mutable, and null
+        // while the form is still a draft. required once the status leaves Draft.
+        public int? AssignedPhysicianID { get; set; }
+        // the physician who actually signed. a clinical attestation: written once by the sign
+        // endpoint, never rewritten -- which is what stops a later reassignment from silently
+        // forging the signer.
+        public int? SignedByPhysicianID { get; set; }
+        // "Draft", "PendingSignature" or "Signed" -- see FormStatus
+        public string Status { get; set; } = FormStatus.Draft;
+        // the signing physician's signature, stored as the signature pad's base64 data URL
         public string? Signature { get; set; }
-        // when the signature was captured; only re-stamped when the signature itself changes
+        // when the signature was captured
         public DateTime? SignedAt { get; set; }
         public DateTime FormDate { get; set; }
         public decimal? WeightKg { get; set; }
@@ -26,6 +30,7 @@
         public string? RecommendedDiagnosticTest { get; set; }
         public string? ImpressionClinical { get; set; }
         public string? ManagementTreatment { get; set; }
+        // authorship is always staff: physicians sign forms, they never author them
         public int? CreatedByAdminID { get; set; }
         public int? UpdatedByAdminID { get; set; }
         public DateTime CreatedAt { get; set; }

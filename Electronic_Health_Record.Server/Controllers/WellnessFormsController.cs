@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.SqlServer.Server;
 
 namespace Electronic_Health_Record.Server.Controllers
 {
@@ -11,8 +12,10 @@ namespace Electronic_Health_Record.Server.Controllers
     [Route("api/[controller]")]
     public class WellnessFormsController : ControllerBase
     {
-        private const string StatusDraft = "Draft";
-        private const string StatusSubmitted = "Submitted";
+        // the lifecycle values now live in Models/FormStatus.cs so the future sign endpoint and
+        // these CRUD endpoints share one source
+        private const string StatusDraft = FormStatus.Draft;
+        private const string StatusSubmitted = FormStatus.PendingSignature;
 
         private readonly ElectronicHealthRecordDbContext _context;
         private readonly ILogger<WellnessFormsController> _logger;
@@ -23,6 +26,121 @@ namespace Electronic_Health_Record.Server.Controllers
         {
             _context = context;
             _logger = logger;
+        }
+
+        // get all wellness forms, with every field the UI form displays: patient info,
+        // vitals, physician cert, plus each form's Past/Family Medical History and Social History
+        [HttpGet("")]
+        public async Task<IActionResult> GetwellnessForms()
+        {
+            try
+            {
+                var forms = await (
+                    from f in _context.WellnessForms
+                    join p in _context.Patients on f.PatientID equals p.PatientID
+                    join ph in _context.Physicians on f.AssignedPhysicianID equals ph.PhysicianID into physicianJoin
+                    from ph in physicianJoin.DefaultIfEmpty()
+                    orderby f.FormDate descending
+                    select new
+                    {
+                        f.FormID,
+                        f.PatientID,
+                        f.Status,
+                        f.FormDate,
+
+                        // Patient Information
+                        p.Surname,
+                        p.FirstName,
+                        p.MiddleName,
+                        p.Birthdate,
+                        p.Sex,
+                        p.CivilStatus,
+                        p.Address,
+
+                        // Vital Signs
+                        f.WeightKg,
+                        f.HeightCm,
+                        f.BMI,
+                        f.IdealBMI,
+                        f.BPSystolic,
+                        f.BPDiastolic,
+                        f.TempCelsius,
+                        f.HeartRate,
+                        f.RespRate,
+
+                        // Recommended Diagnostic Test
+                        f.RecommendedDiagnosticTest,
+                        f.ImpressionClinical,
+                        f.ManagementTreatment,
+
+                        // Physician Certification.
+                        // aliased back to PhysicianID so the response shape the client already
+                        // consumes is unchanged by the column rename
+                        PhysicianID = f.AssignedPhysicianID,
+                        PhysicianName = ph == null ? null : (ph.FirstName + " " + ph.Surname),
+                        PhysicianPRCLicenseNo = ph == null ? null : ph.PRCLicenseNo,
+                        f.SignedAt
+                    })
+                    .ToListAsync();
+
+                var formIds = forms.Select(f => f.FormID).ToList();
+
+                var pastHistoryByForm = (await _context.PastMedicalHistories
+                        .Where(p => formIds.Contains(p.FormID))
+                        .ToListAsync())
+                    .ToLookup(p => p.FormID);
+
+                var familyHistoryByForm = (await _context.FamilyMedicalHistories
+                        .Where(fh => formIds.Contains(fh.FormID))
+                        .ToListAsync())
+                    .ToLookup(fh => fh.FormID);
+
+                var socialHistoryByForm = (await _context.SocialHistories
+                        .Where(s => formIds.Contains(s.FormID))
+                        .ToListAsync())
+                    .ToDictionary(s => s.FormID);
+
+                var response = forms.Select(f => new
+                {
+                    f.FormID,
+                    f.PatientID,
+                    f.Status,
+                    f.FormDate,
+                    f.Surname,
+                    f.FirstName,
+                    f.MiddleName,
+                    f.Birthdate,
+                    f.Sex,
+                    f.CivilStatus,
+                    f.Address,
+                    f.WeightKg,
+                    f.HeightCm,
+                    f.BMI,
+                    f.IdealBMI,
+                    f.BPSystolic,
+                    f.BPDiastolic,
+                    f.TempCelsius,
+                    f.HeartRate,
+                    f.RespRate,
+                    f.RecommendedDiagnosticTest,
+                    f.ImpressionClinical,
+                    f.ManagementTreatment,
+                    f.PhysicianID,
+                    f.PhysicianName,
+                    f.PhysicianPRCLicenseNo,
+                    f.SignedAt,
+                    PastMedicalHistory = pastHistoryByForm[f.FormID].ToList(),
+                    FamilyMedicalHistory = familyHistoryByForm[f.FormID].ToList(),
+                    SocialHistory = socialHistoryByForm.TryGetValue(f.FormID, out var sh) ? sh : null
+                });
+
+                return Ok(response);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to retrieve wellness forms.");
+                return StatusCode(500, "An error occurred while retrieving the wellness forms.");
+            }
         }
 
         // get specific wellness form with its child records
@@ -72,7 +190,8 @@ namespace Electronic_Health_Record.Server.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var isSubmit = dto.Status == StatusSubmitted;
+            // Normalize maps the old "Submitted" wire value onto "PendingSignature"
+            var isSubmit = FormStatus.Normalize(dto.Status) == StatusSubmitted;
 
             try
             {
@@ -140,7 +259,7 @@ namespace Electronic_Health_Record.Server.Controllers
                     var form = new WellnessForm
                     {
                         PatientID = dto.PatientID,
-                        PhysicianID = dto.PhysicianID,
+                        AssignedPhysicianID = dto.PhysicianID,
                         Status = isSubmit ? StatusSubmitted : StatusDraft,
                         Signature = dto.Signature,
                         SignedAt = string.IsNullOrWhiteSpace(dto.Signature) ? null : DateTime.UtcNow,
@@ -239,7 +358,8 @@ namespace Electronic_Health_Record.Server.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var isSubmit = dto.Status == StatusSubmitted;
+            // Normalize maps the old "Submitted" wire value onto "PendingSignature"
+            var isSubmit = FormStatus.Normalize(dto.Status) == StatusSubmitted;
 
             try
             {
@@ -309,7 +429,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 try
                 {
                     form.PatientID = dto.PatientID;
-                    form.PhysicianID = dto.PhysicianID;
+                    form.AssignedPhysicianID = dto.PhysicianID;
                     form.Status = isSubmit ? StatusSubmitted : StatusDraft;
 
                     // only re-stamp SignedAt when the signature actually changes, so re-saving an
