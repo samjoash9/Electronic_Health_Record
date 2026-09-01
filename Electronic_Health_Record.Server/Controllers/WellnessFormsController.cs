@@ -55,6 +55,7 @@ namespace Electronic_Health_Record.Server.Controllers
                         p.Sex,
                         p.CivilStatus,
                         p.Address,
+                        p.ContactNo,
 
                         // Vital Signs
                         f.WeightKg,
