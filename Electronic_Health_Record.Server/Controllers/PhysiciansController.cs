@@ -26,7 +26,10 @@ namespace Electronic_Health_Record.Server.Controllers
         {
             try
             {
-                var physicians = await _context.Physicians.ToListAsync();
+                // projected, never the entity: Physician now carries login credentials
+                var physicians = await _context.Physicians
+                    .Select(p => PhysicianResponseDto.From(p))
+                    .ToListAsync();
                 return Ok(new { data = physicians });
             }
             catch (Exception e)
@@ -63,7 +66,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 if (physician == null)
                     return NotFound($"Physician with ID {PhysicianID} was not found.");
 
-                return Ok(physician);
+                return Ok(PhysicianResponseDto.From(physician));
             }
             catch (Exception e)
             {
@@ -97,7 +100,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 return CreatedAtAction(
                     nameof(GetPhysician),
                     new { PhysicianID = physician.PhysicianID },
-                    physician);
+                    PhysicianResponseDto.From(physician));
             }
             catch (Exception e)
             {
@@ -145,18 +148,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 return Conflict("Unable to update physician. The data may violate a database constraint.");
             }
 
-            var response = new PhysicianResponseDto
-            {
-                PhysicianID = physician.PhysicianID,
-                Surname = physician.Surname,
-                FirstName = physician.FirstName,
-                MiddleName = physician.MiddleName,
-                PRCLicenseNo = physician.PRCLicenseNo,
-                CreatedAt = physician.CreatedAt,
-                UpdatedAt = physician.UpdatedAt
-            };
-
-            return Ok(response);
+            return Ok(PhysicianResponseDto.From(physician));
         }
 
         //PATCH  /api/physicians/:id      → partial update
@@ -208,18 +200,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 return Conflict("Unable to update physician. The data may violate a database constraint.");
             }
 
-            var response = new PhysicianResponseDto
-            {
-                PhysicianID = physician.PhysicianID,
-                Surname = physician.Surname,
-                FirstName = physician.FirstName,
-                MiddleName = physician.MiddleName,
-                PRCLicenseNo = physician.PRCLicenseNo,
-                CreatedAt = physician.CreatedAt,
-                UpdatedAt = physician.UpdatedAt
-            };
-
-            return Ok(response);
+            return Ok(PhysicianResponseDto.From(physician));
         }
 
 

@@ -4,9 +4,11 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
 {
     public class UpdateWellnessFormDto
     {
-        // "Draft" (Save as Draft) or "Submitted" (Submit)
+        // "Draft" (Save as Draft) or "PendingSignature" (Submit for signature).
+        // "Submitted" is the old wire value and is still accepted, then normalised.
+        // "Signed" is deliberately absent: only the sign endpoint may produce it.
         [Required]
-        [RegularExpression("^(Draft|Submitted)$", ErrorMessage = "Status must be 'Draft' or 'Submitted'")]
+        [RegularExpression("^(Draft|PendingSignature|Submitted)$", ErrorMessage = "Status must be 'Draft' or 'PendingSignature'")]
         public string Status { get; set; } = "Draft";
 
         [Required]

@@ -11,8 +11,10 @@ namespace Electronic_Health_Record.Server.Controllers
     [Route("api/[controller]")]
     public class WellnessFormsController : ControllerBase
     {
-        private const string StatusDraft = "Draft";
-        private const string StatusSubmitted = "Submitted";
+        // the lifecycle values now live in Models/FormStatus.cs so the future sign endpoint and
+        // these CRUD endpoints share one source
+        private const string StatusDraft = FormStatus.Draft;
+        private const string StatusSubmitted = FormStatus.PendingSignature;
 
         private readonly ElectronicHealthRecordDbContext _context;
         private readonly ILogger<WellnessFormsController> _logger;
@@ -35,7 +37,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 var forms = await (
                     from f in _context.WellnessForms
                     join p in _context.Patients on f.PatientID equals p.PatientID
-                    join ph in _context.Physicians on f.PhysicianID equals ph.PhysicianID into physicianJoin
+                    join ph in _context.Physicians on f.AssignedPhysicianID equals ph.PhysicianID into physicianJoin
                     from ph in physicianJoin.DefaultIfEmpty()
                     orderby f.FormDate descending
                     select new
@@ -70,8 +72,10 @@ namespace Electronic_Health_Record.Server.Controllers
                         f.ImpressionClinical,
                         f.ManagementTreatment,
 
-                        // Physician Certification
-                        f.PhysicianID,
+                        // Physician Certification.
+                        // aliased back to PhysicianID so the response shape the client already
+                        // consumes is unchanged by the column rename
+                        PhysicianID = f.AssignedPhysicianID,
                         PhysicianName = ph == null ? null : (ph.FirstName + " " + ph.Surname),
                         PhysicianPRCLicenseNo = ph == null ? null : ph.PRCLicenseNo,
                         f.SignedAt
@@ -184,7 +188,8 @@ namespace Electronic_Health_Record.Server.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var isSubmit = dto.Status == StatusSubmitted;
+            // Normalize maps the old "Submitted" wire value onto "PendingSignature"
+            var isSubmit = FormStatus.Normalize(dto.Status) == StatusSubmitted;
 
             try
             {
@@ -252,7 +257,7 @@ namespace Electronic_Health_Record.Server.Controllers
                     var form = new WellnessForm
                     {
                         PatientID = dto.PatientID,
-                        PhysicianID = dto.PhysicianID,
+                        AssignedPhysicianID = dto.PhysicianID,
                         Status = isSubmit ? StatusSubmitted : StatusDraft,
                         Signature = dto.Signature,
                         SignedAt = string.IsNullOrWhiteSpace(dto.Signature) ? null : DateTime.UtcNow,
@@ -351,7 +356,8 @@ namespace Electronic_Health_Record.Server.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var isSubmit = dto.Status == StatusSubmitted;
+            // Normalize maps the old "Submitted" wire value onto "PendingSignature"
+            var isSubmit = FormStatus.Normalize(dto.Status) == StatusSubmitted;
 
             try
             {
@@ -421,7 +427,7 @@ namespace Electronic_Health_Record.Server.Controllers
                 try
                 {
                     form.PatientID = dto.PatientID;
-                    form.PhysicianID = dto.PhysicianID;
+                    form.AssignedPhysicianID = dto.PhysicianID;
                     form.Status = isSubmit ? StatusSubmitted : StatusDraft;
 
                     // only re-stamp SignedAt when the signature actually changes, so re-saving an
