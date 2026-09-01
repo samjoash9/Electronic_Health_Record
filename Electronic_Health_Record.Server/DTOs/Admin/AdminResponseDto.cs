@@ -1,8 +1,8 @@
 namespace Electronic_Health_Record.Server.DTOs.Admin
 {
     /// <summary>
-    /// The safe public shape of a staff account. Deliberately omits PasswordHash and
-    /// PasswordAlgo -- the entity must never be serialised directly.
+    /// The safe public shape of a staff account. Deliberately omits PasswordHash --
+    /// the entity must never be serialised directly.
     /// </summary>
     public class AdminResponseDto
     {

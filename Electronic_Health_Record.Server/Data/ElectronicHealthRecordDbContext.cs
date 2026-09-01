@@ -48,8 +48,8 @@ namespace Electronic_Health_Record.Server.Data
                     // directory-only entry or a full login account, never half of one
                     t.HasCheckConstraint(
                         "CK_Physician_CredentialSet",
-                        "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL AND [PasswordAlgo] IS NULL)" +
-                        " OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL AND [PasswordAlgo] IS NOT NULL)");
+                        "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL)" +
+                        " OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
                 });
                 entity.HasKey(p => p.PhysicianID);
                 entity.Property(p => p.Surname).HasMaxLength(50).IsRequired();
@@ -63,7 +63,6 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.Username).HasMaxLength(30);
                 entity.Property(p => p.Email).HasMaxLength(255);
                 entity.Property(p => p.PasswordHash).HasMaxLength(255);
-                entity.Property(p => p.PasswordAlgo).HasMaxLength(20).IsUnicode(false);
                 entity.Property(p => p.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(p => p.MustChangePassword).HasDefaultValue(false).IsRequired();
 
@@ -92,11 +91,6 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(a => a.Username).HasMaxLength(30).IsRequired();
                 entity.Property(a => a.Email).HasMaxLength(255).IsRequired();
                 entity.Property(a => a.PasswordHash).HasMaxLength(255).IsRequired();
-                entity.Property(a => a.PasswordAlgo)
-                    .HasMaxLength(20)
-                    .IsUnicode(false)
-                    .HasDefaultValue(PasswordAlgorithms.Sha256Legacy)
-                    .IsRequired();
                 entity.Property(a => a.FullName).HasMaxLength(100).IsRequired();
                 entity.Property(a => a.Role)
                     .HasMaxLength(20)

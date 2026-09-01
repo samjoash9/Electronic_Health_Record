@@ -10,9 +10,11 @@ namespace Electronic_Health_Record.Server.Models
         public int AdminID { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        // The hash is self-describing, so no companion "algorithm" column is needed:
+        //   64 lowercase hex chars  -> legacy unsalted SHA-256 (what DbSeeder writes)
+        //   84-char Base64 "AQAAAA..." -> PBKDF2, via ASP.NET's PasswordHasher<T>
+        // Login can therefore verify a legacy hash and rewrite it as PBKDF2 in place.
         public string PasswordHash { get; set; } = string.Empty;
-        // which hashing scheme PasswordHash uses, so a future login can upgrade legacy rows in place
-        public string PasswordAlgo { get; set; } = PasswordAlgorithms.Sha256Legacy;
         public string FullName { get; set; } = string.Empty;
         // "SuperAdmin" or "Admin" -- see Roles. CK_Admin_Role rejects anything else,
         // which is what stops a staff account from ever being able to sign.

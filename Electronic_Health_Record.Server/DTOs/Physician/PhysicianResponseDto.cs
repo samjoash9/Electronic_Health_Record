@@ -1,8 +1,8 @@
 namespace Electronic_Health_Record.Server.DTOs.Physician
 {
     /// <summary>
-    /// The safe public shape of a physician. Deliberately omits PasswordHash and PasswordAlgo:
-    /// the entity carries login credentials, so it must never be serialised directly.
+    /// The safe public shape of a physician. Deliberately omits PasswordHash: the entity
+    /// carries login credentials, so it must never be serialised directly.
     /// </summary>
     public class PhysicianResponseDto
     {

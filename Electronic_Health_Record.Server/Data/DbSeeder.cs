@@ -367,7 +367,6 @@ namespace Electronic_Health_Record.Server.Data
                     Username = username,
                     Email = email,
                     PasswordHash = HashPassword(SeedPassword),
-                    PasswordAlgo = PasswordAlgorithms.Sha256Legacy,
                     FullName = fullName,
                     Role = role,
                     IsActive = true,
@@ -433,7 +432,6 @@ namespace Electronic_Health_Record.Server.Data
                 physician.Username = username;
                 physician.Email = email;
                 physician.PasswordHash = HashPassword(SeedPassword);
-                physician.PasswordAlgo = PasswordAlgorithms.Sha256Legacy;
                 physician.MustChangePassword = true;
                 physician.UpdatedAt = DateTime.UtcNow;
             }
@@ -445,9 +443,11 @@ namespace Electronic_Health_Record.Server.Data
         // set where a real login is intended.
         private const string SeedPassword = "password123";
 
-        // Unsalted SHA-256. Not fit for production password storage -- seeded rows are stamped
-        // PasswordAlgo = "SHA256-LEGACY" so the authentication work can verify them once and
-        // rewrite them as PBKDF2 without forcing a password reset.
+        // Unsalted SHA-256, and not fit for production password storage. Output is 64 lowercase
+        // hex chars, which is how the authentication work will recognise a legacy hash -- PBKDF2
+        // via PasswordHasher<T> produces 84-char Base64 starting "AQAAAA". So a legacy row can be
+        // verified once and rewritten in the new format with no password reset, and no companion
+        // "which algorithm" column is needed.
         private static string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();

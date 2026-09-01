@@ -18,9 +18,9 @@ namespace Electronic_Health_Record.Server.Models
         // --- credentials: all null (directory-only row) or all set (has portal access) ---
         public string? Username { get; set; }
         public string? Email { get; set; }
+        // self-describing, as on Admin.PasswordHash: 64 lowercase hex = legacy SHA-256,
+        // 84-char Base64 "AQAAAA..." = PBKDF2
         public string? PasswordHash { get; set; }
-        // which hashing scheme PasswordHash uses -- see PasswordAlgorithms
-        public string? PasswordAlgo { get; set; }
         public bool IsActive { get; set; } = true;
         // set on a provisioned account so the first login lands on a forced-reset screen
         public bool MustChangePassword { get; set; }

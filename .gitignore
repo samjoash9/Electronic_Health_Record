@@ -24,3 +24,5 @@ dist-ssr/
 Thumbs.db
 PROJECT_CONTEXT.txt
 docs/PROJECT_CONTEXT.txt
+.claude/
+docs/
