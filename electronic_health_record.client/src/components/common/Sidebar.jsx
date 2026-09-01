@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Minimize2,
     LayoutDashboard,
@@ -11,9 +11,12 @@ import {
     ShieldUser,
 } from 'lucide-react';
 import PHO_logo from '../../assets/images/PHO_logo.jpg';
+import { logout } from '../../services/auth/auth';
 
 export default function Sidebar() {
     const [isExpanded, setIsExpanded] = useState(true);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const navigate = useNavigate();
 
     const navLinks = [
         { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -23,6 +26,21 @@ export default function Sidebar() {
         { id: 'activity', label: 'Activity Logs', path: '/activity', icon: Logs },
         { id: 'employee', label: 'Employee', path: '/employee', icon: ShieldUser },
     ];
+
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+
+        try {
+            setIsLoggingOut(true);
+            await logout();
+        } catch (error) {
+            console.error("Logout request failed:", error);
+        } finally {
+            localStorage.removeItem("token");
+            setIsLoggingOut(false);
+            navigate("/login");
+        }
+    };
 
     return (
         <aside
@@ -83,7 +101,6 @@ export default function Sidebar() {
                             title={link.label}
                             className={({ isActive }) => `flex items-center h-12 w-full transition-all duration-300 focus:outline-none justify-start rounded-r-lg
                                 ${isActive
-                                    // UPDATED: Active state now uses teal text and a teal left border
                                     ? 'bg-slate-800 text-teal-300 border-l-4 border-teal-400 font-semibold'
                                     : 'text-slate-400 hover:text-teal-300 hover:bg-slate-800 border-l-4 border-transparent'
                                 } 
@@ -124,8 +141,10 @@ export default function Sidebar() {
 
                 {/* Log Out Button */}
                 <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
                     title="Log Out"
-                    className={`cursor-pointer flex items-center h-11 w-full text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-all duration-300 focus:outline-none justify-start ${isExpanded ? 'pl-3' : 'pl-4'
+                    className={`cursor-pointer flex items-center h-11 w-full text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-all duration-300 focus:outline-none justify-start disabled:opacity-60 disabled:cursor-not-allowed ${isExpanded ? 'pl-3' : 'pl-4'
                         }`}
                 >
                     <LogOut className="h-5 w-5 flex-shrink-0 transition-transform duration-300" />
@@ -133,7 +152,7 @@ export default function Sidebar() {
                         className={`text-sm font-medium transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-3 w-32' : 'opacity-0 ml-0 w-0'
                             }`}
                     >
-                        Log Out
+                        {isLoggingOut ? 'Logging Out...' : 'Log Out'}
                     </span>
                 </button>
             </div>

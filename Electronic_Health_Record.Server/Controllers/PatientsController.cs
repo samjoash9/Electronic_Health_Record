@@ -1,8 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Electronic_Health_Record.Server.Data;
-using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.DTOs.Patient;
+using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Authorization;
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
+using System.Runtime.InteropServices;
 
 
 namespace Electronic_Health_Record.Server.Controllers
@@ -23,6 +28,7 @@ namespace Electronic_Health_Record.Server.Controllers
         }
 
         // get all patients
+        [Authorize]
         [HttpGet("")]
         public async Task<IActionResult> GetPatients()
         {
@@ -39,6 +45,7 @@ namespace Electronic_Health_Record.Server.Controllers
         }
 
         // get specific patient
+        [Authorize]
         [HttpGet("{PatientId}")]
         public async Task<IActionResult> GetPatient(int PatientId)
         {
@@ -59,6 +66,7 @@ namespace Electronic_Health_Record.Server.Controllers
         }
 
         // register new patient
+        [Authorize]
         [HttpPost("")]
         public async Task<IActionResult> CreatePatient([FromBody] CreatePatientDto dto)
         {
