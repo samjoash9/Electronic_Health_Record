@@ -1,12 +1,14 @@
-﻿using Electronic_Health_Record.Server.Models;
+using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Electronic_Health_Record.Server.Data
 {
     public static class DbSeeder
     {
+        private static readonly PasswordHasher<Admin> _adminPasswordHasher = new();
+        private static readonly PasswordHasher<Physician> _physicianPasswordHasher = new();
+
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ElectronicHealthRecordDbContext>();
@@ -21,8 +23,8 @@ namespace Electronic_Health_Record.Server.Data
             // Checked per-account rather than behind a single AnyAsync guard, because a database
             // seeded before roles existed already has rows -- such a guard would skip the whole
             // block and leave that database with no SuperAdmin and no way to create one.
-            await EnsureAdminAsync(context, "admin",  "admin@hospital.com",  "System Administrator", Roles.SuperAdmin);
-            await EnsureAdminAsync(context, "intake", "intake@hospital.com", "Intake Officer",       Roles.Admin);
+            await EnsureAdminAsync(context, "admin", "admin@hospital.com", "System Administrator", Roles.SuperAdmin);
+            await EnsureAdminAsync(context, "intake", "intake@hospital.com", "Intake Officer", Roles.Admin);
 
             var currentAdmin = await context.Admins.FirstAsync(a => a.Username == "admin");
 
@@ -221,9 +223,9 @@ namespace Electronic_Health_Record.Server.Data
             // new credential columns backfilled instead of being skipped wholesale.
             // The first two carry credentials so the signing flow is testable; the third is a
             // directory-only row, exercising the credential-less case the Doctors page produces.
-            await EnsurePhysicianAsync(context, "PRC-12345", "House",    "Gregory", "H.", "ghouse");
-            await EnsurePhysicianAsync(context, "PRC-67890", "Grey",     "Meredith", "E.", "mgrey");
-            await EnsurePhysicianAsync(context, "PRC-24680", "Bautista", "Ramon",   "P.", username: null);
+            await EnsurePhysicianAsync(context, "PRC-12345", "House", "Gregory", "H.", "ghouse");
+            await EnsurePhysicianAsync(context, "PRC-67890", "Grey", "Meredith", "E.", "mgrey");
+            await EnsurePhysicianAsync(context, "PRC-24680", "Bautista", "Ramon", "P.", username: null);
 
             // Seed WellnessForms with related records
             if (!await context.WellnessForms.AnyAsync())
@@ -349,7 +351,9 @@ namespace Electronic_Health_Record.Server.Data
         }
 
         // Creates the staff account if it is missing, and corrects its role if it drifted.
-        // Never touches an existing password.
+        // If it already exists with a legacy (pre-PasswordHasher) hash, rehashes it in place --
+        // no password reset needed, since the seed password is known.
+        // Never touches a password that's already in the current format.
         private static async Task EnsureAdminAsync(
             ElectronicHealthRecordDbContext context,
             string username, string email, string fullName, string role)
@@ -362,17 +366,27 @@ namespace Electronic_Health_Record.Server.Data
                 if (await context.Admins.AnyAsync(a => a.Email == email))
                     return;
 
-                context.Admins.Add(new Admin
+                var newAdmin = new Admin
                 {
                     Username = username,
                     Email = email,
-                    PasswordHash = HashPassword(SeedPassword),
                     FullName = fullName,
                     Role = role,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
-                });
+                };
+
+                // HashPassword only reads the instance's type, not its state, but the API
+                // requires one regardless -- newAdmin is safe to pass before it's saved.
+                newAdmin.PasswordHash = _adminPasswordHasher.HashPassword(newAdmin, SeedPassword);
+
+                context.Admins.Add(newAdmin);
+            }
+            else if (IsLegacyHash(admin.PasswordHash))
+            {
+                admin.PasswordHash = _adminPasswordHasher.HashPassword(admin, SeedPassword);
+                admin.UpdatedAt = DateTime.UtcNow;
             }
             else if (admin.Role != role)
             {
@@ -389,6 +403,7 @@ namespace Electronic_Health_Record.Server.Data
 
         // Creates the physician if the licence number is unknown, and grants credentials to an
         // existing credential-less row. Pass username: null for a directory-only entry.
+        // Also rehashes a legacy (pre-PasswordHasher) hash in place if one is found.
         private static async Task EnsurePhysicianAsync(
             ElectronicHealthRecordDbContext context,
             string prcLicenseNo, string surname, string firstName, string? middleName, string? username)
@@ -412,7 +427,15 @@ namespace Electronic_Health_Record.Server.Data
             }
             else if (username is null || physician.Username is not null)
             {
-                // already present, and either it needs no login or it already has one
+                // already present with a login of its own (or none intended); still worth
+                // rehashing if a legacy hash slipped in before this fix
+                if (physician.PasswordHash is not null && IsLegacyHash(physician.PasswordHash))
+                {
+                    physician.PasswordHash = _physicianPasswordHasher.HashPassword(physician, SeedPassword);
+                    physician.UpdatedAt = DateTime.UtcNow;
+                    await context.SaveChangesAsync();
+                }
+
                 return;
             }
 
@@ -431,7 +454,7 @@ namespace Electronic_Health_Record.Server.Data
 
                 physician.Username = username;
                 physician.Email = email;
-                physician.PasswordHash = HashPassword(SeedPassword);
+                physician.PasswordHash = _physicianPasswordHasher.HashPassword(physician, SeedPassword);
                 physician.MustChangePassword = true;
                 physician.UpdatedAt = DateTime.UtcNow;
             }
@@ -443,21 +466,10 @@ namespace Electronic_Health_Record.Server.Data
         // set where a real login is intended.
         private const string SeedPassword = "password123";
 
-        // Unsalted SHA-256, and not fit for production password storage. Output is 64 lowercase
-        // hex chars, which is how the authentication work will recognise a legacy hash -- PBKDF2
-        // via PasswordHasher<T> produces 84-char Base64 starting "AQAAAA". So a legacy row can be
-        // verified once and rewritten in the new format with no password reset, and no companion
-        // "which algorithm" column is needed.
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            var builder = new StringBuilder();
-            foreach (var b in bytes)
-            {
-                builder.Append(b.ToString("x2"));
-            }
-            return builder.ToString();
-        }
+        // Detects a hash written by the old unsalted-SHA256 seeder: 64 lowercase hex chars.
+        // PBKDF2 via PasswordHasher<T> instead produces ~84-char Base64 starting "AQAAAA",
+        // so the two formats never collide and this check is safe.
+        private static bool IsLegacyHash(string hash) =>
+            hash.Length == 64 && hash.All(Uri.IsHexDigit);
     }
 }

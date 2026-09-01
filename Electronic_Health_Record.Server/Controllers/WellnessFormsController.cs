@@ -1,6 +1,7 @@
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.WellnessForm;
 using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SqlServer.Server;
@@ -145,6 +146,7 @@ namespace Electronic_Health_Record.Server.Controllers
         }
 
         // get specific wellness form with its child records
+        [Authorize]
         [HttpGet("{FormId}")]
         public async Task<IActionResult> GetWellnessForm(int FormId)
         {
