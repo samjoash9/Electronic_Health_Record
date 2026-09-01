@@ -1,16 +1,51 @@
 import { useState, useEffect, useRef } from 'react';
 import meljun from "../../assets/images/meljun.png";
+import { getUser } from '../../services/auth/auth'; 
 
 export default function Navbar({ onToggleSidebar, user }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
+    const [userData, setUserData] = useState(null);
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
 
-    const currentUser = user || {
+    const fallbackUser = {
         name: "MelJun Makunat",
         role: "System Admin",
-        // Notice I updated the avatar placeholder colors to match the slate/teal theme!
         avatar: meljun
     };
+
+    // Prefer: explicit `user` prop > fetched userData > fallback
+    const currentUser = user || {
+        name: userData?.fullName || userData?.username || fallbackUser.name,
+        role: fallbackUser.role, // backend /me doesn't return a role yet
+        avatar: fallbackUser.avatar // backend /me doesn't return an avatar yet
+    };
+
+    const fetchUserData = async () => {
+        try {
+            setIsLoadingUser(true);
+            const data = await getUser();
+            // Me() returns { Username, FullName } (PascalCase from ASP.NET)
+            setUserData({
+                username: data.Username ?? data.username,
+                fullName: data.FullName ?? data.fullName
+            });
+        } catch (err) {
+            console.error("Failed to fetch user data:", err);
+            setUserData(null);
+        } finally {
+            setIsLoadingUser(false);
+        }
+    };
+
+    useEffect(() => {
+        // Skip the fetch if a user was already passed in via props
+        if (!user) {
+            fetchUserData();
+        } else {
+            setIsLoadingUser(false);
+        }
+    }, [user]);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -23,14 +58,12 @@ export default function Navbar({ onToggleSidebar, user }) {
     }, []);
 
     return (
-        // UX UPGRADE: Changed background to slate-900 and added a subtle slate-800 border 
         <nav className="flex items-center justify-between bg-slate-900 text-slate-100 px-4 py-2 shadow-sm border-b border-slate-800 z-10 relative">
 
             {/* Left Section: Hamburger Menu */}
             <div className="flex items-center space-x-4">
                 <button
                     onClick={onToggleSidebar}
-                    // UX UPGRADE: Changed hover to slate-800 and the focus ring to our clinical teal
                     className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
                     aria-label="Toggle Sidebar"
                 >
@@ -44,18 +77,19 @@ export default function Navbar({ onToggleSidebar, user }) {
             <div className="relative" ref={dropdownRef}>
                 <div
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    // UX UPGRADE: Hover state matches the sidebar's slate-800
                     className="flex items-center space-x-3 cursor-pointer hover:bg-slate-800 p-1.5 pr-2 rounded-lg transition-colors"
                 >
                     {/* User Details */}
                     <div className="flex flex-col text-right hidden sm:flex">
-                        <span className="text-sm font-bold tracking-wide text-white">{currentUser.name}</span>
-                        {/* UX UPGRADE: Changed role color to teal-400 for that premium medical software feel */}
-                        <span className="text-[10px] text-teal-400 uppercase tracking-wider font-semibold">{currentUser.role}</span>
+                        <span className="text-sm font-bold tracking-wide text-white">
+                            {isLoadingUser ? "Loading..." : currentUser.name}
+                        </span>
+                        <span className="text-[10px] text-teal-400 uppercase tracking-wider font-semibold">
+                            {currentUser.role}
+                        </span>
                     </div>
 
                     {/* Profile Image */}
-                    {/* UX UPGRADE: Changed the ring border to teal-500 */}
                     <div className="h-9 w-9 rounded-full border-2 border-teal-500 overflow-hidden bg-slate-800 flex-shrink-0">
                         <img
                             src={currentUser.avatar}
@@ -65,7 +99,6 @@ export default function Navbar({ onToggleSidebar, user }) {
                     </div>
 
                     {/* Dropdown Arrow Icon */}
-                    {/* UX UPGRADE: Changed to a muted slate-400 */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className={`h-4 w-4 text-slate-400 ml-1 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
@@ -77,7 +110,7 @@ export default function Navbar({ onToggleSidebar, user }) {
                     </svg>
                 </div>
 
-                {/* Dropdown Menu (Kept white for clean contrast against the dark navbar) */}
+                {/* Dropdown Menu */}
                 {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-slate-900/10 z-50 overflow-hidden">
                         <div className="px-4 py-3 border-b border-slate-100 sm:hidden bg-slate-50">

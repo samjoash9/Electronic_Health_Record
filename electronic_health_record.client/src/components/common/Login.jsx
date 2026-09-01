@@ -2,17 +2,35 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import PHO_logo from '../../assets/images/PHO_logo.jpg';
+import { login } from '../../services/auth/auth';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        // TODO: Integrate with C# backend authentication API here
-        // For now, redirect straight to the dashboard
-        navigate('/dashboard');
+
+        try {
+            setLoading(true);
+            setError('');
+
+            const data = await login({ email, password });
+
+            localStorage.setItem('token', data.token);
+
+            navigate('/dashboard');
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                'Invalid email or password.'
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -30,6 +48,13 @@ export default function Login() {
                     Province Health Office - Medical Portal
                 </p>
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+                    {error}
+                </div>
+            )}
 
             {/* Form Inputs */}
             <form onSubmit={handleLogin} className="space-y-4">
@@ -73,10 +98,17 @@ export default function Login() {
 
                 <button
                     type="submit"
-                    className="w-full mt-2 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-sm transition-colors shadow-md flex items-center justify-center group cursor-pointer"
+                    disabled={loading}
+                    className="w-full mt-2 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-sm transition-colors shadow-md flex items-center justify-center group cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                    <span>Sign In to Portal</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    {loading ? (
+                        <span>Signing in...</span>
+                    ) : (
+                        <>
+                            <span>Sign In to Portal</span>
+                            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                        </>
+                    )}
                 </button>
             </form>
 

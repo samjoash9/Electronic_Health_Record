@@ -1,15 +1,14 @@
-
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Auth;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Electronic_Health_Record.Server.Controllers.Auth;
 
@@ -20,7 +19,8 @@ public class AuthController : ControllerBase
     private readonly ElectronicHealthRecordDbContext _db;
     private readonly TokenService _tokenService;
 
-    private readonly PasswordHasher<Admin> _passwordHasher = new();
+    private readonly PasswordHasher<Admin> _adminPasswordHasher = new();
+    private readonly PasswordHasher<Physician> _physicianPasswordHasher = new();
 
     public AuthController(
         ElectronicHealthRecordDbContext db,
@@ -30,187 +30,543 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
     }
 
-    [HttpPost("register")]
-    public async Task<ActionResult<LoginResponse>> Register(
-        RegisterRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.FullName) ||
-        string.IsNullOrWhiteSpace(request.Username) ||
-        string.IsNullOrWhiteSpace(request.Email) ||
-        string.IsNullOrWhiteSpace(request.Password))
-        {
-            return BadRequest(new { message = "All fields are required." });
-        }
+    // =========================================================
+    // LOGIN
+    // =========================================================
 
-        // Check if email already exists
-        if (await _db.Admins.AnyAsync(a => a.Email == request.Email))
-        {
-            return Conflict("Email already taken.");
-        }
-
-        // Check if username already exists
-        if (await _db.Admins.AnyAsync(a => a.Username == request.Username))
-        {
-            return Conflict("Username already taken.");
-        }
-
-        // Create admin
-        var admin = new Admin
-        {
-            FullName = request.FullName,
-            Username = request.Username,
-            Email = request.Email,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        // Hash password
-        admin.PasswordHash = _passwordHasher.HashPassword(
-            admin,
-            request.Password
-        );
-
-        // Save admin first so AdminID is generated
-        _db.Admins.Add(admin);
-        await _db.SaveChangesAsync();
-
-        // Generate JWT
-        var (token, expiresAt) =
-            _tokenService.GenerateToken(admin);
-
-        // Hash JWT before storing it in AdminSession
-        var tokenHash = HashToken(token);
-
-        // Create admin session
-        var session = new AdminSession
-        {
-            AdminID = admin.AdminID,
-            TokenHash = tokenHash,
-            ExpiresAt = expiresAt
-        };
-
-        // Save session
-        _db.AdminSessions.Add(session);
-        await _db.SaveChangesAsync();
-
-        // Return response
-        return Ok(new LoginResponse
-        {
-            Token = token,
-            ExpiresAt = expiresAt,
-            AdminID = admin.AdminID,
-            Username = admin.Username,
-            
-        });
-    }
-
-
-    //[Authorize]
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(
         LoginRequest request)
     {
+        // -----------------------------------------------------
+        // Validate request
+        // -----------------------------------------------------
+
+        if (string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new
+            {
+                message = "Email and password are required."
+            });
+        }
+
+        // Normalize email
+        var email = request.Email.Trim();
+
+        // =====================================================
+        // 1. CHECK ADMIN BY EMAIL
+        // =====================================================
+
         var admin = await _db.Admins
-            .FirstOrDefaultAsync(a => a.Email == request.Email);
+            .FirstOrDefaultAsync(a => a.Email == email);
 
-        if (admin == null)
-            return Unauthorized(new { message = "Invalid email or password." });
-
-        if (!admin.IsActive)
-            return Unauthorized(new { message = "Account is inactive." });
-
-        // Verify password
-        var passwordResult = _passwordHasher.VerifyHashedPassword(
-            admin,
-            admin.PasswordHash,
-            request.Password
-        );
-
-        if (passwordResult == PasswordVerificationResult.Failed)
-            return Unauthorized(new { message = "Invalid email or password." });
-
-        // Generate JWT
-        var (token, expiresAt) =
-            _tokenService.GenerateToken(admin);
-
-        // Hash JWT for database storage
-        var tokenHash = HashToken(token);
-
-        // Create session
-        var session = new AdminSession
+        if (admin != null)
         {
-            AdminID = admin.AdminID,
-            TokenHash = tokenHash,
-            ExpiresAt = expiresAt,
-            CreatedAt = DateTime.UtcNow
-        };
+            // -------------------------------------------------
+            // Check account status
+            // -------------------------------------------------
 
-        _db.AdminSessions.Add(session);
+            if (!admin.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Account is inactive."
+                });
+            }
 
-        // Update last login
-        admin.LastLoginAt = DateTime.UtcNow;
-        admin.UpdatedAt = DateTime.UtcNow;
+            // -------------------------------------------------
+            // Verify password
+            // -------------------------------------------------
 
-        await _db.SaveChangesAsync();
+            var passwordResult =
+                _adminPasswordHasher.VerifyHashedPassword(
+                    admin,
+                    admin.PasswordHash,
+                    request.Password
+                );
 
-        // Return ORIGINAL JWT to frontend
-        return Ok(new LoginResponse
+            if (passwordResult == PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid email or password."
+                });
+            }
+
+            // Password is valid, but the hasher wants it rewritten with current
+            // parameters (e.g. iteration count bumped) - rehash and persist now
+            // while we have the plaintext.
+            if (passwordResult == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                admin.PasswordHash =
+                    _adminPasswordHasher.HashPassword(admin, request.Password);
+            }
+
+            // -------------------------------------------------
+            // Generate JWT
+            // -------------------------------------------------
+
+            var (token, expiresAt) =
+                _tokenService.GenerateToken(admin);
+
+            // -------------------------------------------------
+            // Update last login
+            // -------------------------------------------------
+
+            admin.LastLoginAt = DateTime.UtcNow;
+            admin.UpdatedAt = DateTime.UtcNow;
+
+            // -------------------------------------------------
+            // Create user session
+            // -------------------------------------------------
+
+            var session = new UserSession
+            {
+                AdminID = admin.AdminID,
+                PhysicianID = null,
+
+                TokenHash = HashToken(token),
+
+                ExpiresAt = expiresAt,
+
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.UserSessions.Add(session);
+
+            await _db.SaveChangesAsync();
+
+            // -------------------------------------------------
+            // Return response
+            // -------------------------------------------------
+
+            return Ok(new LoginResponse
+            {
+                Token = token,
+                ExpiresAt = expiresAt,
+
+                AdminID = admin.AdminID,
+
+                Username = admin.Username,
+
+                FullName = admin.FullName,
+
+                Role = admin.Role
+            });
+        }
+
+        // =====================================================
+        // 2. CHECK PHYSICIAN BY EMAIL
+        // =====================================================
+
+        var physician = await _db.Physicians
+            .FirstOrDefaultAsync(p => p.Email == email);
+
+        if (physician != null)
         {
-            Token = token,
-            ExpiresAt = expiresAt,
-            AdminID = admin.AdminID,
-            Username = admin.Username,
-            FullName = admin.FullName
+            // -------------------------------------------------
+            // Check portal access
+            // -------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(physician.PasswordHash))
+            {
+                return Unauthorized(new
+                {
+                    message = "This physician account does not have portal access."
+                });
+            }
+
+            // -------------------------------------------------
+            // Check account status
+            // -------------------------------------------------
+
+            if (!physician.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Account is inactive."
+                });
+            }
+
+            // -------------------------------------------------
+            // Verify password
+            // -------------------------------------------------
+
+            var passwordResult =
+                _physicianPasswordHasher.VerifyHashedPassword(
+                    physician,
+                    physician.PasswordHash,
+                    request.Password
+                );
+
+            if (passwordResult == PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid email or password."
+                });
+            }
+
+            // Password is valid, but the hasher wants it rewritten with current
+            // parameters (e.g. iteration count bumped) - rehash and persist now
+            // while we have the plaintext.
+            if (passwordResult == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                physician.PasswordHash =
+                    _physicianPasswordHasher.HashPassword(physician, request.Password);
+            }
+
+            // -------------------------------------------------
+            // Generate JWT
+            // -------------------------------------------------
+
+            var (token, expiresAt) =
+                _tokenService.GenerateToken(physician);
+
+            // -------------------------------------------------
+            // Update last login
+            // -------------------------------------------------
+
+            physician.LastLoginAt = DateTime.UtcNow;
+            physician.UpdatedAt = DateTime.UtcNow;
+
+            // -------------------------------------------------
+            // Create user session
+            // -------------------------------------------------
+
+            var session = new UserSession
+            {
+                AdminID = null,
+
+                PhysicianID = physician.PhysicianID,
+
+                TokenHash = HashToken(token),
+
+                ExpiresAt = expiresAt,
+
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.UserSessions.Add(session);
+
+            await _db.SaveChangesAsync();
+
+            // -------------------------------------------------
+            // Return response
+            // -------------------------------------------------
+
+            return Ok(new LoginResponse
+            {
+                Token = token,
+                ExpiresAt = expiresAt,
+
+                PhysicianID = physician.PhysicianID,
+
+                Username = physician.Username,
+
+                FullName =
+                    $"{physician.FirstName} " +
+                    $"{physician.MiddleName} " +
+                    $"{physician.Surname}",
+
+                Role = Roles.Physician
+            });
+        }
+
+        // =====================================================
+        // 3. NO ACCOUNT FOUND
+        // =====================================================
+
+        return Unauthorized(new
+        {
+            message = "Invalid email or password."
         });
     }
 
+    // =========================================================
+    // CURRENT USER
+    // =========================================================
 
     [Authorize]
     [HttpGet("me")]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
+        var userId =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        var role =
+            User.FindFirst(ClaimTypes.Role)?.Value;
+
+        var principalType =
+            User.FindFirst("PrincipalType")?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId) ||
+            string.IsNullOrWhiteSpace(role))
+        {
+            return Unauthorized();
+        }
+
+        // =====================================================
+        // ADMIN
+        // =====================================================
+
+        if (principalType == "Admin")
+        {
+            if (!int.TryParse(userId, out var adminId))
+            {
+                return Unauthorized();
+            }
+
+            var admin = await _db.Admins
+                .FirstOrDefaultAsync(a =>
+                    a.AdminID == adminId);
+
+            if (admin == null)
+            {
+                return Unauthorized();
+            }
+
+            return Ok(new
+            {
+                AdminID = admin.AdminID,
+                Username = admin.Username,
+                Email = admin.Email,
+                FullName = admin.FullName,
+                Role = admin.Role,
+                PrincipalType = "Admin"
+            });
+        }
+
+        // =====================================================
+        // PHYSICIAN
+        // =====================================================
+
+        if (principalType == "Physician")
+        {
+            if (!int.TryParse(userId, out var physicianId))
+            {
+                return Unauthorized();
+            }
+
+            var physician = await _db.Physicians
+                .FirstOrDefaultAsync(p =>
+                    p.PhysicianID == physicianId);
+
+            if (physician == null)
+            {
+                return Unauthorized();
+            }
+
+            return Ok(new
+            {
+                PhysicianID = physician.PhysicianID,
+                Username = physician.Username,
+                Email = physician.Email,
+                FullName =
+                    $"{physician.FirstName} " +
+                    $"{physician.MiddleName} " +
+                    $"{physician.Surname}",
+                Role = Roles.Physician,
+                PrincipalType = "Physician",
+                MustChangePassword = physician.MustChangePassword
+            });
+        }
+
+        return Unauthorized();
+    }
+
+    // =========================================================
+    // CHANGE PASSWORD (PHYSICIAN)
+    // =========================================================
+
+    [Authorize]
+    [HttpPost("physician/change-password")]
+    public async Task<IActionResult> ChangePhysicianPassword(
+        ChangePasswordRequest request)
+    {
+        // -----------------------------------------------------
+        // Must be a physician principal
+        // -----------------------------------------------------
+
+        var principalType =
+            User.FindFirst("PrincipalType")?.Value;
+
+        var userId =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (principalType != "Physician" ||
+            string.IsNullOrWhiteSpace(userId) ||
+            !int.TryParse(userId, out var physicianId))
+        {
+            return Unauthorized();
+        }
+
+        // -----------------------------------------------------
+        // Validate request
+        // -----------------------------------------------------
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) ||
+            string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest(new
+            {
+                message = "Current password and new password are required."
+            });
+        }
+
+        if (request.NewPassword.Length < 8)
+        {
+            return BadRequest(new
+            {
+                message = "New password must be at least 8 characters long."
+            });
+        }
+
+        if (request.NewPassword == request.CurrentPassword)
+        {
+            return BadRequest(new
+            {
+                message = "New password must be different from the current password."
+            });
+        }
+
+        // -----------------------------------------------------
+        // Load the physician
+        // -----------------------------------------------------
+
+        var physician = await _db.Physicians
+            .FirstOrDefaultAsync(p => p.PhysicianID == physicianId);
+
+        if (physician == null)
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(physician.PasswordHash))
+        {
+            return Unauthorized(new
+            {
+                message = "This physician account does not have portal access."
+            });
+        }
+
+        if (!physician.IsActive)
+        {
+            return Unauthorized(new
+            {
+                message = "Account is inactive."
+            });
+        }
+
+        // -----------------------------------------------------
+        // Verify current password
+        // -----------------------------------------------------
+
+        var passwordResult =
+            _physicianPasswordHasher.VerifyHashedPassword(
+                physician,
+                physician.PasswordHash,
+                request.CurrentPassword
+            );
+
+        if (passwordResult == PasswordVerificationResult.Failed)
+        {
+            return Unauthorized(new
+            {
+                message = "Current password is incorrect."
+            });
+        }
+
+        // -----------------------------------------------------
+        // Set the new password
+        // -----------------------------------------------------
+
+        physician.PasswordHash =
+            _physicianPasswordHasher.HashPassword(physician, request.NewPassword);
+
+        // password has now been chosen by the physician themselves, so the
+        // forced-reset screen no longer applies
+        physician.MustChangePassword = false;
+
+        physician.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
         return Ok(new
         {
-            Username = User.FindFirst(ClaimTypes.Name)?.Value,
-            FullName = User.FindFirst("FullName")?.Value
+            message = "Password changed successfully."
         });
     }
 
-    private static string HashToken(string token)
-    {
-        var hash = SHA256.HashData(
-            Encoding.UTF8.GetBytes(token)
-        );
+    // =========================================================
+    // LOGOUT
+    // =========================================================
 
-        return Convert.ToHexString(hash).ToLowerInvariant();
-    }
-
+    [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
+        var userId =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Unauthorized();
+        }
+
+        // -----------------------------------------------------
+        // Extract the bearer token so we can find its session
+        // -----------------------------------------------------
+
         var authHeader = Request.Headers.Authorization.ToString();
 
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-            return Unauthorized(new { message = "Token is missing." });
+        if (string.IsNullOrWhiteSpace(authHeader) ||
+            !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return Unauthorized();
+        }
 
         var token = authHeader["Bearer ".Length..].Trim();
         var tokenHash = HashToken(token);
 
-        var session = await _db.AdminSessions
-            .AsTracking()   // ensure EF tracks this entity for the update
-            .FirstOrDefaultAsync(s => s.TokenHash == tokenHash);
+        // -----------------------------------------------------
+        // Revoke the matching, still-live session
+        // -----------------------------------------------------
 
-        if (session == null)
-            return NotFound(new { message = "Session not found." });
+        var session = await _db.UserSessions
+            .FirstOrDefaultAsync(s =>
+                s.TokenHash == tokenHash &&
+                s.RevokedAt == null);
 
-        if (session.RevokedAt != null)
-            return Ok(new { message = "Already logged out." });
+        if (session != null)
+        {
+            session.RevokedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
 
-        session.RevokedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        return Ok(new
+        {
+            message = "Logged out successfully."
+        });
+    }
 
-        return Ok(new { message = "Logged out successfully." });
+    // =========================================================
+    // TOKEN HASH
+    // =========================================================
+
+    private static string HashToken(string token)
+    {
+        using var sha256 =
+            System.Security.Cryptography.SHA256.Create();
+
+        var bytes =
+            sha256.ComputeHash(
+                System.Text.Encoding.UTF8.GetBytes(token)
+            );
+
+        return Convert.ToHexString(bytes)
+            .ToLowerInvariant();
     }
 }
-
