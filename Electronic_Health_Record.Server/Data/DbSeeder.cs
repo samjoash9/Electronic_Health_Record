@@ -71,7 +71,158 @@ namespace Electronic_Health_Record.Server.Data
                         ContactNo = "09876543210",
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Roe",
+                        FirstName = "Jane",
+                        MiddleName = "Ann",
+                        Birthdate = new DateTime(1992, 8, 25),
+                        Sex = "F",
+                        CivilStatus = "Single",
+                        Address = "456 Oak St, Springfield",
+                        AgencyOffice = "IT",
+                        Position = "Developer",
+                        ContactNo = "09876543210",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Smith",
+                        FirstName = "John",
+                        MiddleName = "Michael",
+                        Birthdate = new DateTime(1988, 3, 14),
+                        Sex = "M",
+                        CivilStatus = "Married",
+                        Address = "123 Maple St, Springfield",
+                        AgencyOffice = "Finance",
+                        Position = "Accountant",
+                        ContactNo = "09123456789",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Garcia",
+                        FirstName = "Maria",
+                        MiddleName = "Elena",
+                        Birthdate = new DateTime(1995, 11, 7),
+                        Sex = "F",
+                        CivilStatus = "Single",
+                        Address = "789 Pine St, Springfield",
+                        AgencyOffice = "HR",
+                        Position = "HR Specialist",
+                        ContactNo = "09234567890",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Santos",
+                        FirstName = "Carlos",
+                        MiddleName = "Luis",
+                        Birthdate = new DateTime(1990, 6, 18),
+                        Sex = "M",
+                        CivilStatus = "Single",
+                        Address = "321 Cedar Ave, Springfield",
+                        AgencyOffice = "Operations",
+                        Position = "Operations Officer",
+                        ContactNo = "09345678901",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Reyes",
+                        FirstName = "Angela",
+                        MiddleName = "Marie",
+                        Birthdate = new DateTime(1985, 1, 30),
+                        Sex = "F",
+                        CivilStatus = "Married",
+                        Address = "654 Birch Road, Springfield",
+                        AgencyOffice = "Administration",
+                        Position = "Administrative Officer",
+                        ContactNo = "09456789012",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Dela Cruz",
+                        FirstName = "Mark",
+                        MiddleName = "Anthony",
+                        Birthdate = new DateTime(1997, 9, 12),
+                        Sex = "M",
+                        CivilStatus = "Single",
+                        Address = "987 Elm Street, Springfield",
+                        AgencyOffice = "IT",
+                        Position = "Software Engineer",
+                        ContactNo = "09567890123",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Mendoza",
+                        FirstName = "Sofia",
+                        MiddleName = "Grace",
+                        Birthdate = new DateTime(1993, 4, 22),
+                        Sex = "F",
+                        CivilStatus = "Single",
+                        Address = "147 Willow Lane, Springfield",
+                        AgencyOffice = "Marketing",
+                        Position = "Marketing Officer",
+                        ContactNo = "09678901234",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Villanueva",
+                        FirstName = "Daniel",
+                        MiddleName = "James",
+                        Birthdate = new DateTime(1989, 12, 5),
+                        Sex = "M",
+                        CivilStatus = "Married",
+                        Address = "258 Oak Avenue, Springfield",
+                        AgencyOffice = "Legal",
+                        Position = "Legal Officer",
+                        ContactNo = "09789012345",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Torres",
+                        FirstName = "Patricia",
+                        MiddleName = "Anne",
+                        Birthdate = new DateTime(1996, 7, 16),
+                        Sex = "F",
+                        CivilStatus = "Single",
+                        Address = "369 Maple Drive, Springfield",
+                        AgencyOffice = "IT",
+                        Position = "Systems Analyst",
+                        ContactNo = "09890123456",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new Patient
+                    {
+                        Surname = "Navarro",
+                        FirstName = "Kevin",
+                        MiddleName = "Paul",
+                        Birthdate = new DateTime(1991, 2, 28),
+                        Sex = "M",
+                        CivilStatus = "Divorced",
+                        Address = "741 Pine Avenue, Springfield",
+                        AgencyOffice = "Procurement",
+                        Position = "Procurement Officer",
+                        ContactNo = "09901234567",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
                     }
+
                 );
                 await context.SaveChangesAsync();
             }
