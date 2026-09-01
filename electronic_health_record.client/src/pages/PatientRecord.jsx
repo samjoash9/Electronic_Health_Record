@@ -103,7 +103,7 @@ export default function PatientRecord() {
 
     const fetchPatients = () => {
         setIsLoading(true);
-        axios.get('/api/patients')
+        axios.get('http://localhost:5084/api/WellnessForms')
             .then(res => {
                 setPatients(Array.isArray(res.data) ? res.data : (res.data.data || []));
                 setIsLoading(false);
@@ -123,8 +123,12 @@ export default function PatientRecord() {
     // Filter Logic
     const filteredPatients = patients.filter(patient => {
         const fullName = `${patient.firstName || ''} ${patient.middleName || ''} ${patient.surname || ''}`.toLowerCase();
-        const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || (patient.contactNo || '').toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || (patient.status || 'Saved').toLowerCase() === statusFilter.toLowerCase();
+        const contactInfo = (patient.contactNo || patient.contact || patient.ContactNo || '').toLowerCase();
+        const currentStatus = (patient.status || patient.Status || 'Draft').toLowerCase();
+
+        const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || contactInfo.includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter.toLowerCase();
+
         return matchesSearch && matchesStatus;
     });
 
@@ -151,7 +155,7 @@ export default function PatientRecord() {
     const handleSelectPatientForNewForm = async (patient) => {
         setIsSelectingPatient(false);
         try {
-            const res = await axios.get(`/api/WellnessForms/${patient.patientID}`);
+            const res = await axios.get(`http://localhost:5084/api/WellnessForms/${patient.patientID}`);
 
             if (res.data && res.data.form) {
                 setPendingPatient(patient);
@@ -260,7 +264,7 @@ export default function PatientRecord() {
                                     <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                                         Filter By Status
                                     </div>
-                                    {['All', 'Saved', 'Draft'].map((status) => (
+                                    {['All', 'Saved', 'Draft', 'Submitted'].map((status) => (
                                         <button
                                             key={status}
                                             onClick={() => {
@@ -304,21 +308,50 @@ export default function PatientRecord() {
                             ) : currentPatients.length === 0 ? (
                                 <tr><td colSpan="7" className="py-10 text-center text-gray-400"><p>No matching patient records found.</p></td></tr>
                             ) : (
-                                currentPatients.map((patient, index) => (
-                                    <tr key={patient.patientID || index} onClick={() => handlePatientClick(patient)} className="hover:bg-teal-50/40 transition-colors group cursor-pointer">
-                                        <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{indexOfFirstItem + index + 1}</span></td>
-                                        <td className="py-4 px-4"><p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname}</p></td>
-                                        <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{patient.contactNo || 'N/A'}</p></td>
-                                        <td className="py-4 px-4">
-                                            <span className="text-sm font-medium text-gray-600">
-                                                {patient.createdAt ? new Date(patient.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-4"><span className="text-sm font-medium text-gray-600">{patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></td>
-                                        <td className="py-4 px-4"><span className="inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full bg-emerald-100 text-emerald-700">Completed</span></td>
-                                        <td className="py-4 px-4"><button onClick={(e) => e.stopPropagation()} className="text-gray-500 hover:text-teal-600 hover:bg-teal-50 p-1.5 rounded-lg transition-colors"><MoreVertical className="w-5 h-5" /></button></td>
-                                    </tr>
-                                ))
+                                currentPatients.map((patient, index) => {
+                                    // --- THE FIX: Catch all possible variations of the API property names ---
+                                    const createdDate = patient.createdAt || patient.formDate || patient.CreatedAt || patient.FormDate || null;
+                                    const updatedDate = patient.updatedAt || patient.UpdatedAt || null;
+                                    const contactInfo = patient.contactNo || patient.contact || patient.ContactNo || 'N/A';
+                                    const currentStatus = patient.status || patient.Status || 'Draft';
+
+                                    return (
+                                        <tr key={patient.patientID || patient.formID || index} onClick={() => handlePatientClick(patient)} className="hover:bg-teal-50/40 transition-colors group cursor-pointer">
+                                            <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{indexOfFirstItem + index + 1}</span></td>
+
+                                            <td className="py-4 px-4"><p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname}</p></td>
+
+                                            {/* Fixed Contact Mapping */}
+                                            <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{contactInfo}</p></td>
+
+                                            {/* Fixed Created Date Mapping */}
+                                            <td className="py-4 px-4">
+                                                <span className="text-sm font-medium text-gray-600">
+                                                    {createdDate ? new Date(createdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                </span>
+                                            </td>
+
+                                            {/* Fixed Updated Date Mapping */}
+                                            <td className="py-4 px-4">
+                                                <span className="text-sm font-medium text-gray-600">
+                                                    {updatedDate ? new Date(updatedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                </span>
+                                            </td>
+
+                                            {/* Fixed Status Mapping with dynamic colors */}
+                                            <td className="py-4 px-4">
+                                                <span className={`inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full ${currentStatus.toLowerCase() === 'submitted' ? 'bg-emerald-100 text-emerald-700' :
+                                                        currentStatus.toLowerCase() === 'draft' ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-gray-100 text-gray-700'
+                                                    }`}>
+                                                    {currentStatus}
+                                                </span>
+                                            </td>
+
+                                            <td className="py-4 px-4"><button onClick={(e) => e.stopPropagation()} className="text-gray-500 hover:text-teal-600 hover:bg-teal-50 p-1.5 rounded-lg transition-colors"><MoreVertical className="w-5 h-5" /></button></td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

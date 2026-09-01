@@ -9,6 +9,7 @@ import PatientRecord from './pages/PatientRecord';
 import Appointment from './pages/Appointment';
 import DoctorsPage from './pages/DoctorsPage';
 import ActivityPage from './pages/ActivityPage';
+import Employee from './pages/Employee';
 
 export default function App() {
     return (
@@ -24,6 +25,7 @@ export default function App() {
                     <Route path="/appointment" element={<Appointment />} />
                     <Route path="/doctors" element={<DoctorsPage />} />
                     <Route path="/activity" element={<ActivityPage />} />
+                    <Route path="/employee" element={<Employee />} />
                 </Route>
                 {/* Fallback catch-all redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
