@@ -125,10 +125,8 @@ export default function PatientRecord() {
         const fullName = `${patient.firstName || ''} ${patient.middleName || ''} ${patient.surname || ''}`.toLowerCase();
         const contactInfo = (patient.contactNo || patient.contact || patient.ContactNo || '').toLowerCase();
         const currentStatus = (patient.status || patient.Status || 'Draft').toLowerCase();
-
         const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || contactInfo.includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter.toLowerCase();
-
         return matchesSearch && matchesStatus;
     });
 
@@ -297,7 +295,6 @@ export default function PatientRecord() {
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Contact</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Form Created</th>
-                                <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Updated</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                                 <th className="py-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
                             </tr>
@@ -328,13 +325,6 @@ export default function PatientRecord() {
                                             <td className="py-4 px-4">
                                                 <span className="text-sm font-medium text-gray-600">
                                                     {createdDate ? new Date(createdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-                                                </span>
-                                            </td>
-
-                                            {/* Fixed Updated Date Mapping */}
-                                            <td className="py-4 px-4">
-                                                <span className="text-sm font-medium text-gray-600">
-                                                    {updatedDate ? new Date(updatedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                                                 </span>
                                             </td>
 

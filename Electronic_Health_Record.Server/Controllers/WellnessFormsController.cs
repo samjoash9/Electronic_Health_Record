@@ -113,6 +113,7 @@ namespace Electronic_Health_Record.Server.Controllers
                     f.Sex,
                     f.CivilStatus,
                     f.Address,
+                    f.ContactNo,
                     f.WeightKg,
                     f.HeightCm,
                     f.BMI,

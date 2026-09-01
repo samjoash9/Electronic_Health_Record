@@ -10,7 +10,7 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
     const [emailSearchTerm, setEmailSearchTerm] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
 
-    const defaultPassword = 'Password123!';
+    const defaultPassword = 'password123';
     const initialFormState = {
         employeeID: null,
         email: '',
@@ -220,7 +220,6 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
                                 >
                                     <option value="" disabled>-- Select a Role --</option>
                                     <option value="Admin">Admin</option>
-                                    <option value="Nurse">Nurse</option>
                                     <option value="Doctor">Doctor</option>
                                 </select>
                             </div>
