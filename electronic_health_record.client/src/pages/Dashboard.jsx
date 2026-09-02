@@ -1,15 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ContactRound,
     Users,
     MessageSquareHeart,
 } from 'lucide-react';
+import { getUser } from '../services/auth/auth';
 
 export default function Dashboard() {
-    const currentUser = {
-        name: "MelJun Makunat",
-        role: "Nurse",
-    };
+    const [currentUser, setCurrentUser] = useState(null);
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchUser = async () => {
+            try {
+                const user = await getUser();
+                if (isMounted) setCurrentUser(user);
+            } catch (error) {
+                console.error("Failed to fetch current user:", error);
+            } finally {
+                if (isMounted) setIsLoadingUser(false);
+            }
+        };
+
+        fetchUser();
+        return () => { isMounted = false; };
+    }, []);
+
+    // Normalize whichever casing the API returns (PascalCase from C#)
+    const role = currentUser?.Role ?? currentUser?.role ?? '';
+    const fullName = currentUser?.FullName ?? currentUser?.fullName ?? '';
 
     return (
         <div className="w-full max-w-7xl mx-auto pb-10 space-y-6">
@@ -17,8 +38,16 @@ export default function Dashboard() {
             {/* TOP HEADER & QUICK ACTIONS */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{currentUser.role} Dashboard</h1>
-                    <p className="text-sm text-slate-500">Welcome back, {currentUser.role} {currentUser.name} — Agusan del Sur Provincial Hospital</p>
+                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        {isLoadingUser ? 'Loading...' : `${role} Dashboard`}
+                    </h1>
+                    <p className="text-sm text-slate-500">
+                        {isLoadingUser ? (
+                            <span className="inline-block h-4 w-64 bg-slate-200 rounded animate-pulse" />
+                        ) : (
+                            <>Welcome back, {role} {fullName} — Agusan del Sur Provincial Hospital</>
+                        )}
+                    </p>
                 </div>
 
             </div>
