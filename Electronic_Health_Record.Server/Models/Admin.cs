@@ -8,7 +8,6 @@ namespace Electronic_Health_Record.Server.Models
     public class Admin
     {
         public int AdminID { get; set; }
-        public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         // The hash is self-describing, so no companion "algorithm" column is needed:
         //   64 lowercase hex chars  -> legacy unsalted SHA-256 (what DbSeeder writes)

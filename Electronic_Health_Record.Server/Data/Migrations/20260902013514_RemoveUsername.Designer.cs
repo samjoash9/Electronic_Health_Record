@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902013514_RemoveUsername")]
+    partial class RemoveUsername
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,67 +24,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.ActivityLog", b =>
-                {
-                    b.Property<int>("LogID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LogID"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("ActorID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ActorRole")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.Property<int?>("FormID")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsViewed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(10)")
-                        .HasDefaultValue("SUCCESS");
-
-                    b.HasKey("LogID");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_ActivityLog_CreatedAt");
-
-                    b.HasIndex("FormID");
-
-                    b.HasIndex("IsViewed")
-                        .HasDatabaseName("IX_ActivityLog_IsViewed");
-
-                    b.ToTable("ActivityLog", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ActivityLog_ActorRole", "[ActorRole] IN ('SuperAdmin','Admin','Physician')");
-
-                            t.HasCheckConstraint("CK_ActivityLog_Status", "[Status] IN ('SUCCESS','FAILED','WARNING')");
-                        });
-                });
 
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.Admin", b =>
                 {
@@ -662,14 +604,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                             t.HasCheckConstraint("CK_WellnessForm_Status", "[Status] IN ('Draft','PendingSignature','Signed')");
                         });
-                });
-
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.ActivityLog", b =>
-                {
-                    b.HasOne("Electronic_Health_Record.Server.Models.WellnessForm", null)
-                        .WithMany()
-                        .HasForeignKey("FormID")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.FamilyMedicalHistory", b =>

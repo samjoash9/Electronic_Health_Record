@@ -25,7 +25,6 @@ public class TokenService
     {
         return GenerateToken(
             userId: admin.AdminID,
-            username: admin.Username,
             email: admin.Email,
             fullName: admin.FullName,
             role: admin.Role,
@@ -42,7 +41,6 @@ public class TokenService
     {
         return GenerateToken(
             userId: physician.PhysicianID,
-            username: physician.Username!,
             email: physician.Email!,
             fullName: BuildPhysicianFullName(physician),
             role: Roles.Physician,
@@ -57,7 +55,6 @@ public class TokenService
 
     private (string token, DateTime expiresAt) GenerateToken(
         int userId,
-        string username,
         string email,
         string fullName,
         string role,
@@ -79,11 +76,6 @@ public class TokenService
             new(
                 ClaimTypes.NameIdentifier,
                 userId.ToString()
-            ),
-
-            new(
-                ClaimTypes.Name,
-                username
             ),
 
             new(

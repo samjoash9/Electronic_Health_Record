@@ -95,7 +95,6 @@ export default function Employee() {
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
                                 <th className="py-3 px-6 font-semibold">Full Name</th>
-                                <th className="py-3 px-6 font-semibold">Username</th>
                                 <th className="py-3 px-6 font-semibold">Email</th>
                                 <th className="py-3 px-6 font-semibold">System Role</th>
                                 <th className="py-3 px-6 text-right font-semibold">Actions</th>
@@ -104,14 +103,14 @@ export default function Employee() {
                         <tbody className="divide-y divide-slate-100">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="5" className="py-12 text-center text-slate-400">
+                                    <td colSpan="4" className="py-12 text-center text-slate-400">
                                         <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" />
                                         <p>Loading employees...</p>
                                     </td>
                                 </tr>
                             ) : filteredEmployees.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="py-12 text-center text-slate-400">
+                                    <td colSpan="4" className="py-12 text-center text-slate-400">
                                         <p>No employees found.</p>
                                     </td>
                                 </tr>
@@ -120,9 +119,6 @@ export default function Employee() {
                                     <tr key={emp.employeeID} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="py-4 px-6">
                                             <p className="text-sm font-bold text-slate-900">{emp.fullName}</p>
-                                        </td>
-                                        <td className="py-4 px-6">
-                                            <p className="text-sm font-medium text-slate-600">@{emp.username}</p>
                                         </td>
                                         <td className="py-4 px-6">
                                             <div className="flex items-center text-sm text-slate-500">

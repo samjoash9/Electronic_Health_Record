@@ -149,8 +149,6 @@ public class AuthController : ControllerBase
 
                 AdminID = admin.AdminID,
 
-                Username = admin.Username,
-
                 FullName = admin.FullName,
 
                 Role = admin.Role
@@ -264,8 +262,6 @@ public class AuthController : ControllerBase
 
                 PhysicianID = physician.PhysicianID,
 
-                Username = physician.Username,
-
                 FullName =
                     $"{physician.FirstName} " +
                     $"{physician.MiddleName} " +
@@ -331,7 +327,6 @@ public class AuthController : ControllerBase
             return Ok(new
             {
                 AdminID = admin.AdminID,
-                Username = admin.Username,
                 Email = admin.Email,
                 FullName = admin.FullName,
                 Role = admin.Role,
@@ -362,7 +357,6 @@ public class AuthController : ControllerBase
             return Ok(new
             {
                 PhysicianID = physician.PhysicianID,
-                Username = physician.Username,
                 Email = physician.Email,
                 FullName =
                     $"{physician.FirstName} " +

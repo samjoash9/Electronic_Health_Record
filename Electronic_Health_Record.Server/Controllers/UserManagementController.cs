@@ -33,26 +33,16 @@ public class UserManagementController : ControllerBase
     public async Task<ActionResult<CreateAdminResponse>> CreateAdmin(
         CreateAdminRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Username) ||
-            string.IsNullOrWhiteSpace(request.Email) ||
+        if (string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.FullName))
         {
             return BadRequest(new
             {
-                message = "Username, email, and full name are required."
+                message = "Email and full name are required."
             });
         }
 
-        var username = request.Username.Trim();
         var email = request.Email.Trim();
-
-        if (await _db.Admins.AnyAsync(a => a.Username == username))
-        {
-            return BadRequest(new
-            {
-                message = "That username is already taken."
-            });
-        }
 
         if (await _db.Admins.AnyAsync(a => a.Email == email))
         {
@@ -68,7 +58,6 @@ public class UserManagementController : ControllerBase
 
         var admin = new Admin
         {
-            Username = username,
             Email = email,
             FullName = request.FullName.Trim(),
             Role = Roles.Admin,
@@ -87,7 +76,6 @@ public class UserManagementController : ControllerBase
         return Ok(new CreateAdminResponse
         {
             AdminID = admin.AdminID,
-            Username = admin.Username,
             Email = admin.Email,
             FullName = admin.FullName,
             Role = admin.Role,
@@ -115,11 +103,11 @@ public class UserManagementController : ControllerBase
         }
 
         if (request.GrantPortalAccess &&
-            string.IsNullOrWhiteSpace(request.Username))
+            string.IsNullOrWhiteSpace(request.Email))
         {
             return BadRequest(new
             {
-                message = "Username is required when granting portal access."
+                message = "Email is required when granting portal access."
             });
         }
 
@@ -161,20 +149,16 @@ public class UserManagementController : ControllerBase
 
         if (request.GrantPortalAccess)
         {
-            var username = request.Username!.Trim();
-            var email = $"{username}@hospital.com";
+            var email = request.Email!.Trim();
 
-            if (await _db.Physicians.AnyAsync(p =>
-                p.Username == username ||
-                p.Email == email))
+            if (await _db.Physicians.AnyAsync(p => p.Email == email))
             {
                 return BadRequest(new
                 {
-                    message = "That username or email is already in use."
+                    message = "That email is already in use."
                 });
             }
 
-            physician.Username = username;
             physician.Email = email;
 
             // Default password
@@ -200,7 +184,6 @@ public class UserManagementController : ControllerBase
             FirstName = physician.FirstName,
             MiddleName = physician.MiddleName,
             PRCLicenseNo = physician.PRCLicenseNo,
-            Username = physician.Username,
             Email = physician.Email,
             TemporaryPassword = temporaryPassword
         });

@@ -7,7 +7,6 @@ namespace Electronic_Health_Record.Server.DTOs.Admin
     public class AdminResponseDto
     {
         public int AdminID { get; set; }
-        public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
@@ -20,7 +19,6 @@ namespace Electronic_Health_Record.Server.DTOs.Admin
         public static AdminResponseDto From(Models.Admin a) => new()
         {
             AdminID = a.AdminID,
-            Username = a.Username,
             Email = a.Email,
             FullName = a.FullName,
             Role = a.Role,

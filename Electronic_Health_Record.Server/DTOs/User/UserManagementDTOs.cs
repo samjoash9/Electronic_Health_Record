@@ -3,7 +3,6 @@
 
     public class CreateAdminRequest
     {
-        public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
     }
@@ -11,7 +10,6 @@
     public class CreateAdminResponse
     {
         public int AdminID { get; set; }
-        public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
@@ -34,10 +32,10 @@
         public string PRCLicenseNo { get; set; } = string.Empty;
 
         // If false, this creates a directory-only physician (assignable to
-        // forms but cannot log in or sign). If true, Username must be set
+        // forms but cannot log in or sign). If true, Email must be set
         // and portal credentials are provisioned.
         public bool GrantPortalAccess { get; set; }
-        public string? Username { get; set; }
+        public string? Email { get; set; }
     }
 
     public class CreatePhysicianResponse
@@ -47,7 +45,6 @@
         public string FirstName { get; set; } = string.Empty;
         public string? MiddleName { get; set; }
         public string PRCLicenseNo { get; set; } = string.Empty;
-        public string? Username { get; set; }
         public string? Email { get; set; }
 
         // Only populated when GrantPortalAccess was true. Shown exactly once.

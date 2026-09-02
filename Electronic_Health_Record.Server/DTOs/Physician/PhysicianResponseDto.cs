@@ -13,7 +13,6 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
         public string PRCLicenseNo { get; set; } = string.Empty;
 
         // account status, safe to expose -- never the hash itself
-        public string? Username { get; set; }
         public bool IsActive { get; set; }
 
         /// <summary>
@@ -33,9 +32,8 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
             FirstName = p.FirstName,
             MiddleName = p.MiddleName,
             PRCLicenseNo = p.PRCLicenseNo,
-            Username = p.Username,
             IsActive = p.IsActive,
-            CanSign = p.Username != null && p.IsActive,
+            CanSign = p.Email != null && p.IsActive,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
         };

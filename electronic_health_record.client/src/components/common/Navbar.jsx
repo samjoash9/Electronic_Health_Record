@@ -16,7 +16,7 @@ export default function Navbar({ user }) {
 
     // Prefer: explicit `user` prop > fetched userData > fallback
     const currentUser = user || {
-        name: userData?.fullName || userData?.username || fallbackUser.name,
+        name: userData?.fullName || fallbackUser.name,
         role: fallbackUser.role, // backend /me doesn't return a role yet
         avatar: fallbackUser.avatar // backend /me doesn't return an avatar yet
     };
@@ -25,9 +25,8 @@ export default function Navbar({ user }) {
         try {
             setIsLoadingUser(true);
             const data = await getUser();
-            // Me() returns { Username, FullName } (PascalCase from ASP.NET)
+            // Me() returns { FullName } (PascalCase from ASP.NET)
             setUserData({
-                username: data.Username ?? data.username,
                 fullName: data.FullName ?? data.fullName
             });
         } catch (err) {

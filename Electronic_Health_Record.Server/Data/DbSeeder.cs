@@ -23,10 +23,10 @@ namespace Electronic_Health_Record.Server.Data
             // Checked per-account rather than behind a single AnyAsync guard, because a database
             // seeded before roles existed already has rows -- such a guard would skip the whole
             // block and leave that database with no SuperAdmin and no way to create one.
-            await EnsureAdminAsync(context, "admin", "admin@hospital.com", "System Administrator", Roles.SuperAdmin);
-            await EnsureAdminAsync(context, "intake", "intake@hospital.com", "Intake Officer", Roles.Admin);
+            await EnsureAdminAsync(context, "admin@hospital.com", "System Administrator", Roles.SuperAdmin);
+            await EnsureAdminAsync(context, "intake@hospital.com", "Intake Officer", Roles.Admin);
 
-            var currentAdmin = await context.Admins.FirstAsync(a => a.Username == "admin");
+            var currentAdmin = await context.Admins.FirstAsync(a => a.Email == "admin@hospital.com");
 
             // MedicalConditions come from the migration (HasData), so nothing to seed here
 
@@ -223,9 +223,9 @@ namespace Electronic_Health_Record.Server.Data
             // new credential columns backfilled instead of being skipped wholesale.
             // The first two carry credentials so the signing flow is testable; the third is a
             // directory-only row, exercising the credential-less case the Doctors page produces.
-            await EnsurePhysicianAsync(context, "PRC-12345", "House", "Gregory", "H.", "ghouse");
-            await EnsurePhysicianAsync(context, "PRC-67890", "Grey", "Meredith", "E.", "mgrey");
-            await EnsurePhysicianAsync(context, "PRC-24680", "Bautista", "Ramon", "P.", username: null);
+            await EnsurePhysicianAsync(context, "PRC-12345", "House", "Gregory", "H.", "ghouse@hospital.com");
+            await EnsurePhysicianAsync(context, "PRC-67890", "Grey", "Meredith", "E.", "mgrey@hospital.com");
+            await EnsurePhysicianAsync(context, "PRC-24680", "Bautista", "Ramon", "P.", email: null);
 
             // Seed WellnessForms with related records
             if (!await context.WellnessForms.AnyAsync())
@@ -316,13 +316,13 @@ namespace Electronic_Health_Record.Server.Data
             {
                 // only a physician with credentials can actually sign, so route it to one
                 var signer = await context.Physicians
-                    .FirstOrDefaultAsync(p => p.Username != null && p.IsActive);
+                    .FirstOrDefaultAsync(p => p.Email != null && p.IsActive);
                 var pendingPatient = await context.Patients.OrderBy(p => p.PatientID).Skip(1).FirstOrDefaultAsync()
                     ?? await context.Patients.OrderBy(p => p.PatientID).FirstOrDefaultAsync();
 
                 if (signer is not null && pendingPatient is not null)
                 {
-                    context.WellnessForms.Add(new WellnessForm
+                    var pendingForm = new WellnessForm
                     {
                         PatientID = pendingPatient.PatientID,
                         AssignedPhysicianID = signer.PhysicianID,
@@ -343,10 +343,101 @@ namespace Electronic_Health_Record.Server.Data
                         CreatedByAdminID = currentAdmin.AdminID,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
+                    };
+                    context.WellnessForms.Add(pendingForm);
+
+                    await context.SaveChangesAsync();
+
+                    // routing a form to a physician is itself an auditable action
+                    context.ActivityLogs.Add(new ActivityLog
+                    {
+                        Action = "RouteFormForSignature",
+                        FormID = pendingForm.FormID,
+                        ActorID = currentAdmin.AdminID,
+                        ActorRole = currentAdmin.Role,
+                        Status = ActivityStatus.Success,
+                        IsViewed = false,
+                        CreatedAt = DateTime.UtcNow
                     });
 
                     await context.SaveChangesAsync();
                 }
+            }
+
+            // Seed ActivityLog entries tied to the actors and forms seeded above, so the
+            // notification bell and audit trail have something realistic to render.
+            if (!await context.ActivityLogs.AnyAsync())
+            {
+                var superAdmin = await context.Admins.FirstAsync(a => a.Role == Roles.SuperAdmin);
+                var signedForm = await context.WellnessForms.FirstOrDefaultAsync(f => f.Status == FormStatus.Signed);
+                var signingPhysician = signedForm?.SignedByPhysicianID is int signedById
+                    ? await context.Physicians.FirstOrDefaultAsync(p => p.PhysicianID == signedById)
+                    : null;
+
+                var logs = new List<ActivityLog>
+                {
+                    new()
+                    {
+                        Action = "Login",
+                        ActorID = superAdmin.AdminID,
+                        ActorRole = superAdmin.Role,
+                        Status = ActivityStatus.Success,
+                        IsViewed = true,
+                        CreatedAt = DateTime.UtcNow.AddHours(-2)
+                    },
+                    new()
+                    {
+                        Action = "Login",
+                        ActorID = currentAdmin.AdminID,
+                        ActorRole = currentAdmin.Role,
+                        Status = ActivityStatus.Failed,
+                        IsViewed = false,
+                        CreatedAt = DateTime.UtcNow.AddMinutes(-45)
+                    }
+                };
+
+                if (signedForm is not null)
+                {
+                    logs.Add(new ActivityLog
+                    {
+                        Action = "CreateWellnessForm",
+                        FormID = signedForm.FormID,
+                        ActorID = currentAdmin.AdminID,
+                        ActorRole = currentAdmin.Role,
+                        Status = ActivityStatus.Success,
+                        IsViewed = true,
+                        CreatedAt = signedForm.CreatedAt
+                    });
+                }
+
+                if (signedForm is not null && signingPhysician is not null)
+                {
+                    logs.Add(new ActivityLog
+                    {
+                        Action = "SignWellnessForm",
+                        FormID = signedForm.FormID,
+                        ActorID = signingPhysician.PhysicianID,
+                        ActorRole = Roles.Physician,
+                        Status = ActivityStatus.Success,
+                        IsViewed = false,
+                        CreatedAt = signedForm.SignedAt ?? signedForm.UpdatedAt
+                    });
+                }
+
+                // a stale credential-less physician being assigned would only warn, never fail
+                logs.Add(new ActivityLog
+                {
+                    Action = "AssignPhysician",
+                    FormID = signedForm?.FormID,
+                    ActorID = currentAdmin.AdminID,
+                    ActorRole = currentAdmin.Role,
+                    Status = ActivityStatus.Warning,
+                    IsViewed = false,
+                    CreatedAt = DateTime.UtcNow.AddMinutes(-10)
+                });
+
+                context.ActivityLogs.AddRange(logs);
+                await context.SaveChangesAsync();
             }
         }
 
@@ -356,19 +447,14 @@ namespace Electronic_Health_Record.Server.Data
         // Never touches a password that's already in the current format.
         private static async Task EnsureAdminAsync(
             ElectronicHealthRecordDbContext context,
-            string username, string email, string fullName, string role)
+            string email, string fullName, string role)
         {
-            var admin = await context.Admins.FirstOrDefaultAsync(a => a.Username == username);
+            var admin = await context.Admins.FirstOrDefaultAsync(a => a.Email == email);
 
             if (admin is null)
             {
-                // an unrelated account may already hold this email (Email is unique)
-                if (await context.Admins.AnyAsync(a => a.Email == email))
-                    return;
-
                 var newAdmin = new Admin
                 {
-                    Username = username,
                     Email = email,
                     FullName = fullName,
                     Role = role,
@@ -402,11 +488,11 @@ namespace Electronic_Health_Record.Server.Data
         }
 
         // Creates the physician if the licence number is unknown, and grants credentials to an
-        // existing credential-less row. Pass username: null for a directory-only entry.
+        // existing credential-less row. Pass email: null for a directory-only entry.
         // Also rehashes a legacy (pre-PasswordHasher) hash in place if one is found.
         private static async Task EnsurePhysicianAsync(
             ElectronicHealthRecordDbContext context,
-            string prcLicenseNo, string surname, string firstName, string? middleName, string? username)
+            string prcLicenseNo, string surname, string firstName, string? middleName, string? email)
         {
             var physician = await context.Physicians
                 .FirstOrDefaultAsync(p => p.PRCLicenseNo == prcLicenseNo);
@@ -425,7 +511,7 @@ namespace Electronic_Health_Record.Server.Data
                 };
                 context.Physicians.Add(physician);
             }
-            else if (username is null || physician.Username is not null)
+            else if (email is null || physician.Email is not null)
             {
                 // already present with a login of its own (or none intended); still worth
                 // rehashing if a legacy hash slipped in before this fix
@@ -439,20 +525,17 @@ namespace Electronic_Health_Record.Server.Data
                 return;
             }
 
-            if (username is not null)
+            if (email is not null)
             {
-                var email = $"{username}@hospital.com";
-
-                // CK_Physician_CredentialSet requires all four together; the unique indexes on
-                // Username and Email are filtered, so only non-null values can collide
+                // CK_Physician_CredentialSet requires both together; the unique index on
+                // Email is filtered, so only non-null values can collide
                 if (await context.Physicians.AnyAsync(p =>
                         p.PhysicianID != physician.PhysicianID &&
-                        (p.Username == username || p.Email == email)))
+                        p.Email == email))
                 {
                     return;
                 }
 
-                physician.Username = username;
                 physician.Email = email;
                 physician.PasswordHash = _physicianPasswordHasher.HashPassword(physician, SeedPassword);
                 physician.MustChangePassword = true;

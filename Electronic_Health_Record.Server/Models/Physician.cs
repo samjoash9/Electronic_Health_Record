@@ -16,7 +16,6 @@ namespace Electronic_Health_Record.Server.Models
         public string PRCLicenseNo { get; set; } = string.Empty;
 
         // --- credentials: all null (directory-only row) or all set (has portal access) ---
-        public string? Username { get; set; }
         public string? Email { get; set; }
         // self-describing, as on Admin.PasswordHash: 64 lowercase hex = legacy SHA-256,
         // 84-char Base64 "AQAAAA..." = PBKDF2

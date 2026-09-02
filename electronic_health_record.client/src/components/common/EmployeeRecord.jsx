@@ -14,7 +14,6 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
     const initialFormState = {
         employeeID: null,
         email: '',
-        username: '',
         fullName: '',
         password: defaultPassword,
         role: '' // Set to empty so the 'required' attribute enforces a selection
@@ -33,7 +32,6 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
                 setFormData({
                     employeeID: employeeData.employeeID,
                     email: employeeData.email || '',
-                    username: employeeData.username || '',
                     fullName: employeeData.fullName || '',
                     password: '••••••••', // Masked for edit mode
                     role: employeeData.role || ''
@@ -64,20 +62,16 @@ export default function EmployeeRecord({ isOpen, onClose, mode, employeeData, on
         setShowSuggestions(true);
 
         if (val !== formData.email) {
-            setFormData(prev => ({ ...prev, email: '', username: '', fullName: '' }));
+            setFormData(prev => ({ ...prev, email: '', fullName: '' }));
         }
     };
 
     const handleUserSelect = (user) => {
         setEmailSearchTerm(user.email);
 
-        // UX TWEAK: Auto-generate username from email since it's no longer in the payload
-        const generatedUsername = user.username || user.email.split('@')[0];
-
         setFormData(prev => ({
             ...prev,
             email: user.email,
-            username: generatedUsername,
             fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
         }));
         setShowSuggestions(false);

@@ -19,6 +19,7 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<SocialHistory> SocialHistories => Set<SocialHistory>();
         public DbSet<FamilyMedicalHistory> FamilyMedicalHistories => Set<FamilyMedicalHistory>();
         public DbSet<PastMedicalHistory> PastMedicalHistories => Set<PastMedicalHistory>();
+        public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,8 +49,8 @@ namespace Electronic_Health_Record.Server.Data
                     // directory-only entry or a full login account, never half of one
                     t.HasCheckConstraint(
                         "CK_Physician_CredentialSet",
-                        "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL)" +
-                        " OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
+                        "([Email] IS NULL AND [PasswordHash] IS NULL)" +
+                        " OR ([Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
                 });
                 entity.HasKey(p => p.PhysicianID);
                 entity.Property(p => p.Surname).HasMaxLength(50).IsRequired();
@@ -59,17 +60,12 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasIndex(p => p.PRCLicenseNo).IsUnique();
 
                 // login credentials; null on a directory-only row, which is why the unique
-                // indexes below are filtered -- many nulls must not collide with each other
-                entity.Property(p => p.Username).HasMaxLength(30);
+                // index below is filtered -- many nulls must not collide with each other
                 entity.Property(p => p.Email).HasMaxLength(255);
                 entity.Property(p => p.PasswordHash).HasMaxLength(255);
                 entity.Property(p => p.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(p => p.MustChangePassword).HasDefaultValue(false).IsRequired();
 
-                entity.HasIndex(p => p.Username)
-                    .IsUnique()
-                    .HasFilter("[Username] IS NOT NULL")
-                    .HasDatabaseName("UQ_Physician_Username");
                 entity.HasIndex(p => p.Email)
                     .IsUnique()
                     .HasFilter("[Email] IS NOT NULL")
@@ -88,7 +84,6 @@ namespace Electronic_Health_Record.Server.Data
                     t.HasCheckConstraint("CK_Admin_Role", "[Role] IN ('SuperAdmin','Admin')");
                 });
                 entity.HasKey(a => a.AdminID);
-                entity.Property(a => a.Username).HasMaxLength(30).IsRequired();
                 entity.Property(a => a.Email).HasMaxLength(255).IsRequired();
                 entity.Property(a => a.PasswordHash).HasMaxLength(255).IsRequired();
                 entity.Property(a => a.FullName).HasMaxLength(100).IsRequired();
@@ -101,7 +96,6 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(a => a.MustChangePassword).HasDefaultValue(false).IsRequired();
                 entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.HasIndex(a => a.Username).IsUnique();
                 entity.HasIndex(a => a.Email).IsUnique();
             });
 
@@ -292,6 +286,45 @@ namespace Electronic_Health_Record.Server.Data
                     .WithMany()
                     .HasForeignKey(p => p.ConditionID)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ActivityLog>(entity =>
+            {
+                entity.ToTable("ActivityLog", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_ActivityLog_ActorRole",
+                        "[ActorRole] IN ('SuperAdmin','Admin','Physician')");
+
+                    t.HasCheckConstraint(
+                        "CK_ActivityLog_Status",
+                        "[Status] IN ('SUCCESS','FAILED','WARNING')");
+                });
+                entity.HasKey(l => l.LogID);
+                entity.Property(l => l.Action).HasMaxLength(100).IsRequired();
+                entity.Property(l => l.ActorRole).HasMaxLength(20).IsUnicode(false).IsRequired();
+                entity.Property(l => l.Status)
+                    .HasMaxLength(10)
+                    .IsUnicode(false)
+                    .HasDefaultValue(ActivityStatus.Success)
+                    .IsRequired();
+                entity.Property(l => l.IsViewed).HasDefaultValue(false).IsRequired();
+                entity.Property(l => l.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                // ActorID is polymorphic (an AdminID or PhysicianID depending on ActorRole), so
+                // it carries no FK -- only the form link is a real foreign key
+                entity.HasOne<WellnessForm>()
+                    .WithMany()
+                    .HasForeignKey(l => l.FormID)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // the notification bell's unread query
+                entity.HasIndex(l => l.IsViewed)
+                    .HasDatabaseName("IX_ActivityLog_IsViewed");
+
+                entity.HasIndex(l => l.CreatedAt)
+                    .HasDatabaseName("IX_ActivityLog_CreatedAt");
             });
         }
     }
