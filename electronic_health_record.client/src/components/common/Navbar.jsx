@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import meljun from "../../assets/images/meljun.png";
-import { getUser } from '../../services/auth/auth'; 
+import { getUser } from '../../services/auth/auth';
 
-export default function Navbar({ user }) {
+export default function Navbar({ user, currentRole, onRoleChange }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
     const [userData, setUserData] = useState(null);
@@ -10,22 +10,20 @@ export default function Navbar({ user }) {
 
     const fallbackUser = {
         name: "MelJun Makunat",
-        role: "System Admin",
+        role: currentRole, // Automatically matches your dev tool selection
         avatar: meljun
     };
 
-    // Prefer: explicit `user` prop > fetched userData > fallback
     const currentUser = user || {
         name: userData?.fullName || userData?.username || fallbackUser.name,
-        role: fallbackUser.role, // backend /me doesn't return a role yet
-        avatar: fallbackUser.avatar // backend /me doesn't return an avatar yet
+        role: fallbackUser.role,
+        avatar: fallbackUser.avatar
     };
 
     const fetchUserData = async () => {
         try {
             setIsLoadingUser(true);
             const data = await getUser();
-            // Me() returns { Username, FullName } (PascalCase from ASP.NET)
             setUserData({
                 username: data.Username ?? data.username,
                 fullName: data.FullName ?? data.fullName
@@ -39,7 +37,6 @@ export default function Navbar({ user }) {
     };
 
     useEffect(() => {
-        // Skip the fetch if a user was already passed in via props
         if (!user) {
             fetchUserData();
         } else {
@@ -58,16 +55,30 @@ export default function Navbar({ user }) {
     }, []);
 
     return (
-        // UX UPGRADE: Changed justify-between to justify-end to keep the profile on the right
-        <nav className="flex items-center justify-end bg-slate-900 text-slate-100 px-4 py-2 shadow-sm border-b border-slate-800 z-10 relative">
+        <nav className="flex items-center justify-between bg-slate-900 text-slate-100 px-4 py-2 shadow-sm border-b border-slate-800 z-10 relative">
 
-            {/* Right Section: User Profile & Dropdown */}
+            {/* LEFT SECTION: DEV TOOL ROLE SWITCHER */}
+            <div className="flex items-center space-x-3 bg-slate-800 p-1.5 rounded-lg border border-slate-700 shadow-inner">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-teal-400 pl-2 hidden sm:block">
+                    Test Role:
+                </label>
+                <select
+                    value={currentRole}
+                    onChange={(e) => onRoleChange(e.target.value)}
+                    className="bg-slate-900 text-white border border-slate-700 rounded text-xs p-1 outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                >
+                    <option value="admin">Admin / Nurse</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="superadmin">Superadmin</option>
+                </select>
+            </div>
+
+            {/* RIGHT SECTION: USER PROFILE & DROPDOWN */}
             <div className="relative" ref={dropdownRef}>
                 <div
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className="flex items-center space-x-3 cursor-pointer hover:bg-slate-800 p-1.5 pr-2 rounded-lg transition-colors"
                 >
-                    {/* User Details */}
                     <div className="flex flex-col text-right hidden sm:flex">
                         <span className="text-sm font-bold tracking-wide text-white">
                             {isLoadingUser ? "Loading..." : currentUser.name}
@@ -77,7 +88,6 @@ export default function Navbar({ user }) {
                         </span>
                     </div>
 
-                    {/* Profile Image */}
                     <div className="h-9 w-9 rounded-full border-2 border-teal-500 overflow-hidden bg-slate-800 flex-shrink-0">
                         <img
                             src={currentUser.avatar}
@@ -86,7 +96,6 @@ export default function Navbar({ user }) {
                         />
                     </div>
 
-                    {/* Dropdown Arrow Icon */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className={`h-4 w-4 text-slate-400 ml-1 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
@@ -98,7 +107,6 @@ export default function Navbar({ user }) {
                     </svg>
                 </div>
 
-                {/* Dropdown Menu */}
                 {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-slate-900/10 z-50 overflow-hidden">
                         <div className="px-4 py-3 border-b border-slate-100 sm:hidden bg-slate-50">

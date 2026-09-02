@@ -194,7 +194,6 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave, userRole
                         <FamilyMedicalHistory data={clinicalData.familyMedicalHistory} onChange={(data) => handleSectionChange('familyMedicalHistory', data)} />
                         <SocialHistory data={clinicalData.socialHistory} onChange={(data) => handleSectionChange('socialHistory', data)} />
                         <RecommendedDiagnosticTest data={clinicalData.form} onChange={(data) => handleFormChange(data)} />
-
                         <PhysicianCertification
                             data={clinicalData.form}
                             onChange={(data) => handleFormChange(data)}

@@ -4,7 +4,7 @@ import {
     Minimize2,
     LayoutDashboard,
     Users,
-    ClipboardClock,
+    ArchiveRestore,
     LogOut,
     Info,
     Logs,
@@ -21,10 +21,10 @@ export default function Sidebar() {
     const navLinks = [
         { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { id: 'patient-records', label: 'Health Records', path: '/patient-records', icon: Users },
-        { id: 'appointment', label: 'Appointment', path: '/appointment', icon: ClipboardClock },
+        // { id: 'appointment', label: 'Appointment', path: '/appointment', icon: ClipboardClock },
         //{ id: 'doctors', label: 'Doctors', path: '/doctors', icon: ShieldUser },
+        { id: 'employee', label: 'Onboarding', path: '/employee', icon: ShieldUser },
         { id: 'activity', label: 'Activity Logs', path: '/activity', icon: Logs },
-        { id: 'employee', label: 'Employee', path: '/employee', icon: ShieldUser },
     ];
 
     const handleLogout = async () => {

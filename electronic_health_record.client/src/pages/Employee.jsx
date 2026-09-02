@@ -64,8 +64,8 @@ export default function Employee() {
             {/* PAGE HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-200">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Employee Management</h1>
-                    <p className="text-sm text-slate-500 mt-0.5">Manage system access, roles, and employee credentials.</p>
+                    <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
+                    <p className="text-sm text-slate-500 mt-0.5">Manage system access, roles, and user credentials.</p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex items-center space-x-4">
                     <div className="relative">
@@ -83,7 +83,7 @@ export default function Employee() {
                         className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center transition-colors shadow-sm cursor-pointer"
                     >
                         <UserPlus className="w-4 h-4 mr-2" />
-                        Add Employee
+                        Add User
                     </button>
                 </div>
             </div>
@@ -95,7 +95,6 @@ export default function Employee() {
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
                                 <th className="py-3 px-6 font-semibold">Full Name</th>
-                                <th className="py-3 px-6 font-semibold">Username</th>
                                 <th className="py-3 px-6 font-semibold">Email</th>
                                 <th className="py-3 px-6 font-semibold">System Role</th>
                                 <th className="py-3 px-6 text-right font-semibold">Actions</th>
@@ -112,7 +111,7 @@ export default function Employee() {
                             ) : filteredEmployees.length === 0 ? (
                                 <tr>
                                     <td colSpan="5" className="py-12 text-center text-slate-400">
-                                        <p>No employees found.</p>
+                                        <p>No registered users found.</p>
                                     </td>
                                 </tr>
                             ) : (

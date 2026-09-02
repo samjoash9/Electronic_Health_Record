@@ -115,7 +115,7 @@ export default function Login() {
             {/* Security Footer Note */}
             <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-center text-slate-400 text-xs">
                 <ShieldCheck className="w-4 h-4 mr-1.5 text-teal-600" />
-                <span>Secured PHO Health Network</span>
+                <span>Secured PHO Network</span>
             </div>
 
         </div>

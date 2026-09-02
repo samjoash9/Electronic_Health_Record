@@ -64,8 +64,8 @@ export default function LandingPage() {
 
             {/* Footer */}
             <footer className="w-full max-w-7xl mx-auto px-6 py-6 border-t border-slate-800 text-center text-xs text-slate-500 z-10">
-                POWERED BY SAMIELOB 2026 • Electronic Health Care Wellness Record
-            </footer>
+                Electronic Health Care Wellness Record • 2026
+            </footer>   
 
         </div>
     );
