@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import { ROLES } from '../lib/constants';
 
+// eslint-disable-next-line react-refresh/only-export-components -- shared helper, co-located with the guard that uses it
 export function homeRouteFor(role) {
   if (role === ROLES.ADMIN) return '/stations';
   if (role === ROLES.DOCTOR) return '/station3';

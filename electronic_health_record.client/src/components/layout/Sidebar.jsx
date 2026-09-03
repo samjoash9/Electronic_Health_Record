@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import { LayoutGrid, ClipboardList, ListChecks, Stethoscope, FileText } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
-import { ROLES } from '../../lib/constants';
 
 const LINKS = {
   admin: [
