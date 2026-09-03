@@ -1,6 +1,6 @@
-export default function Field({ label, htmlFor, required, error, hint, children }) {
+export default function Field({ label, htmlFor, required, error, hint, children, className = '' }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
         <label htmlFor={htmlFor} className="text-xs font-medium text-ink-700">
           {label}

@@ -1,3 +1,90 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
+import { submitStation1 } from '../../api/forms.api';
+import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
+import { station1Schema } from '../../lib/schemas';
+import { useAuth } from '../../auth/useAuth';
+import EmployeeSearch from './EmployeeSearch';
+import IdentityFields from './IdentityFields';
+import VitalsFields from './VitalsFields';
+import Button from '../../components/ui/Button';
+
+const BLANK_VITALS = {
+  weightKg: '', heightCm: '', bpSystolic: '', bpDiastolic: '',
+  tempCelsius: '', heartRate: '', respRate: '',
+};
+
+const BLANK_VALUES = {
+  externalEmployeeId: '', surname: '', firstName: '', middleName: '',
+  birthdate: '', sex: '', civilStatus: '', address: '',
+  agencyOffice: '', position: '', contactNo: '',
+  ...BLANK_VITALS,
+};
+
 export default function Station1Page() {
-  return <div className="p-6 text-sm text-ink-500">Station 1 — built in Task 9.</div>;
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    register, handleSubmit, watch, reset, formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(station1Schema),
+    defaultValues: BLANK_VALUES,
+  });
+
+  const mutation = useMutation({
+    mutationFn: submitStation1,
+    onSuccess: () => {
+      toast.success('Submitted to Station 2.');
+      queryClient.invalidateQueries({ queryKey: ['queue'] });
+      reset(BLANK_VALUES);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const onSelectEmployee = (employee) => {
+    reset({ ...employee, ...BLANK_VITALS });
+  };
+
+  const onSubmit = (values) => {
+    const {
+      externalEmployeeId, surname, firstName, middleName, birthdate,
+      sex, civilStatus, address, agencyOffice, position, contactNo,
+      weightKg, heightCm, bpSystolic, bpDiastolic, tempCelsius, heartRate, respRate,
+    } = values;
+
+    mutation.mutate({
+      adminID: user.id,
+      patient: {
+        externalEmployeeId, surname, firstName, middleName, birthdate,
+        sex, civilStatus, address, agencyOffice, position, contactNo,
+      },
+      vitals: {
+        weightKg, heightCm, bpSystolic, bpDiastolic, tempCelsius, heartRate, respRate,
+        bmi: calculateBMI(weightKg, heightCm),
+        idealBMI: IDEAL_BMI,
+      },
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pb-20">
+      <EmployeeSearch onSelect={onSelectEmployee} />
+      <IdentityFields register={register} watch={watch} errors={errors} />
+      <VitalsFields register={register} watch={watch} errors={errors} />
+
+      <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-2 border-t border-line bg-surface px-4 py-3">
+        <Button type="button" variant="secondary" onClick={() => reset(BLANK_VALUES)}>
+          Reset
+        </Button>
+        <Button type="submit" disabled={isSubmitting || mutation.isPending}>
+          {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
+        </Button>
+      </div>
+    </form>
+  );
 }
