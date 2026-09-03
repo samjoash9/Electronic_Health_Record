@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+@theme {
+  --color-brand-50:  #eef4fb;
+  --color-brand-100: #d6e4f5;
+  --color-brand-500: #2f6fb5;
+  --color-brand-600: #255a94;
+  --color-brand-700: #1d4674;
+
+  --color-ink-500: #6b7280;
+  --color-ink-700: #374151;
+  --color-ink-900: #111827;
+
+  --color-line: #e5e7eb;
+  --color-surface: #ffffff;
+  --color-canvas: #f7f8fa;
+}
+
+/* Dense admin defaults. The kiosk questionnaire opts out via its own classes. */
+html { font-size: 14px; }
+body { background: var(--color-canvas); color: var(--color-ink-900); }
