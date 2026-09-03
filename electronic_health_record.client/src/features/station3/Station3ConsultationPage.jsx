@@ -7,10 +7,12 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { submitStation3 } from '../../api/forms.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAuth } from '../../auth/useAuth';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { fullName, ageFrom } from '../../lib/formatters';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Button from '../../components/ui/Button';
+import Modal from '../../components/ui/Modal';
 import ConflictModal from '../../components/ui/ConflictModal';
 import PriorStationsPanel from './PriorStationsPanel';
 import FamilyHistorySection from './FamilyHistorySection';
@@ -90,7 +92,7 @@ export default function Station3ConsultationPage() {
   });
 
   const {
-    register, control, watch, setValue, handleSubmit,
+    register, control, watch, setValue, handleSubmit, formState: { isDirty },
   } = useForm({ defaultValues: DEFAULT_VALUES });
 
   const mutation = useMutation({
@@ -124,6 +126,8 @@ export default function Station3ConsultationPage() {
       else toast.error(error.message);
     },
   });
+
+  const blocker = useUnsavedChangesGuard((isDirty || Boolean(signature)) && !mutation.isSuccess);
 
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -167,6 +171,24 @@ export default function Station3ConsultationPage() {
       </div>
 
       <ConflictModal open={conflictOpen} onReload={handleReload} onClose={() => setConflictOpen(false)} />
+
+      <Modal
+        open={blocker.state === 'blocked'}
+        title="Discard unsaved changes?"
+        onClose={() => blocker.reset?.()}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => blocker.reset?.()}>
+              Keep editing
+            </Button>
+            <Button type="button" variant="danger" onClick={() => blocker.proceed?.()}>
+              Discard changes
+            </Button>
+          </>
+        }
+      >
+        This consultation has not been signed and submitted yet. Leaving now will discard what you&apos;ve entered.
+      </Modal>
     </form>
   );
 }

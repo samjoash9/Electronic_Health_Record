@@ -6,10 +6,12 @@ import { submitStation1 } from '../../api/forms.api';
 import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
 import { station1Schema } from '../../lib/schemas';
 import { useAuth } from '../../auth/useAuth';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import EmployeeSearch from './EmployeeSearch';
 import IdentityFields from './IdentityFields';
 import VitalsFields from './VitalsFields';
 import Button from '../../components/ui/Button';
+import Modal from '../../components/ui/Modal';
 
 const BLANK_VITALS = {
   weightKg: '', heightCm: '', bpSystolic: '', bpDiastolic: '',
@@ -28,7 +30,7 @@ export default function Station1Page() {
   const queryClient = useQueryClient();
 
   const {
-    register, handleSubmit, watch, reset, formState: { errors, isSubmitting },
+    register, handleSubmit, watch, reset, formState: { errors, isSubmitting, isDirty },
   } = useForm({
     resolver: zodResolver(station1Schema),
     defaultValues: BLANK_VALUES,
@@ -71,6 +73,8 @@ export default function Station1Page() {
     });
   };
 
+  const blocker = useUnsavedChangesGuard(isDirty && !mutation.isSuccess);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pb-20">
       <EmployeeSearch onSelect={onSelectEmployee} />
@@ -85,6 +89,24 @@ export default function Station1Page() {
           {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
         </Button>
       </div>
+
+      <Modal
+        open={blocker.state === 'blocked'}
+        title="Discard unsaved changes?"
+        onClose={() => blocker.reset?.()}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => blocker.reset?.()}>
+              Keep editing
+            </Button>
+            <Button type="button" variant="danger" onClick={() => blocker.proceed?.()}>
+              Discard changes
+            </Button>
+          </>
+        }
+      >
+        This registration has not been submitted yet. Leaving now will discard what you&apos;ve entered.
+      </Modal>
     </form>
   );
 }

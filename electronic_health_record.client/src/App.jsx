@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './auth/AuthContext';
-import AppRoutes from './routes';
+import { routeElements } from './routes';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,14 +15,16 @@ const queryClient = new QueryClient({
   },
 });
 
+// createBrowserRouter (not <BrowserRouter>) so useBlocker (unsaved-changes
+// guards) has the data router it requires — see routes.jsx.
+const router = createBrowserRouter(routeElements);
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-          <ToastContainer position="top-right" autoClose={3500} newestOnTop />
-        </BrowserRouter>
+        <RouterProvider router={router} />
+        <ToastContainer position="top-right" autoClose={3500} newestOnTop />
       </AuthProvider>
     </QueryClientProvider>
   );

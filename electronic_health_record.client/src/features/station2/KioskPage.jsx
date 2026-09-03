@@ -18,17 +18,18 @@ export default function KioskPage() {
   const [answers, setAnswers] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { data: form } = useWellnessForm(formId);
+  const { data: form, isLoading: formLoading, error: formError, refetch: refetchForm } = useWellnessForm(formId);
   const {
-    data: categories, isLoading, error, refetch,
+    data: categories, isLoading: templateLoading, error: templateError, refetch: refetchTemplate,
   } = useQuery({
     queryKey: ['assessment-template'],
     queryFn: getAssessmentTemplate,
     staleTime: Infinity,
   });
 
-  if (isLoading) return <Skeleton rows={10} />;
-  if (error) return <ErrorState error={error} onRetry={refetch} />;
+  if (formLoading || templateLoading) return <Skeleton rows={10} />;
+  if (formError) return <ErrorState error={formError} onRetry={refetchForm} />;
+  if (templateError) return <ErrorState error={templateError} onRetry={refetchTemplate} />;
 
   const answered = totalAnswered(categories, Object.entries(answers).map(
     ([questionID, optionID]) => ({ questionID: Number(questionID), optionID }),
