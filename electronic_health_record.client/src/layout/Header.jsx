@@ -1,8 +1,9 @@
+import React from 'react';
 import Navbar from "../components/common/Navbar";
 
-function Header() {
+function Header(props) {
   return (
-      <Navbar/>
+      <Navbar {...props} />
   );
 }
 

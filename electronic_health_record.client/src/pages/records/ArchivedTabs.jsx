@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Loader2, Search, ArchiveRestore, ShieldAlert, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
-import Toast from '../common/Toast';
+import Toast from '../../components/common/Toast';
 
 export default function ArchivedTabs() {
     const [archivedRecords, setArchivedRecords] = useState([]);

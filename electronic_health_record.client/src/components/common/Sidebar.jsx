@@ -1,58 +1,82 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import {
-    Minimize2,
-    LayoutDashboard,
-    Users,
-    ArchiveRestore,
-    LogOut,
-    Info,
-    Logs,
-    ShieldUser,
-} from 'lucide-react';
+import { useAuth, ROLES } from '../../context/AuthContext';
+import { Minimize2, LayoutDashboard, Users, ShieldUser, Logs, Info, LogOut, Brain, ClipboardList } from 'lucide-react';
 import PHO_logo from '../../assets/images/PHO_logo.jpg';
-import { logout } from '../../services/auth/auth';
 
-export default function Sidebar() {
+export default function Sidebar({ currentRole }) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const navigate = useNavigate();
 
+    const navigate = useNavigate();
+    const { user, logout } = useAuth() || {}; // Getting user and logout securely from context
+
+    // Determine active role from prop or auth context
+    const activeRole = currentRole || user?.role;
+
+    // 1. Define all links and strictly tie them to specific roles
     const navLinks = [
-        { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { id: 'patient-records', label: 'Health Records', path: '/patient-records', icon: Users },
-        // { id: 'appointment', label: 'Appointment', path: '/appointment', icon: ClipboardClock },
-        //{ id: 'doctors', label: 'Doctors', path: '/doctors', icon: ShieldUser },
-        { id: 'employee', label: 'Onboarding', path: '/employee', icon: ShieldUser },
-        { id: 'activity', label: 'Activity Logs', path: '/activity', icon: Logs },
+        {
+            id: 'dashboard',
+            label: 'Dashboard',
+            path: '/dashboard',
+            icon: LayoutDashboard,
+            // Everyone sees Dashboard
+            allowedRoles: [ROLES.SUPERADMIN, ROLES.STATION1, ROLES.STATION2, ROLES.DOCTOR]
+        },
+        {
+            id: 'patient-records',
+            label: 'Health Records',
+            path: '/patient-records',
+            icon: Users,
+            // Everyone sees Health Records
+            allowedRoles: [ROLES.SUPERADMIN, ROLES.STATION1, ROLES.STATION2, ROLES.DOCTOR]
+        },
+        {
+            id: 'employee',
+            label: 'Onboarding',
+            path: '/employees',
+            icon: ShieldUser,
+            // ONLY Super Admin can manage accounts/employees
+            allowedRoles: [ROLES.SUPERADMIN]
+        },
+        {
+            id: 'activity',
+            label: 'Activity Logs',
+            path: '/activity',
+            icon: Logs,
+            // Admins can see logs, Doctors DO NOT
+            allowedRoles: [ROLES.SUPERADMIN, ROLES.STATION1, ROLES.STATION2]
+        }
     ];
 
-    const handleLogout = async () => {
-        if (isLoggingOut) return;
+    // 2. Filter links automatically based on active role (or show all links if activeRole is not yet defined)
+    const visibleLinks = activeRole
+        ? navLinks.filter(link => !link.allowedRoles || link.allowedRoles.includes(activeRole))
+        : navLinks;
 
-        try {
-            setIsLoggingOut(true);
-            await logout();
-        } catch (error) {
-            console.error("Logout request failed:", error);
-        } finally {
-            localStorage.removeItem("token");
-            setIsLoggingOut(false);
-            navigate("/login");
+    const handleLogout = () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+
+        // Execute context logout
+        if (logout) {
+            logout();
         }
+
+        setIsLoggingOut(false);
+        navigate('/login');
     };
 
     return (
         <aside
-            className={`bg-slate-900 h-screen flex flex-col shadow-xl transition-all duration-500 ease-in-out relative z-20 whitespace-nowrap overflow-hidden ${isExpanded ? 'w-64' : 'w-20'
-                }`}
+            className={`bg-slate-900 h-screen flex flex-col flex-shrink-0 shadow-xl transition-all duration-500 ease-in-out relative z-20 whitespace-nowrap overflow-hidden ${isExpanded ? 'w-64' : 'w-20'}`}
         >
             {/* Top Section: Logo & Toggle Behavior */}
             <div className="flex items-center min-h-[72px] mt-2 px-5">
                 <button
                     onClick={() => !isExpanded && setIsExpanded(true)}
-                    className={`flex-shrink-0 h-10 w-10 bg-white rounded-[10px] p-0.5 shadow-sm transition-all duration-300 focus:outline-none ${!isExpanded ? 'hover:ring-2 hover:ring-teal-500 cursor-pointer shadow-md' : 'cursor-default'
-                        }`}
+                    className={`flex-shrink-0 h-10 w-10 bg-white rounded-[10px] p-0.5 shadow-sm transition-all duration-300 focus:outline-none ${!isExpanded ? 'hover:ring-2 hover:ring-teal-500 cursor-pointer shadow-md' : 'cursor-default'}`}
                     title={!isExpanded ? "Click to Expand Sidebar" : ""}
                 >
                     <img
@@ -62,25 +86,15 @@ export default function Sidebar() {
                     />
                 </button>
 
-                <div
-                    className={`flex items-baseline transition-all duration-300 overflow-hidden ${isExpanded ? 'opacity-100 ml-3 w-36' : 'opacity-0 ml-0 w-0'
-                        }`}
-                >
-                    <span className="text-xl font-medium italic text-teal-400 mr-[2px]">
-                        e
-                    </span>
-                    <span className="text-xl font-black text-white tracking-wide">
-                        HPR
-                    </span>
-                    <span className="text-[10px] font-bold text-teal-200/70 ml-1.5 uppercase tracking-[0.2em]">
-                        System
-                    </span>
+                <div className={`flex items-baseline transition-all duration-300 overflow-hidden ${isExpanded ? 'opacity-100 ml-3 w-36' : 'opacity-0 ml-0 w-0'}`}>
+                    <span className="text-xl font-medium italic text-teal-400 mr-[2px]">e</span>
+                    <span className="text-xl font-black text-white tracking-wide">HPR</span>
+                    <span className="text-[10px] font-bold text-teal-200/70 ml-1.5 uppercase tracking-[0.2em]">System</span>
                 </div>
 
                 <button
                     onClick={() => setIsExpanded(false)}
-                    className={`cursor-pointer text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-md transition-all duration-300 focus:outline-none ${isExpanded ? 'opacity-100 w-9 ml-auto' : 'opacity-0 w-0 p-0 pointer-events-none'
-                        }`}
+                    className={`cursor-pointer text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-md transition-all duration-300 focus:outline-none ${isExpanded ? 'opacity-100 w-9 ml-auto' : 'opacity-0 w-0 p-0 pointer-events-none'}`}
                     title="Minimize Sidebar"
                 >
                     <Minimize2 className="h-5 w-5" />
@@ -89,9 +103,9 @@ export default function Sidebar() {
 
             <div className="border-t border-slate-800 mt-4 mb-2 w-full flex-shrink-0"></div>
 
-            {/* Navigation Links Group */}
+            {/* Navigation Links Group (Filtered dynamically) */}
             <div className="flex flex-col space-y-2 mt-2">
-                {navLinks.map((link) => {
+                {visibleLinks.map((link) => {
                     const Icon = link.icon;
 
                     return (
@@ -108,10 +122,7 @@ export default function Sidebar() {
                             `}
                         >
                             <Icon className="h-5 w-5 flex-shrink-0 transition-transform duration-300" />
-                            <span
-                                className={`text-sm transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-4 w-32' : 'opacity-0 ml-0 w-0'
-                                    }`}
-                            >
+                            <span className={`text-sm transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-4 w-32' : 'opacity-0 ml-0 w-0'}`}>
                                 {link.label}
                             </span>
                         </NavLink>
@@ -127,14 +138,10 @@ export default function Sidebar() {
                 {/* Support Button */}
                 <button
                     title="Support"
-                    className={`cursor-pointer flex items-center h-11 w-full text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-md transition-all duration-300 focus:outline-none justify-start ${isExpanded ? 'pl-3' : 'pl-4'
-                        }`}
+                    className={`cursor-pointer flex items-center h-11 w-full text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-md transition-all duration-300 focus:outline-none justify-start ${isExpanded ? 'pl-3' : 'pl-4'}`}
                 >
                     <Info className="h-5 w-5 flex-shrink-0 transition-transform duration-300" />
-                    <span
-                        className={`text-sm font-medium transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-3 w-32' : 'opacity-0 ml-0 w-0'
-                            }`}
-                    >
+                    <span className={`text-sm font-medium transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-3 w-32' : 'opacity-0 ml-0 w-0'}`}>
                         Support
                     </span>
                 </button>
@@ -144,14 +151,10 @@ export default function Sidebar() {
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     title="Log Out"
-                    className={`cursor-pointer flex items-center h-11 w-full text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-all duration-300 focus:outline-none justify-start disabled:opacity-60 disabled:cursor-not-allowed ${isExpanded ? 'pl-3' : 'pl-4'
-                        }`}
+                    className={`cursor-pointer flex items-center h-11 w-full text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-all duration-300 focus:outline-none justify-start disabled:opacity-60 disabled:cursor-not-allowed ${isExpanded ? 'pl-3' : 'pl-4'}`}
                 >
                     <LogOut className="h-5 w-5 flex-shrink-0 transition-transform duration-300" />
-                    <span
-                        className={`text-sm font-medium transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-3 w-32' : 'opacity-0 ml-0 w-0'
-                            }`}
-                    >
+                    <span className={`text-sm font-medium transition-all duration-300 overflow-hidden text-left ${isExpanded ? 'opacity-100 ml-3 w-32' : 'opacity-0 ml-0 w-0'}`}>
                         {isLoggingOut ? 'Logging Out...' : 'Log Out'}
                     </span>
                 </button>

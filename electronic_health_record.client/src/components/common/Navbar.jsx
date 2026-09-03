@@ -1,20 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import meljun from "../../assets/images/meljun.png";
 import { getUser } from '../../services/auth/auth';
+import { useAuth, ROLES } from '../../context/AuthContext';
 
-export default function Navbar({ user, currentRole, onRoleChange }) {
+export default function Navbar({ user: propUser, currentRole: propRole, onRoleChange: propOnRoleChange }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
     const [userData, setUserData] = useState(null);
-    const [isLoadingUser, setIsLoadingUser] = useState(true);
+    const [isLoadingUser, setIsLoadingUser] = useState(false);
+
+    const navigate = useNavigate();
+    const authContext = useAuth() || {};
+    const authUser = authContext.user;
+    const logout = authContext.logout;
+    const switchRoleForTesting = authContext.switchRoleForTesting;
+
+    const currentRole = propRole || authUser?.role || 'superadmin';
+    const onRoleChange = propOnRoleChange || switchRoleForTesting;
 
     const fallbackUser = {
-        name: "MelJun Makunat",
-        role: currentRole, // Automatically matches your dev tool selection
+        name: authUser?.name || "MelJun Makunat",
+        role: currentRole,
         avatar: meljun
     };
 
-    const currentUser = user || {
+    const currentUser = propUser || authUser || {
         name: userData?.fullName || userData?.username || fallbackUser.name,
         role: fallbackUser.role,
         avatar: fallbackUser.avatar
@@ -37,12 +48,12 @@ export default function Navbar({ user, currentRole, onRoleChange }) {
     };
 
     useEffect(() => {
-        if (!user) {
+        if (!propUser && !authUser) {
             fetchUserData();
         } else {
             setIsLoadingUser(false);
         }
-    }, [user]);
+    }, [propUser, authUser]);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -54,23 +65,27 @@ export default function Navbar({ user, currentRole, onRoleChange }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    return (
-        <nav className="flex items-center justify-between bg-slate-900 text-slate-100 px-4 py-2 shadow-sm border-b border-slate-800 z-10 relative">
+    const handleSignOut = () => {
+        if (logout) {
+            logout();
+        }
+        navigate('/login');
+    };
 
-            {/* LEFT SECTION: DEV TOOL ROLE SWITCHER */}
-            <div className="flex items-center space-x-3 bg-slate-800 p-1.5 rounded-lg border border-slate-700 shadow-inner">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-teal-400 pl-2 hidden sm:block">
-                    Test Role:
-                </label>
-                <select
-                    value={currentRole}
-                    onChange={(e) => onRoleChange(e.target.value)}
-                    className="bg-slate-900 text-white border border-slate-700 rounded text-xs p-1 outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                >
-                    <option value="admin">Admin / Nurse</option>
-                    <option value="doctor">Doctor</option>
-                    <option value="superadmin">Superadmin</option>
-                </select>
+    return (
+        <nav className="flex items-center justify-between bg-slate-900 text-slate-100 px-6 py-2.5 shadow-sm border-b border-slate-800 z-10 relative flex-shrink-0">
+
+            {/* LEFT SECTION: BRANDING & SYSTEM TITLE */}
+            <div className="flex items-center space-x-3">
+                <div className="flex items-baseline">
+                    <span className="text-lg font-medium italic text-teal-400 mr-[2px]">e</span>
+                    <span className="text-lg font-black text-white tracking-wide">HPR</span>
+                    <span className="text-[10px] font-bold text-teal-200/70 ml-1.5 uppercase tracking-[0.2em] hidden sm:inline">System</span>
+                </div>
+                <div className="h-4 w-px bg-slate-800 hidden md:block"></div>
+                <span className="text-xs text-slate-400 font-medium hidden md:inline">
+                    Electronic Health Care Wellness Record
+                </span>
             </div>
 
             {/* RIGHT SECTION: USER PROFILE & DROPDOWN */}
@@ -108,10 +123,10 @@ export default function Navbar({ user, currentRole, onRoleChange }) {
                 </div>
 
                 {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-slate-900/10 z-50 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-slate-100 sm:hidden bg-slate-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl py-1 ring-1 ring-slate-900/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
                             <p className="text-sm font-bold text-slate-800 truncate">{currentUser.name}</p>
-                            <p className="text-xs text-teal-600 font-medium truncate">{currentUser.role}</p>
+                            <p className="text-xs text-teal-600 font-medium truncate uppercase tracking-wider">{currentUser.role}</p>
                         </div>
                         <a href="#profile" className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-600 transition-colors">
                             Your Profile
@@ -121,8 +136,8 @@ export default function Navbar({ user, currentRole, onRoleChange }) {
                         </a>
                         <div className="border-t border-slate-100 my-1"></div>
                         <button
-                            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
-                            onClick={() => console.log('Logout clicked')}
+                            className="block w-full text-left px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            onClick={handleSignOut}
                         >
                             Sign out
                         </button>

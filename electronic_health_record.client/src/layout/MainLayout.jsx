@@ -2,28 +2,27 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Aside from './Aside';
-// import Footer from './Footer';
+import { useAuth } from '../context/AuthContext';
 
-export default function MainLayout() {
+export default function MainLayout({ children }) {
+    const { user, switchRoleForTesting } = useAuth() || {};
+
     return (
         <div className="flex h-screen w-full overflow-hidden bg-slate-100">
             {/* Left Sidebar */}
-            <Aside />
+            <Aside currentRole={user?.role} />
 
             {/* Right Content Area */}
-            <div className="flex flex-col flex-1 overflow-hidden">
-                <Header />
+            <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+                <Header
+                    user={user}
+                    currentRole={user?.role}
+                    onRoleChange={switchRoleForTesting}
+                />
 
                 {/* Main Content Area (Scrollable) */}
-                <main className="flex flex-col flex-1 overflow-y-auto bg-slate-100 p-4 md:p-6">
-                    <div className="flex-1">
-                        {/* Outlet dynamically renders whatever child route matches the URL */}
-                        <Outlet />
-                    </div>
-
-                    <div className="mt-8">
-                        {/* <Footer /> */}
-                    </div>
+                <main className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-6">
+                    {children || <Outlet />}
                 </main>
             </div>
         </div>

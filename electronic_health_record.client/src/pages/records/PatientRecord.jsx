@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import WellnessRecordForm from '../components/common/WellnessRecordForm';
-import Toast from '../components/common/Toast';
-import ArchivedTabs from '../components/common/ArchivedTabs';
+import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
+import WellnessRecordForm from '../../components/forms/WellnessRecordForm';
+import Toast from '../../components/common/Toast';
+import ArchivedTabs from '../../pages/records/ArchivedTabs';
+import { ROLES, useAuth } from '../../context/AuthContext';
 
 // --- SUB-COMPONENT: PATIENT SELECTOR MODAL ---
 function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
@@ -11,16 +12,22 @@ function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
     if (!isOpen) return null;
 
     const filtered = patients.filter(p => {
-        const fullName = `${p.firstName || ''} ${p.surname || ''}`.toLowerCase();
-        return fullName.includes(query.toLowerCase());
+        const fullName = `${p.firstName || ''} ${p.middleName || ''} ${p.surname || ''} ${p.lastName || ''}`.toLowerCase();
+        const contact = (p.contactNo || p.contact || p.ContactNo || '').toLowerCase();
+        const office = (p.agencyOffice || p.AgencyOffice || p.office || '').toLowerCase();
+        const q = query.toLowerCase();
+        return fullName.includes(q) || contact.includes(q) || office.includes(q);
     });
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-4 bg-[#0F2756] text-white flex justify-between items-center">
-                    <h3 className="text-md font-bold uppercase tracking-wide">Select Patient to Start Wellness Form</h3>
-                    <button onClick={onClose} className="hover:bg-blue-800 p-1 rounded-md transition-colors"><X className="w-5 h-5" /></button>
+                    <div className="flex items-center space-x-2">
+                        <UserCheck className="w-5 h-5 text-teal-400" />
+                        <h3 className="text-md font-bold uppercase tracking-wide">Select Patient to Start Wellness Form</h3>
+                    </div>
+                    <button onClick={onClose} className="hover:bg-blue-800 p-1 rounded-md transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="p-5">
                     <div className="relative mb-4">
@@ -29,7 +36,7 @@ function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
                             type="text"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search system patients (e.g. Doe, John)..."
+                            placeholder="Search by name, contact, office (e.g. Doe, John, PHO)..."
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                             autoFocus
                         />
@@ -43,10 +50,11 @@ function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
                             filtered.map(patient => (
                                 <div key={patient.patientID} onClick={() => onSelectPatient(patient)} className="p-3 hover:bg-teal-50 cursor-pointer flex justify-between items-center transition-colors">
                                     <div>
-                                        <p className="text-sm font-bold text-gray-800">{patient.surname}, {patient.firstName} {patient.middleName}</p>
-                                        <p className="text-xs text-gray-400">Contact: {patient.contactNo || 'N/A'} | Office: {patient.agencyOffice || 'N/A'}</p>
+                                        <p className="text-sm font-bold text-gray-800">{patient.surname || patient.lastName}, {patient.firstName} {patient.middleName || ''}</p>
+                                        <p className="text-xs text-gray-500">Contact: {patient.contactNo || 'N/A'} | Office: {patient.agencyOffice || 'N/A'}</p>
+                                        <p className="text-[11px] text-gray-400">Sex: {patient.sex || 'N/A'} | Civil Status: {patient.civilStatus || 'Single'} | Age: {patient.age || 'N/A'}</p>
                                     </div>
-                                    <span className="text-xs font-semibold px-2.5 py-1 bg-teal-100 text-teal-700 rounded-md">Create Form</span>
+                                    <span className="text-xs font-semibold px-2.5 py-1 bg-teal-100 text-teal-700 rounded-md hover:bg-teal-200 transition-colors">Create Form</span>
                                 </div>
                             ))
                         )}
@@ -57,12 +65,15 @@ function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
     );
 }
 
-export default function PatientRecord() {
+export default function PatientRecord({ userRole: propUserRole }) {
+    const { user } = useAuth() || {};
+    const activeUserRole = propUserRole || user?.role || 'station1';
+    const currentRole = String(activeUserRole || '').toLowerCase();
+    const isStation2 = currentRole === 'station2' || currentRole === ROLES?.STATION2?.toLowerCase();
+    const isDoctor = currentRole === 'doctor' || currentRole === ROLES?.DOCTOR?.toLowerCase();
+
     // TAB STATE
     const [activeTab, setActiveTab] = useState('active');
-
-    // TEMPORARY DEV STATE: Role Switcher
-    const [testRole, setTestRole] = useState('admin');
 
     const [patients, setPatients] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -112,15 +123,107 @@ export default function PatientRecord() {
         if (activeTab !== 'active') return;
 
         setIsLoading(true);
+        setError(null); // Clear previous errors
+
         axios.get('https://localhost:5084/api/WellnessForms')
             .then(res => {
                 setPatients(Array.isArray(res.data) ? res.data : (res.data.data || []));
                 setIsLoading(false);
             })
             .catch(err => {
-                console.error("Failed to fetch patients:", err);
-                const serverMessage = err.response?.data;
-                setError(typeof serverMessage === 'string' ? serverMessage : "Cannot connect to server. Ensure your C# API is running.");
+                console.warn("Backend offline. Loading frontend mock data for testing.");
+
+                // MOCK DATA FOR FRONTEND TESTING (With complete demographic profiles)
+                const mockPatients = [
+                    {
+                        patientID: 101,
+                        firstName: 'Mark',
+                        surname: 'Anthony',
+                        lastName: 'Anthony',
+                        middleName: 'Reyes',
+                        birthdate: '1990-05-15',
+                        age: 36,
+                        sex: 'Male',
+                        civilStatus: 'Married',
+                        address: 'Poblacion, Prosperidad, Agusan del Sur',
+                        contactNo: '09123456789',
+                        agencyOffice: 'Provincial Health Office',
+                        status: 'Pending_Station1', // Needs Vitals
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    },
+                    {
+                        patientID: 102,
+                        firstName: 'Sarah',
+                        surname: 'Connor',
+                        lastName: 'Connor',
+                        middleName: 'Jane',
+                        birthdate: '1985-11-22',
+                        age: 40,
+                        sex: 'Female',
+                        civilStatus: 'Single',
+                        address: 'San Francisco, Agusan del Sur',
+                        contactNo: '09987654321',
+                        agencyOffice: 'Department of Agriculture',
+                        status: 'Pending_Station2', // Needs Mental Health
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    },
+                    {
+                        patientID: 103,
+                        firstName: 'Bruce',
+                        surname: 'Wayne',
+                        lastName: 'Wayne',
+                        middleName: 'Thomas',
+                        birthdate: '1978-02-19',
+                        age: 48,
+                        sex: 'Male',
+                        civilStatus: 'Single',
+                        address: 'Bayugan City, Agusan del Sur',
+                        contactNo: '09112223333',
+                        agencyOffice: 'Provincial Engineering Office',
+                        status: 'Pending_Doctor', // Ready for Doc
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    },
+                    {
+                        patientID: 104,
+                        firstName: 'Diana',
+                        surname: 'Prince',
+                        lastName: 'Prince',
+                        middleName: 'Hippolyta',
+                        birthdate: '1992-07-04',
+                        age: 34,
+                        sex: 'Female',
+                        civilStatus: 'Single',
+                        address: 'Esperanza, Agusan del Sur',
+                        contactNo: '09445556666',
+                        agencyOffice: 'Provincial Tourism Office',
+                        status: 'Completed', // Finished
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    },
+                    {
+                        patientID: 105,
+                        firstName: 'Juan',
+                        surname: 'Dela Cruz',
+                        lastName: 'Dela Cruz',
+                        middleName: 'Santos',
+                        birthdate: '1988-09-12',
+                        age: 37,
+                        sex: 'Male',
+                        civilStatus: 'Married',
+                        address: 'Trento, Agusan del Sur',
+                        contactNo: '09171234567',
+                        agencyOffice: 'Department of Education - Division Office',
+                        status: 'Pending_Station1',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    }
+                ];
+
+                setPatients(mockPatients);
+                setError(null);
                 setIsLoading(false);
             });
     };
@@ -129,11 +232,23 @@ export default function PatientRecord() {
         fetchPatients();
     }, [activeTab]);
 
-    // Filter Logic
+    // Filter Logic with Strict Role-Based Data Isolation
     const filteredPatients = patients.filter(patient => {
-        const fullName = `${patient.firstName || ''} ${patient.middleName || ''} ${patient.surname || ''}`.toLowerCase();
+        const fullName = `${patient.firstName || ''} ${patient.middleName || ''} ${patient.surname || patient.lastName || ''}`.toLowerCase();
         const contactInfo = (patient.contactNo || patient.contact || patient.ContactNo || '').toLowerCase();
-        const currentStatus = (patient.status || patient.Status || 'Draft').toLowerCase();
+        const rawStatus = patient.status || patient.Status || 'Draft';
+        const currentStatus = rawStatus.toLowerCase();
+
+        // STRICT DATA ISOLATION: Station 2 MUST strictly only see Pending_Station2 records
+        if (isStation2 && currentStatus !== 'pending_station2') {
+            return false;
+        }
+
+        // STRICT DATA ISOLATION: Doctor MUST strictly only see Pending_Doctor records
+        if (isDoctor && currentStatus !== 'pending_doctor') {
+            return false;
+        }
+
         const matchesSearch = fullName.includes(searchQuery.toLowerCase()) || contactInfo.includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter.toLowerCase();
 
@@ -148,15 +263,20 @@ export default function PatientRecord() {
 
     const handlePatientClick = (patient) => {
         setSelectedPatient({
-            patientID: patient.patientID,
-            firstName: patient.firstName || '',
-            lastName: patient.surname || '',
-            middleName: patient.middleName || '',
-            sex: patient.sex || '',
-            age: calculateAge(patient.birthdate),
-            birthdate: patient.birthdate ? patient.birthdate.split('T')[0] : '',
-            civilStatus: patient.civilStatus || 'Single',
-            address: patient.address || '',
+            patientID: patient.patientID || patient.PatientID,
+            firstName: patient.firstName || patient.FirstName || '',
+            lastName: patient.surname || patient.Surname || patient.lastName || patient.LastName || '',
+            surname: patient.surname || patient.Surname || patient.lastName || patient.LastName || '',
+            middleName: patient.middleName || patient.MiddleName || '',
+            sex: patient.sex || patient.Sex || '',
+            age: patient.age || calculateAge(patient.birthdate || patient.Birthdate) || '',
+            birthdate: patient.birthdate ? patient.birthdate.split('T')[0] : (patient.Birthdate ? patient.Birthdate.split('T')[0] : ''),
+            civilStatus: patient.civilStatus || patient.CivilStatus || 'Single',
+            address: patient.address || patient.Address || '',
+            contactNo: patient.contactNo || patient.ContactNo || patient.contact || '',
+            agencyOffice: patient.agencyOffice || patient.AgencyOffice || '',
+            status: patient.status || patient.Status || 'Pending_Station1',
+            formID: patient.formID || patient.FormID || null
         });
     };
 
@@ -225,7 +345,7 @@ export default function PatientRecord() {
                                     phoData={selectedPatient}
                                     onCancel={() => setSelectedPatient(null)}
                                     onSave={handleFormSave}
-                                    userRole={testRole} // <-- ATTACHED DEV STATE HERE
+                                    userRole={activeUserRole}
                                 />
                             </div>
                         </div>
@@ -292,15 +412,15 @@ export default function PatientRecord() {
                                             }`}
                                     >
                                         <Filter className="w-4 h-4" />
-                                        <span>{statusFilter === 'All' ? 'Filters' : `Status: ${statusFilter}`}</span>
+                                        <span>{statusFilter === 'All' ? 'Filters' : `Status: ${statusFilter.replace('_', ' ')}`}</span>
                                     </button>
 
                                     {isFilterDropdownOpen && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                                        <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 animate-in fade-in zoom-in-95 duration-150">
                                             <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                                                Filter By Status
+                                                Filter By Station Status
                                             </div>
-                                            {['All', 'Saved', 'Draft', 'Submitted'].map((status) => (
+                                            {['All', 'Pending_Station1', 'Pending_Station2', 'Pending_Doctor', 'Completed', 'Draft'].map((status) => (
                                                 <button
                                                     key={status}
                                                     onClick={() => {
@@ -309,7 +429,7 @@ export default function PatientRecord() {
                                                     }}
                                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-teal-50 hover:text-teal-600 flex items-center justify-between transition-colors cursor-pointer"
                                                 >
-                                                    <span>{status}</span>
+                                                    <span>{status === 'All' ? 'All Records' : status.replace('_', ' ')}</span>
                                                     {statusFilter === status && <Check className="w-4 h-4 text-teal-600" />}
                                                 </button>
                                             ))}
@@ -353,7 +473,10 @@ export default function PatientRecord() {
                                             return (
                                                 <tr key={patient.patientID || patient.formID || index} onClick={() => handlePatientClick(patient)} className="hover:bg-teal-50/40 transition-colors group cursor-pointer">
                                                     <td className="py-4 pl-6 pr-4 text-center"><span className="text-sm font-bold text-gray-400 group-hover:text-teal-600">{indexOfFirstItem + index + 1}</span></td>
-                                                    <td className="py-4 px-4"><p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname}</p></td>
+                                                    <td className="py-4 px-4">
+                                                        <p className="text-sm font-semibold text-gray-900">{patient.firstName} {patient.surname || patient.lastName}</p>
+                                                        <p className="text-[11px] text-gray-400 font-medium">{patient.agencyOffice || 'Agusan del Sur'}</p>
+                                                    </td>
                                                     <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{contactInfo}</p></td>
                                                     <td className="py-4 px-4">
                                                         <span className="text-sm font-medium text-gray-600">
@@ -366,11 +489,14 @@ export default function PatientRecord() {
                                                         </span>
                                                     </td>
                                                     <td className="py-4 px-4">
-                                                        <span className={`inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full ${currentStatus.toLowerCase() === 'submitted' ? 'bg-emerald-100 text-emerald-700' :
-                                                            currentStatus.toLowerCase() === 'draft' ? 'bg-amber-100 text-amber-700' :
-                                                                'bg-gray-100 text-gray-700'
-                                                            }`}>
-                                                            {currentStatus}
+                                                        <span className={`inline-flex px-3 py-1 text-[10px] font-bold uppercase rounded-full ${
+                                                            currentStatus.toLowerCase() === 'submitted' || currentStatus.toLowerCase() === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                                            currentStatus.toLowerCase() === 'pending_station1' ? 'bg-slate-100 text-slate-700' :
+                                                            currentStatus.toLowerCase() === 'pending_station2' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                                                            currentStatus.toLowerCase() === 'pending_doctor' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                                            'bg-gray-100 text-gray-700'
+                                                        }`}>
+                                                            {currentStatus.replace('_', ' ')}
                                                         </span>
                                                     </td>
                                                     <td className="py-4 px-4"><button onClick={(e) => e.stopPropagation()} className="text-gray-500 hover:text-teal-600 hover:bg-teal-50 p-1.5 rounded-lg transition-colors"><MoreVertical className="w-5 h-5" /></button></td>
@@ -433,22 +559,6 @@ export default function PatientRecord() {
             {activeTab === 'archived' && (
                 <ArchivedTabs />
             )}
-
-            {/* TEMPORARY DEV TOOL: ROLE SWITCHER (Remove before production) */}
-            <div className="fixed bottom-6 right-6 z-[9999] bg-slate-900 p-4 rounded-xl shadow-2xl border border-slate-700 flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-teal-400">
-                    Developer Mode: Test Role
-                </label>
-                <select
-                    value={testRole}
-                    onChange={(e) => setTestRole(e.target.value)}
-                    className="bg-slate-800 text-white border border-slate-600 rounded-lg text-sm p-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-                >
-                    <option value="admin">Admin / Nurse</option>
-                    <option value="doctor">Doctor</option>
-                    <option value="superadmin">Superadmin</option>
-                </select>
-            </div>
 
         </div>
     );

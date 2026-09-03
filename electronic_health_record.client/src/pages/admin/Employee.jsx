@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { UserPlus, Loader2, Edit, Trash2, Mail, Search } from 'lucide-react';
-import EmployeeRecord from '../components/common/EmployeeRecord';
+import EmployeeRecord from '../../pages/admin/EmployeeRecord';
 
 export default function Employee() {
     const [employees, setEmployees] = useState([]);
