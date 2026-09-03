@@ -7,6 +7,7 @@
         public string FirstName { get; set; } = string.Empty;
         public string? MiddleName { get; set; } = string.Empty;
         public string PRCLicenseNo { get; set; } = string.Empty;
+        public string? ContactNo { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

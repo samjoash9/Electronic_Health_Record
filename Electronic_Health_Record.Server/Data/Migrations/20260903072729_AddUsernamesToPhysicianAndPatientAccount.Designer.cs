@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260903072729_AddUsernamesToPhysicianAndPatientAccount")]
+    partial class AddUsernamesToPhysicianAndPatientAccount
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,15 +33,15 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AdminID"));
 
-                    b.Property<string>("ContactNo")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("SYSDATETIME()");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -58,14 +61,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("admin");
-
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -78,13 +73,13 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.HasKey("AdminID");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Admin", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Admin_Role", "Role IN ('admin', 'superadmin')");
-                        });
+                    b.ToTable("Admin", (string)null);
                 });
 
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.AdminSession", b =>
@@ -1278,11 +1273,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PhysicianID"));
-
-                    b.Property<string>("ContactNo")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()

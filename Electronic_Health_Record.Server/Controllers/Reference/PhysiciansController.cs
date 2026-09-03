@@ -26,7 +26,20 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         {
             try
             {
-                var physicians = await _context.Physicians.ToListAsync();
+                // projected, never the raw entity: Physician now carries PasswordHash
+                var physicians = await _context.Physicians
+                    .Select(p => new PhysicianResponseDto
+                    {
+                        PhysicianID = p.PhysicianID,
+                        Surname = p.Surname,
+                        FirstName = p.FirstName,
+                        MiddleName = p.MiddleName,
+                        PRCLicenseNo = p.PRCLicenseNo,
+                        ContactNo = p.ContactNo,
+                        CreatedAt = p.CreatedAt,
+                        UpdatedAt = p.UpdatedAt
+                    })
+                    .ToListAsync();
                 return Ok(new { data = physicians });
             }
             catch (Exception e)
@@ -63,7 +76,18 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 if (physician == null)
                     return NotFound($"Physician with ID {PhysicianID} was not found.");
 
-                return Ok(physician);
+                // projected, never the raw entity: Physician now carries PasswordHash
+                return Ok(new PhysicianResponseDto
+                {
+                    PhysicianID = physician.PhysicianID,
+                    Surname = physician.Surname,
+                    FirstName = physician.FirstName,
+                    MiddleName = physician.MiddleName,
+                    PRCLicenseNo = physician.PRCLicenseNo,
+                    ContactNo = physician.ContactNo,
+                    CreatedAt = physician.CreatedAt,
+                    UpdatedAt = physician.UpdatedAt
+                });
             }
             catch (Exception e)
             {
@@ -87,7 +111,8 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                     Surname = dto.Surname,
                     FirstName = dto.FirstName,
                     MiddleName = dto.MiddleName,
-                    PRCLicenseNo = dto.PRCLicenseNo
+                    PRCLicenseNo = dto.PRCLicenseNo,
+                    ContactNo = dto.ContactNo
                     // the rest are handled by db defaults (CreatedAt and UpdatedAt)
                 };
 
@@ -97,7 +122,17 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 return CreatedAtAction(
                     nameof(GetPhysician),
                     new { PhysicianID = physician.PhysicianID },
-                    physician);
+                    new PhysicianResponseDto
+                    {
+                        PhysicianID = physician.PhysicianID,
+                        Surname = physician.Surname,
+                        FirstName = physician.FirstName,
+                        MiddleName = physician.MiddleName,
+                        PRCLicenseNo = physician.PRCLicenseNo,
+                        ContactNo = physician.ContactNo,
+                        CreatedAt = physician.CreatedAt,
+                        UpdatedAt = physician.UpdatedAt
+                    });
             }
             catch (Exception e)
             {
@@ -129,6 +164,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             physician.FirstName = dto.FirstName;
             physician.MiddleName = dto.MiddleName;
             physician.PRCLicenseNo = dto.PRCLicenseNo;
+            physician.ContactNo = dto.ContactNo;
             physician.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -152,6 +188,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 FirstName = physician.FirstName,
                 MiddleName = physician.MiddleName,
                 PRCLicenseNo = physician.PRCLicenseNo,
+                ContactNo = physician.ContactNo,
                 CreatedAt = physician.CreatedAt,
                 UpdatedAt = physician.UpdatedAt
             };
@@ -192,6 +229,9 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             if (dto.MiddleName != null)
                 physician.MiddleName = dto.MiddleName;
 
+            if (dto.ContactNo != null)
+                physician.ContactNo = dto.ContactNo;
+
             physician.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -215,6 +255,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 FirstName = physician.FirstName,
                 MiddleName = physician.MiddleName,
                 PRCLicenseNo = physician.PRCLicenseNo,
+                ContactNo = physician.ContactNo,
                 CreatedAt = physician.CreatedAt,
                 UpdatedAt = physician.UpdatedAt
             };

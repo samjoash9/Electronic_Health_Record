@@ -22,17 +22,31 @@ namespace Electronic_Health_Record.Server.Data
             // Seed Admins
             if (!await context.Admins.AnyAsync())
             {
-                var admin = new Admin
-                {
-                    Username = "admin",
-                    Email = "admin@hospital.com",
-                    PasswordHash = HashPassword("password123"),
-                    FullName = "System Administrator",
-                    IsActive = true,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
-                context.Admins.Add(admin);
+                // One of each tier, so the permission split has something to exercise
+                // on a fresh development database.
+                context.Admins.AddRange(
+                    new Admin
+                    {
+                        Username = "admin",
+                        Role = AdminRoles.SuperAdmin,
+                        ContactNo = "09170000001",
+                        PasswordHash = HashPassword("password123"),
+                        FullName = "System Administrator",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    },
+                    new Admin
+                    {
+                        Username = "nurse1",
+                        Role = AdminRoles.Admin,
+                        ContactNo = "09170000002",
+                        PasswordHash = HashPassword("password123"),
+                        FullName = "Corazon Dimaculangan",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
                 await context.SaveChangesAsync();
             }
 
@@ -246,19 +260,27 @@ namespace Electronic_Health_Record.Server.Data
                 context.Physicians.AddRange(
                     new Physician
                     {
+                        Username = "doctor",
+                        PasswordHash = HashPassword("password123"),
                         Surname = "House",
                         FirstName = "Gregory",
                         MiddleName = "H.",
                         PRCLicenseNo = "PRC-12345",
+                        ContactNo = "09171234567",
+                        IsActive = true,
                         CreatedAt = now,
                         UpdatedAt = now
                     },
                     new Physician
                     {
+                        Username = "mgrey",
+                        PasswordHash = HashPassword("password123"),
                         Surname = "Grey",
                         FirstName = "Meredith",
                         MiddleName = "E.",
                         PRCLicenseNo = "PRC-67890",
+                        ContactNo = "09176789012",
+                        IsActive = true,
                         CreatedAt = now,
                         UpdatedAt = now
                     }
@@ -488,9 +510,13 @@ namespace Electronic_Health_Record.Server.Data
             {
                 var portalPatients = await context.Patients.OrderBy(p => p.PatientID).Take(2).ToListAsync();
 
+                // Usernames are derived from the employee id at provisioning time so
+                // Station 1 can hand the patient a predictable handle; the id itself is
+                // no longer a login identifier.
                 context.PatientAccounts.Add(new PatientAccount
                 {
                     PatientID = portalPatients[0].PatientID,
+                    Username = UsernameFor(portalPatients[0].ExternalEmployeeId),
                     PasswordHash = HashPassword("patient123"),
                     Status = "Active",
                     ProvisionedAt = now.AddDays(-1),
@@ -503,6 +529,7 @@ namespace Electronic_Health_Record.Server.Data
                 context.PatientAccounts.Add(new PatientAccount
                 {
                     PatientID = portalPatients[1].PatientID,
+                    Username = UsernameFor(portalPatients[1].ExternalEmployeeId),
                     Status = "Provisioned",
                     ProvisionedAt = now,
                     CreatedAt = now,
@@ -511,6 +538,17 @@ namespace Electronic_Health_Record.Server.Data
 
                 await context.SaveChangesAsync();
             }
+        }
+
+        // "EMP-0001" -> "emp0001". Keeps the handle easy to dictate at the counter
+        // while staying inside the 30-char unique column.
+        private static string UsernameFor(string externalEmployeeId)
+        {
+            var cleaned = new string(externalEmployeeId
+                .Where(char.IsLetterOrDigit)
+                .ToArray())
+                .ToLowerInvariant();
+            return cleaned.Length > 30 ? cleaned[..30] : cleaned;
         }
 
         private static string HashPassword(string password)

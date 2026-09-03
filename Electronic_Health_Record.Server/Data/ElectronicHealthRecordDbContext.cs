@@ -57,28 +57,39 @@ namespace Electronic_Health_Record.Server.Data
             {
                 entity.ToTable("Physician");
                 entity.HasKey(p => p.PhysicianID);
+                entity.Property(p => p.Username).HasMaxLength(30).IsRequired();
+                entity.HasIndex(p => p.Username).IsUnique();
+                entity.Property(p => p.PasswordHash).HasMaxLength(255).IsRequired();
                 entity.Property(p => p.Surname).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.FirstName).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.MiddleName).HasMaxLength(50);
                 entity.Property(p => p.PRCLicenseNo).HasMaxLength(20).IsRequired();
                 entity.HasIndex(p => p.PRCLicenseNo).IsUnique();
+                entity.Property(p => p.ContactNo).HasMaxLength(20).IsUnicode(false);
+                entity.Property(p => p.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
             });
 
             modelBuilder.Entity<Admin>(entity =>
             {
-                entity.ToTable("Admin");
+                entity.ToTable("Admin", t => t.HasCheckConstraint(
+                    "CK_Admin_Role", "Role IN ('admin', 'superadmin')"));
                 entity.HasKey(a => a.AdminID);
                 entity.Property(a => a.Username).HasMaxLength(30).IsRequired();
-                entity.Property(a => a.Email).HasMaxLength(255).IsRequired();
+                entity.Property(a => a.Role)
+                    .HasMaxLength(20)
+                    .IsUnicode(false)
+                    .HasDefaultValue(AdminRoles.Admin)
+                    .IsRequired();
+                // shared office lines are common, so this is deliberately not unique
+                entity.Property(a => a.ContactNo).HasMaxLength(20).IsUnicode(false);
                 entity.Property(a => a.PasswordHash).HasMaxLength(255).IsRequired();
                 entity.Property(a => a.FullName).HasMaxLength(100).IsRequired();
                 entity.Property(a => a.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.HasIndex(a => a.Username).IsUnique();
-                entity.HasIndex(a => a.Email).IsUnique();
             });
 
             modelBuilder.Entity<AdminSession>(entity =>
@@ -121,6 +132,8 @@ namespace Electronic_Health_Record.Server.Data
                     "CK_PatientAccount_Activation",
                     "Status <> 'Active' OR (PasswordHash IS NOT NULL AND ActivatedAt IS NOT NULL)"));
                 entity.HasKey(a => a.PatientAccountID);
+                entity.Property(a => a.Username).HasMaxLength(30).IsRequired();
+                entity.HasIndex(a => a.Username).IsUnique();
                 entity.Property(a => a.PasswordHash).HasMaxLength(255);
                 entity.Property(a => a.Status)
                     .HasMaxLength(20)

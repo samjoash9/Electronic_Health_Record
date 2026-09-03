@@ -18,5 +18,8 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
         [Required(ErrorMessage = "PRC License No. is required.")]
         [MaxLength(20)]
         public string PRCLicenseNo { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string? ContactNo { get; set; }
     }
 }

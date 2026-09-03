@@ -26,7 +26,21 @@ namespace Electronic_Health_Record.Server.Controllers.Auth
         {
             try
             {
-                var admins = await _context.Admins.ToListAsync();
+                // projected, never the raw entity: Admin carries PasswordHash
+                var admins = await _context.Admins
+                    .Select(a => new
+                    {
+                        a.AdminID,
+                        a.Username,
+                        a.Role,
+                        a.ContactNo,
+                        a.FullName,
+                        a.IsActive,
+                        a.LastLoginAt,
+                        a.CreatedAt,
+                        a.UpdatedAt
+                    })
+                    .ToListAsync();
                 return Ok(new { data = admins });
             }
             catch (Exception e)
@@ -47,7 +61,19 @@ namespace Electronic_Health_Record.Server.Controllers.Auth
                 if (admin == null)
                     return NotFound($"Admin with ID {AdminID} was not found.");
 
-                return Ok(admin);
+                // projected, never the raw entity: Admin carries PasswordHash
+                return Ok(new
+                {
+                    admin.AdminID,
+                    admin.Username,
+                    admin.Role,
+                    admin.ContactNo,
+                    admin.FullName,
+                    admin.IsActive,
+                    admin.LastLoginAt,
+                    admin.CreatedAt,
+                    admin.UpdatedAt
+                });
             }
             catch (Exception ex)
             {

@@ -15,5 +15,8 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
 
         [MaxLength(20)]
         public string? PRCLicenseNo { get; set; }
+
+        [MaxLength(20)]
+        public string? ContactNo { get; set; }
     }
 }
