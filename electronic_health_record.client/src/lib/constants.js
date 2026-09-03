@@ -1,8 +1,26 @@
+/**
+ * Which table an account authenticated against. Drives routing and route guards,
+ * so these values must stay in sync with homeRouteFor().
+ */
 export const ROLES = {
   ADMIN: 'admin',
   DOCTOR: 'doctor',
   PATIENT: 'patient',
 };
+
+/**
+ * Permission tier *within* the Admin table, mirroring Admin.Role on the server.
+ * Deliberately separate from ROLES: an admin and a superadmin both sign in as
+ * ROLES.ADMIN and land on the same routes, they just differ in what they may do.
+ */
+export const ADMIN_ROLES = {
+  ADMIN: 'admin',
+  SUPERADMIN: 'superadmin',
+};
+
+export function isSuperAdmin(user) {
+  return user?.role === ROLES.ADMIN && user?.adminRole === ADMIN_ROLES.SUPERADMIN;
+}
 
 export const FORM_STATUS = {
   PENDING_ASSESSMENT: 'PendingAssessment',

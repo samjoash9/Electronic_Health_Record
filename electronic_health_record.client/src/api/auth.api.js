@@ -1,26 +1,32 @@
 import { USE_MOCK, client, toApiError } from './client';
 import { db } from './mock/db';
 import { delay } from './mock/delay';
-import { ROLES } from '../lib/constants';
+import { ROLES, ADMIN_ROLES } from '../lib/constants';
 
 const SESSION_KEY = 'ehr-session';
 
-export async function login({ identifier, password, role }) {
+export async function login({ identifier, password }) {
   if (USE_MOCK) {
     await delay();
     const state = db.read();
     let user = null;
 
-    if (role === ROLES.ADMIN) {
-      const admin = state.admins.find(
-        (a) => a.username === identifier && a.password === password && a.isActive,
-      );
-      if (admin) {
-        user = { id: admin.adminID, name: admin.fullName, role: ROLES.ADMIN };
-      }
-    } else if (role === ROLES.DOCTOR) {
+    const admin = state.admins.find(
+      (a) => a.username === identifier && a.password === password && a.isActive,
+    );
+    if (admin) {
+      user = {
+        id: admin.adminID,
+        name: admin.fullName,
+        role: ROLES.ADMIN,
+        // permission tier, not a routing role: see ADMIN_ROLES in lib/constants
+        adminRole: admin.role ?? ADMIN_ROLES.ADMIN,
+      };
+    }
+
+    if (!user) {
       const doc = state.physicians.find(
-        (p) => p.username === identifier && p.password === password,
+        (p) => p.username === identifier && p.password === password && p.isActive,
       );
       if (doc) {
         user = {
@@ -30,14 +36,16 @@ export async function login({ identifier, password, role }) {
           role: ROLES.DOCTOR,
         };
       }
-    } else if (role === ROLES.PATIENT) {
-      const patient = state.patients.find(
-        (p) => p.externalEmployeeId === identifier,
+    }
+
+    if (!user) {
+      const account = state.patientAccounts.find(
+        (a) => a.username === identifier && a.password === password,
       );
-      const account = patient && state.patientAccounts.find(
-        (a) => a.patientID === patient.patientID,
+      const patient = account && state.patients.find(
+        (p) => p.patientID === account.patientID,
       );
-      if (account && account.password === password) {
+      if (patient) {
         user = {
           id: account.patientAccountID,
           patientID: patient.patientID,
@@ -53,14 +61,14 @@ export async function login({ identifier, password, role }) {
       throw err;
     }
 
-    const session = { token: `mock-${role}-${user.id}`, user };
+    const session = { token: `mock-${user.role}-${user.id}`, user };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     localStorage.setItem('ehr-token', session.token);
     return session;
   }
 
   try {
-    const { data } = await client.post('/auth/login', { identifier, password, role });
+    const { data } = await client.post('/auth/login', { identifier, password });
     localStorage.setItem(SESSION_KEY, JSON.stringify(data));
     localStorage.setItem('ehr-token', data.token);
     return data;

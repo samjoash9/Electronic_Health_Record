@@ -23,14 +23,14 @@ export const routeElements = createRoutesFromElements(
     <Route path="/login" element={<LoginPage />} />
     <Route path="/" element={<HomeRedirect />} />
 
-    {/* Kiosk is deliberately OUTSIDE AppShell: no sidebar, no nav. */}
+    {/* Kiosk and station picker are deliberately OUTSIDE AppShell: no sidebar, no nav. */}
     <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
       <Route path="/station2/:formId/kiosk" element={<KioskPage />} />
+      <Route path="/stations" element={<StationPickerPage />} />
     </Route>
 
     <Route element={<AppShell />}>
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
-        <Route path="/stations" element={<StationPickerPage />} />
         <Route path="/station1" element={<Station1Page />} />
         <Route path="/station1/:formId" element={<Station1Page />} />
         <Route path="/station2" element={<Station2QueuePage />} />

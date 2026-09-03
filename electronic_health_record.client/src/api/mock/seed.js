@@ -168,7 +168,8 @@ export function buildSeed() {
       {
         adminID: 1,
         username: 'admin',
-        email: 'admin@hospital.com',
+        role: 'superadmin',
+        contactNo: '09170000001',
         password: 'password123',
         fullName: 'System Administrator',
         isActive: true,
@@ -176,7 +177,8 @@ export function buildSeed() {
       {
         adminID: 2,
         username: 'nurse1',
-        email: 'nurse1@hospital.com',
+        role: 'admin',
+        contactNo: '09170000002',
         password: 'password123',
         fullName: 'Corazon Dimaculangan',
         isActive: true,
@@ -191,6 +193,8 @@ export function buildSeed() {
         firstName: 'Ernesto',
         middleName: 'B',
         prcLicenseNo: '0123456',
+        contactNo: '09171234567',
+        isActive: true,
       },
     ],
     employees: buildEmployees(),

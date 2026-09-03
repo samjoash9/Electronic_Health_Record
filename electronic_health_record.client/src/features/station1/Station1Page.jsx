@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +13,7 @@ import IdentityFields from './IdentityFields';
 import VitalsFields from './VitalsFields';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
+import StationStepIndicator from '../../components/ui/StationStepIndicator';
 
 const BLANK_VITALS = {
   weightKg: '', heightCm: '', bpSystolic: '', bpDiastolic: '',
@@ -25,9 +27,12 @@ const BLANK_VALUES = {
   ...BLANK_VITALS,
 };
 
+const STEPS = ['Search Employee', 'Confirm Information', 'Vital Signs'];
+
 export default function Station1Page() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [step, setStep] = useState(1);
 
   const {
     register, handleSubmit, watch, reset, formState: { errors, isSubmitting, isDirty },
@@ -36,12 +41,16 @@ export default function Station1Page() {
     defaultValues: BLANK_VALUES,
   });
 
+  const hasSelectedEmployee = Boolean(watch('externalEmployeeId'));
+  const unlockedUpTo = hasSelectedEmployee ? STEPS.length : 1;
+
   const mutation = useMutation({
     mutationFn: submitStation1,
     onSuccess: () => {
       toast.success('Submitted to Station 2.');
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       reset(BLANK_VALUES);
+      setStep(1);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -50,6 +59,7 @@ export default function Station1Page() {
 
   const onSelectEmployee = (employee) => {
     reset({ ...employee, ...BLANK_VITALS });
+    setStep(2);
   };
 
   const onSubmit = (values) => {
@@ -75,19 +85,52 @@ export default function Station1Page() {
 
   const blocker = useUnsavedChangesGuard(isDirty && !mutation.isSuccess);
 
+  const goToStep = (target) => {
+    if (target <= unlockedUpTo) setStep(target);
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pb-20">
-      <EmployeeSearch onSelect={onSelectEmployee} />
-      <IdentityFields register={register} watch={watch} errors={errors} />
-      <VitalsFields register={register} watch={watch} errors={errors} />
+      <StationStepIndicator
+        steps={STEPS}
+        current={step}
+        unlockedUpTo={unlockedUpTo}
+        onSelect={goToStep}
+      />
 
-      <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-2 border-t border-line bg-surface px-4 py-3">
-        <Button type="button" variant="secondary" onClick={() => reset(BLANK_VALUES)}>
-          Reset
-        </Button>
-        <Button type="submit" disabled={isSubmitting || mutation.isPending}>
-          {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
-        </Button>
+      {step === 1 && <EmployeeSearch onSelect={onSelectEmployee} />}
+      {step === 2 && <IdentityFields register={register} watch={watch} errors={errors} />}
+      {step === 3 && <VitalsFields register={register} watch={watch} errors={errors} />}
+
+      <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-between gap-2 border-t border-line bg-surface px-4 py-3">
+        <div>
+          {step > 1 && (
+            <Button type="button" variant="secondary" onClick={() => setStep(step - 1)}>
+              Back
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {step < 3 && (
+            <Button
+              type="button"
+              disabled={!hasSelectedEmployee}
+              onClick={() => setStep(step + 1)}
+            >
+              Next
+            </Button>
+          )}
+          {step === 3 && (
+            <>
+              <Button type="button" variant="secondary" onClick={() => { reset(BLANK_VALUES); setStep(1); }}>
+                Reset
+              </Button>
+              <Button type="submit" disabled={isSubmitting || mutation.isPending}>
+                {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <Modal

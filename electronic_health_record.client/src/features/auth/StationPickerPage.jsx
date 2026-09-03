@@ -27,16 +27,9 @@ export default function StationPickerPage() {
     navigate(s.path);
   };
 
-  const current = STATIONS.find((s) => s.number === station);
-
   return (
-    <div className="mx-auto max-w-2xl">
-      {current && (
-        <p className="mb-4 text-sm text-ink-700">
-          This device is currently set to <strong>{current.title}</strong>.
-        </p>
-      )}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div className="flex min-h-screen items-center justify-center bg-surface p-4">
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-4 md:grid-cols-2">
         {STATIONS.map((s) => (
           <Card key={s.number} title={s.title}>
             <p className="mb-4 text-sm text-ink-500">{s.description}</p>

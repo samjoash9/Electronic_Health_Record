@@ -7,6 +7,14 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * Portal login handle issued when Station 1 provisions an account.
+ * "PHO-1001" -> "pho1001". Mirrors DbSeeder.UsernameFor on the server.
+ */
+function usernameFor(externalEmployeeId) {
+  return String(externalEmployeeId).replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 30);
+}
+
 /** Mock stand-in for the SQL Server rowversion column. */
 function bumpRowVersion(form) {
   form.rowVersion = `v${Number(String(form.rowVersion ?? 'v0').slice(1)) + 1}`;
@@ -96,6 +104,7 @@ export async function submitStation1({ patient, vitals, adminID }) {
         state.patientAccounts.push({
           patientAccountID: db.nextId('patientAccountID'),
           patientID: record.patientID,
+          username: usernameFor(record.externalEmployeeId),
           password: 'password123', // mock activation default
           status: 'Provisioned',
           provisionedAt: nowIso(),

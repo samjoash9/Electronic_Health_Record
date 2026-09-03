@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchEmployees } from '../../api/patients.api';
 import { fullName } from '../../lib/formatters';
 import Field from '../../components/ui/Field';
 import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import DataTable from '../../components/ui/DataTable';
 
 function useDebouncedValue(value, delayMs) {
   const [debounced, setDebounced] = useState(value);
@@ -14,87 +16,72 @@ function useDebouncedValue(value, delayMs) {
   return debounced;
 }
 
+const COLUMNS = [
+  { key: 'name', header: 'Name', render: (e) => fullName(e) },
+  { key: 'externalEmployeeId', header: 'Employee ID' },
+  { key: 'position', header: 'Position' },
+  { key: 'agencyOffice', header: 'Agency/Office' },
+];
+
+const PAGE_SIZE = 10;
+
 export default function EmployeeSearch({ onSelect }) {
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(-1);
-  const containerRef = useRef(null);
+  const [page, setPage] = useState(1);
   const debounced = useDebouncedValue(query, 300);
 
-  const { data: results = [] } = useQuery({
+  const { data: results = [], isFetching } = useQuery({
     queryKey: ['employees', debounced],
     queryFn: () => searchEmployees(debounced),
-    enabled: debounced.trim().length >= 2,
   });
 
-  useEffect(() => {
-    const onClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
-
-  const choose = (employee) => {
-    onSelect(employee);
-    setQuery('');
-    setOpen(false);
-    setHighlight(-1);
-  };
-
-  const onKeyDown = (e) => {
-    if (!open || results.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlight((h) => Math.min(h + 1, results.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlight((h) => Math.max(h - 1, 0));
-    } else if (e.key === 'Enter' && highlight >= 0) {
-      e.preventDefault();
-      choose(results[highlight]);
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div className="flex flex-col gap-3">
       <Field label="Search Employee" htmlFor="employee-search" hint="Search by name or employee ID">
         <Input
           id="employee-search"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-            setHighlight(-1);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g. Santos or PHO-1001"
           autoComplete="off"
         />
       </Field>
 
-      {open && results.length > 0 && (
-        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded border border-line bg-surface shadow-lg">
-          {results.map((employee, i) => (
-            <li key={employee.externalEmployeeId}>
-              <button
-                type="button"
-                onClick={() => choose(employee)}
-                className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm ${
-                  i === highlight ? 'bg-brand-50' : 'hover:bg-gray-50'
-                }`}
-              >
-                <span className="font-medium text-ink-900">{fullName(employee)}</span>
-                <span className="text-xs text-ink-500">{employee.externalEmployeeId}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      <DataTable
+        columns={COLUMNS}
+        rows={pageRows}
+        onRowClick={onSelect}
+        empty={isFetching ? 'Searching…' : 'No matching employees.'}
+      />
+
+      {results.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between text-sm text-ink-500">
+          <span>
+            Page {currentPage} of {totalPages} ({results.length} employees)
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

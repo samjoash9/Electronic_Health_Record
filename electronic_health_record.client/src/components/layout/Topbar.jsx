@@ -22,7 +22,8 @@ export default function Topbar() {
       <div className="flex items-center gap-3">
         <div className="text-right">
           <p className="text-sm font-medium text-ink-900">{user?.name}</p>
-          <p className="text-xs capitalize text-ink-500">{user?.role}</p>
+          {/* admins show their tier, so a superadmin is not labelled plain "admin" */}
+          <p className="text-xs capitalize text-ink-500">{user?.adminRole ?? user?.role}</p>
         </div>
         <Button type="button" variant="ghost" onClick={handleSignOut}>
           <LogOut size={16} className="mr-1" />
