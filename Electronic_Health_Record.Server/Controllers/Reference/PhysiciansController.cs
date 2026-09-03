@@ -4,7 +4,7 @@ using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Electronic_Health_Record.Server.Controllers
+namespace Electronic_Health_Record.Server.Controllers.Reference
 {
     [ApiController]
     [Route("api/[controller]")]

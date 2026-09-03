@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SqlServer.Server;
 
-namespace Electronic_Health_Record.Server.Controllers
+namespace Electronic_Health_Record.Server.Controllers.Stations
 {
     [ApiController]
     [Route("api/[controller]")]

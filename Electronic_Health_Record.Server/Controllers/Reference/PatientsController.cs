@@ -5,7 +5,7 @@ using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.DTOs.Patient;
 
 
-namespace Electronic_Health_Record.Server.Controllers
+namespace Electronic_Health_Record.Server.Controllers.Reference
 {
     [ApiController]
     [Route("api/[controller]")]  

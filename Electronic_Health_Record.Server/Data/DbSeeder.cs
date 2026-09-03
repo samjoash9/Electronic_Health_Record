@@ -17,6 +17,8 @@ namespace Electronic_Health_Record.Server.Data
                 await context.Database.MigrateAsync();
             }
 
+            var now = DateTime.UtcNow;
+
             // Seed Admins
             if (!await context.Admins.AnyAsync())
             {
@@ -27,23 +29,29 @@ namespace Electronic_Health_Record.Server.Data
                     PasswordHash = HashPassword("password123"),
                     FullName = "System Administrator",
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now
                 };
                 context.Admins.Add(admin);
                 await context.SaveChangesAsync();
             }
-            
+
             var currentAdmin = await context.Admins.FirstOrDefaultAsync(a => a.Username == "admin");
 
-            // MedicalConditions come from the migration (HasData), so nothing to seed here
+            // MedicalConditions and the whole Station 2 question bank (categories,
+            // questions, options) come from the migration via HasData, so there is
+            // nothing to seed for them here.
 
-            // Seed Patients
+            // Seed Patients.
+            // Patient rows normally only ever arrive by syncing from the external HR
+            // API, so every row needs an ExternalEmployeeId. These development
+            // fixtures use synthetic EMP-#### ids that no real employee can collide with.
             if (!await context.Patients.AnyAsync())
             {
                 context.Patients.AddRange(
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0001",
                         Surname = "Doe",
                         FirstName = "John",
                         MiddleName = "Smith",
@@ -54,11 +62,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "HR",
                         Position = "Manager",
                         ContactNo = "09123456789",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0002",
                         Surname = "Roe",
                         FirstName = "Jane",
                         MiddleName = "Ann",
@@ -69,26 +79,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "IT",
                         Position = "Developer",
                         ContactNo = "09876543210",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
-                        Surname = "Roe",
-                        FirstName = "Jane",
-                        MiddleName = "Ann",
-                        Birthdate = new DateTime(1992, 8, 25),
-                        Sex = "F",
-                        CivilStatus = "Single",
-                        Address = "456 Oak St, Springfield",
-                        AgencyOffice = "IT",
-                        Position = "Developer",
-                        ContactNo = "09876543210",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    },
-                    new Patient
-                    {
+                        ExternalEmployeeId = "EMP-0003",
                         Surname = "Smith",
                         FirstName = "John",
                         MiddleName = "Michael",
@@ -99,11 +96,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "Finance",
                         Position = "Accountant",
                         ContactNo = "09123456789",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0004",
                         Surname = "Garcia",
                         FirstName = "Maria",
                         MiddleName = "Elena",
@@ -114,11 +113,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "HR",
                         Position = "HR Specialist",
                         ContactNo = "09234567890",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0005",
                         Surname = "Santos",
                         FirstName = "Carlos",
                         MiddleName = "Luis",
@@ -129,11 +130,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "Operations",
                         Position = "Operations Officer",
                         ContactNo = "09345678901",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0006",
                         Surname = "Reyes",
                         FirstName = "Angela",
                         MiddleName = "Marie",
@@ -144,11 +147,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "Administration",
                         Position = "Administrative Officer",
                         ContactNo = "09456789012",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0007",
                         Surname = "Dela Cruz",
                         FirstName = "Mark",
                         MiddleName = "Anthony",
@@ -159,11 +164,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "IT",
                         Position = "Software Engineer",
                         ContactNo = "09567890123",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0008",
                         Surname = "Mendoza",
                         FirstName = "Sofia",
                         MiddleName = "Grace",
@@ -174,11 +181,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "Marketing",
                         Position = "Marketing Officer",
                         ContactNo = "09678901234",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0009",
                         Surname = "Villanueva",
                         FirstName = "Daniel",
                         MiddleName = "James",
@@ -189,11 +198,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "Legal",
                         Position = "Legal Officer",
                         ContactNo = "09789012345",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0010",
                         Surname = "Torres",
                         FirstName = "Patricia",
                         MiddleName = "Anne",
@@ -204,11 +215,13 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "IT",
                         Position = "Systems Analyst",
                         ContactNo = "09890123456",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0011",
                         Surname = "Navarro",
                         FirstName = "Kevin",
                         MiddleName = "Paul",
@@ -219,10 +232,10 @@ namespace Electronic_Health_Record.Server.Data
                         AgencyOffice = "Procurement",
                         Position = "Procurement Officer",
                         ContactNo = "09901234567",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     }
-
                 );
                 await context.SaveChangesAsync();
             }
@@ -237,8 +250,8 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Gregory",
                         MiddleName = "H.",
                         PRCLicenseNo = "PRC-12345",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Physician
                     {
@@ -246,30 +259,33 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Meredith",
                         MiddleName = "E.",
                         PRCLicenseNo = "PRC-67890",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = now,
+                        UpdatedAt = now
                     }
                 );
                 await context.SaveChangesAsync();
             }
 
-            // Seed WellnessForms with related records
+            // Seed wellness forms: one parked at each stage of the workflow, so every
+            // station queue has something in it on a fresh development database.
             if (!await context.WellnessForms.AnyAsync())
             {
-                var patient = await context.Patients.FirstAsync();
+                var patients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
                 var physician = await context.Physicians.FirstAsync();
                 var conditionHypertension = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Hypertension");
                 var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Diabetes Mellitus");
 
-                var form = new WellnessForm
+                // ---- Form A: completed and signed (Station 3 done) ----
+                var completed = new WellnessForm
                 {
-                    PatientID = patient.PatientID,
+                    PatientID = patients[0].PatientID,
                     PhysicianID = physician.PhysicianID,
-                    Status = "Submitted",
-                    // a submitted form must be signed, so the seed carries a placeholder signature
+                    Status = "Completed",
+                    CurrentStation = 3,
+                    // a completed form must be signed, so the seed carries a placeholder signature
                     Signature = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                    SignedAt = DateTime.UtcNow,
-                    FormDate = DateTime.UtcNow.Date,
+                    SignedAt = now,
+                    FormDate = now.Date,
                     WeightKg = 75.5m,
                     HeightCm = 175.0m,
                     BMI = 24.65m,
@@ -279,21 +295,108 @@ namespace Electronic_Health_Record.Server.Data
                     TempCelsius = 36.5m,
                     HeartRate = 72,
                     RespRate = 16,
+                    Station1AdminID = currentAdmin?.AdminID,
+                    Station1SubmittedAt = now.AddHours(-3),
+                    Station2AdminID = currentAdmin?.AdminID,
+                    Station2SubmittedAt = now.AddHours(-2),
                     RecommendedDiagnosticTest = "CBC, Urinalysis, FBS",
                     ImpressionClinical = "Generally healthy; pre-diabetic monitoring",
                     ManagementTreatment = "Maintain healthy diet, exercise regularly",
+                    Station3SubmittedAt = now,
                     CreatedByAdminID = currentAdmin?.AdminID,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now
                 };
 
-                context.WellnessForms.Add(form);
+                // ---- Form B: Station 2 done, sitting in the doctor's queue ----
+                var pendingConsultation = new WellnessForm
+                {
+                    PatientID = patients[1].PatientID,
+                    Status = "PendingConsultation",
+                    CurrentStation = 3,
+                    FormDate = now.Date,
+                    WeightKg = 58.0m,
+                    HeightCm = 162.0m,
+                    BMI = 22.10m,
+                    IdealBMI = 21.5m,
+                    BPSystolic = 118,
+                    BPDiastolic = 76,
+                    TempCelsius = 36.7m,
+                    HeartRate = 68,
+                    RespRate = 15,
+                    Station1AdminID = currentAdmin?.AdminID,
+                    Station1SubmittedAt = now.AddHours(-2),
+                    Station2AdminID = currentAdmin?.AdminID,
+                    Station2SubmittedAt = now.AddHours(-1),
+                    CreatedByAdminID = currentAdmin?.AdminID,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                // ---- Form C: Station 1 done, sitting in the assessment queue ----
+                var pendingAssessment = new WellnessForm
+                {
+                    PatientID = patients[2].PatientID,
+                    Status = "PendingAssessment",
+                    CurrentStation = 2,
+                    FormDate = now.Date,
+                    WeightKg = 82.3m,
+                    HeightCm = 178.0m,
+                    BMI = 25.98m,
+                    IdealBMI = 23.0m,
+                    BPSystolic = 132,
+                    BPDiastolic = 85,
+                    TempCelsius = 36.4m,
+                    HeartRate = 78,
+                    RespRate = 17,
+                    Station1AdminID = currentAdmin?.AdminID,
+                    Station1SubmittedAt = now.AddMinutes(-20),
+                    CreatedByAdminID = currentAdmin?.AdminID,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                context.WellnessForms.AddRange(completed, pendingConsultation, pendingAssessment);
                 await context.SaveChangesAsync();
 
-                // SocialHistory
+                // ---- Station 2 answers for the two forms that cleared assessment ----
+                // Picks a mid-range option for every active question rather than
+                // hand-listing 32 answers, so the seed survives question-bank edits.
+                var questions = await context.AssessmentQuestions
+                    .Where(q => q.IsActive)
+                    .OrderBy(q => q.QuestionID)
+                    .ToListAsync();
+                var optionsByQuestion = await context.AssessmentOptions
+                    .OrderBy(o => o.DisplayOrder)
+                    .ToListAsync();
+
+                foreach (var form in new[] { completed, pendingConsultation })
+                {
+                    // alternate between the best and second-best option so the two
+                    // seeded forms do not produce identical category scores
+                    var pickBest = form.FormID == completed.FormID;
+                    foreach (var question in questions)
+                    {
+                        var choices = optionsByQuestion
+                            .Where(o => o.QuestionID == question.QuestionID)
+                            .OrderByDescending(o => o.Score)
+                            .ToList();
+                        var chosen = pickBest ? choices[0] : choices[Math.Min(1, choices.Count - 1)];
+
+                        context.AssessmentAnswers.Add(new AssessmentAnswer
+                        {
+                            FormID = form.FormID,
+                            QuestionID = question.QuestionID,
+                            OptionID = chosen.OptionID,
+                            CreatedAt = now
+                        });
+                    }
+                }
+
+                // ---- Station 3 clinical history, on the completed form only ----
                 context.SocialHistories.Add(new SocialHistory
                 {
-                    FormID = form.FormID,
+                    FormID = completed.FormID,
                     SmokingSticksPerDay = 0,
                     AlcoholType = "Beer",
                     DrinkFrequency = "Occasional",
@@ -302,31 +405,108 @@ namespace Electronic_Health_Record.Server.Data
                     DrunkFrequency = "Never",
                     ExerciseFrequency = "3x a week",
                     ExerciseType = "Jogging",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now
                 });
 
-                // FamilyMedicalHistory
                 context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
                 {
-                    FormID = form.FormID,
+                    FormID = completed.FormID,
                     ConditionID = conditionHypertension.ConditionID,
                     IsNone = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    FamilyMembers = "Father, paternal grandfather",
+                    CreatedAt = now,
+                    UpdatedAt = now
                 });
 
-                // PastMedicalHistory
                 context.PastMedicalHistories.Add(new PastMedicalHistory
                 {
-                    FormID = form.FormID,
+                    FormID = completed.FormID,
                     ConditionID = conditionDiabetes.ConditionID,
                     YearDiagnosed = 2020,
                     MaintenanceDrugGeneric = "Metformin",
                     Dosage = "500mg",
                     Frequency = "Once a day",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                // ---- Audit trail for the hand-offs the seed data represents ----
+                if (currentAdmin is not null)
+                {
+                    context.WellnessFormAuditLogs.AddRange(
+                        new WellnessFormAuditLog
+                        {
+                            FormID = completed.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station1Submitted",
+                            OccurredAt = now.AddHours(-3)
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = completed.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station2Submitted",
+                            OccurredAt = now.AddHours(-2)
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = completed.FormID,
+                            ActorType = "Physician",
+                            ActorID = physician.PhysicianID,
+                            Action = "Station3Signed",
+                            OccurredAt = now
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = pendingConsultation.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station2Submitted",
+                            OccurredAt = now.AddHours(-1)
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = pendingAssessment.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station1Submitted",
+                            OccurredAt = now.AddMinutes(-20)
+                        }
+                    );
+                }
+
+                await context.SaveChangesAsync();
+            }
+
+            // Seed patient portal accounts. Station 1 provisions one of these the
+            // first time it registers an employee; both states are represented here
+            // so the portal login flow has something to exercise.
+            if (!await context.PatientAccounts.AnyAsync())
+            {
+                var portalPatients = await context.Patients.OrderBy(p => p.PatientID).Take(2).ToListAsync();
+
+                context.PatientAccounts.Add(new PatientAccount
+                {
+                    PatientID = portalPatients[0].PatientID,
+                    PasswordHash = HashPassword("patient123"),
+                    Status = "Active",
+                    ProvisionedAt = now.AddDays(-1),
+                    ActivatedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                // provisioned but never activated: no password yet
+                context.PatientAccounts.Add(new PatientAccount
+                {
+                    PatientID = portalPatients[1].PatientID,
+                    Status = "Provisioned",
+                    ProvisionedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
                 });
 
                 await context.SaveChangesAsync();

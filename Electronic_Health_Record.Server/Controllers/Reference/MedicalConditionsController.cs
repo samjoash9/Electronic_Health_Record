@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
 
-namespace Electronic_Health_Record.Server.Controllers
+namespace Electronic_Health_Record.Server.Controllers.Reference
 {
     public class MedicalConditionsController : Controller
     {

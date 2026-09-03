@@ -7,6 +7,8 @@
         public int? ConditionID { get; set; }
         public string? ConditionOther { get; set; }
         public bool? IsNone { get; set; }
+        // which relatives have the condition ("identify family members")
+        public string? FamilyMembers { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
