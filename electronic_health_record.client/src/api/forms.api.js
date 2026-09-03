@@ -33,6 +33,18 @@ function attachPatient(state, form) {
   };
 }
 
+function pushAuditLog(state, { formID, actorType, actorID, action, details = null }) {
+  state.wellnessFormAuditLogs.push({
+    logID: db.nextId('logID'),
+    formID,
+    actorType,
+    actorID,
+    action,
+    details,
+    occurredAt: nowIso(),
+  });
+}
+
 export async function getQueue(status) {
   if (USE_MOCK) {
     await delay(200);
@@ -44,6 +56,22 @@ export async function getQueue(status) {
   }
   try {
     const { data } = await client.get('/wellnessforms', { params: { status } });
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function getAllForms() {
+  if (USE_MOCK) {
+    await delay(200);
+    const state = db.read();
+    return state.forms
+      .map((f) => attachPatient(state, f))
+      .sort((a, b) => (a.formDate < b.formDate ? 1 : -1));
+  }
+  try {
+    const { data } = await client.get('/wellnessforms');
     return data.data ?? data;
   } catch (error) {
     throw toApiError(error);
@@ -136,6 +164,9 @@ export async function submitStation1({ patient, vitals, adminID }) {
         updatedAt: nowIso(),
       };
       state.forms.push(form);
+      pushAuditLog(state, {
+        formID: form.formID, actorType: 'Admin', actorID: adminID, action: 'Station1Submitted',
+      });
       return { ...form };
     });
   }
@@ -174,6 +205,9 @@ export async function submitStation2({ formID, answers, adminID, rowVersion }) {
       form.station2SubmittedAt = nowIso();
       form.updatedAt = nowIso();
       bumpRowVersion(form);
+      pushAuditLog(state, {
+        formID: form.formID, actorType: 'Admin', actorID: adminID, action: 'Station2Submitted',
+      });
       return { ...form };
     });
   }
@@ -238,6 +272,9 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
       form.station3SubmittedAt = nowIso();
       form.updatedAt = nowIso();
       bumpRowVersion(form);
+      pushAuditLog(state, {
+        formID: form.formID, actorType: 'Physician', actorID: physicianID, action: 'Station3Submitted',
+      });
       return { ...form };
     });
   }
@@ -246,6 +283,42 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
       ...consultation, rowVersion,
     });
     return data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+function actorName(state, actorType, actorID) {
+  if (actorType === 'Admin') {
+    const admin = state.admins.find((a) => a.adminID === actorID);
+    return admin?.fullName ?? `Admin #${actorID}`;
+  }
+  if (actorType === 'Physician') {
+    const physician = state.physicians.find((p) => p.physicianID === actorID);
+    return physician ? `Dr. ${physician.firstName} ${physician.surname}` : `Physician #${actorID}`;
+  }
+  return actorType;
+}
+
+export async function getActivityLogs() {
+  if (USE_MOCK) {
+    await delay(200);
+    const state = db.read();
+    return state.wellnessFormAuditLogs
+      .map((log) => {
+        const form = state.forms.find((f) => f.formID === log.formID) ?? null;
+        const patient = form ? state.patients.find((p) => p.patientID === form.patientID) ?? null : null;
+        return {
+          ...log,
+          actorName: actorName(state, log.actorType, log.actorID),
+          patient,
+        };
+      })
+      .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1));
+  }
+  try {
+    const { data } = await client.get('/wellnessformauditlogs');
+    return data.data ?? data;
   } catch (error) {
     throw toApiError(error);
   }

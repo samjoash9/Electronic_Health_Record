@@ -207,6 +207,7 @@ export function buildSeed() {
     assessmentAnswers: [],
     assessmentCategories: buildAssessmentCategories(),
     medicalConditions: buildMedicalConditions(),
+    wellnessFormAuditLogs: [],
     nextIds: {
       patientID: 1,
       patientAccountID: 1,
@@ -215,6 +216,7 @@ export function buildSeed() {
       pmhID: 1,
       socialHistoryID: 1,
       answerID: 1,
+      logID: 1,
     },
   };
 }

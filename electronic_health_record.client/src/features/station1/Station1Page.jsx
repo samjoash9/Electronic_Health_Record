@@ -34,10 +34,23 @@ export default function Station1Page() {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
 
+  const debugResolver = async (values, context, options) => {
+    console.log('[DEBUG] resolver values', values);
+    try {
+      const base = zodResolver(station1Schema);
+      const result = await base(values, context, options);
+      console.log('[DEBUG] resolver result', result);
+      return result;
+    } catch (err) {
+      console.error('[DEBUG] resolver threw', err);
+      throw err;
+    }
+  };
+
   const {
     register, handleSubmit, watch, reset, formState: { errors, isSubmitting, isDirty },
   } = useForm({
-    resolver: zodResolver(station1Schema),
+    resolver: debugResolver,
     defaultValues: BLANK_VALUES,
   });
 

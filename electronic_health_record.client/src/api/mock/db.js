@@ -9,7 +9,12 @@ function clone(value) {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Merge in collections/counters added after this browser's db was first seeded.
+      const seed = buildSeed();
+      return { ...seed, ...parsed, nextIds: { ...seed.nextIds, ...parsed.nextIds } };
+    }
   } catch {
     // Corrupt or unavailable storage falls back to a fresh seed.
   }

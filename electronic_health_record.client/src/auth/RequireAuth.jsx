@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
-import { ROLES } from '../lib/constants';
+import { ROLES, isSuperAdmin } from '../lib/constants';
 
 // eslint-disable-next-line react-refresh/only-export-components -- shared helper, co-located with the guard that uses it
 export function homeRouteFor(role) {
@@ -10,7 +10,7 @@ export function homeRouteFor(role) {
   return '/login';
 }
 
-export function RequireAuth({ allow, children }) {
+export function RequireAuth({ allow, requireSuperAdmin, children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -21,6 +21,10 @@ export function RequireAuth({ allow, children }) {
   }
 
   if (allow && !allow.includes(user.role)) {
+    return <Navigate to={homeRouteFor(user.role)} replace />;
+  }
+
+  if (requireSuperAdmin && !isSuperAdmin(user)) {
     return <Navigate to={homeRouteFor(user.role)} replace />;
   }
 
