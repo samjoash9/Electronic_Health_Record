@@ -175,13 +175,14 @@ export default function Station3ConsultationPage() {
       <Modal
         open={blocker.state === 'blocked'}
         title="Discard unsaved changes?"
+        size="lg"
         onClose={() => blocker.reset?.()}
         footer={
           <>
-            <Button type="button" variant="secondary" onClick={() => blocker.reset?.()}>
+            <Button type="button" variant="secondary" size="lg" onClick={() => blocker.reset?.()}>
               Keep editing
             </Button>
-            <Button type="button" variant="danger" onClick={() => blocker.proceed?.()}>
+            <Button type="button" variant="danger" size="lg" onClick={() => blocker.proceed?.()}>
               Discard changes
             </Button>
           </>

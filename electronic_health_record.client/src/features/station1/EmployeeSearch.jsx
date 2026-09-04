@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchEmployees } from '../../api/patients.api';
 import { fullName } from '../../lib/formatters';
-import Field from '../../components/ui/Field';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 import DataTable from '../../components/ui/DataTable';
+import Pagination from '../../components/ui/Pagination';
+import PatientPreviewModal from '../../components/ui/PatientPreviewModal';
+import SearchInput from '../../components/ui/SearchInput';
 
 function useDebouncedValue(value, delayMs) {
   const [debounced, setDebounced] = useState(value);
@@ -28,6 +29,7 @@ const PAGE_SIZE = 10;
 export default function EmployeeSearch({ onSelect }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [previewEmployee, setPreviewEmployee] = useState(null);
   const debounced = useDebouncedValue(query, 300);
 
   const { data: results = [], isFetching } = useQuery({
@@ -40,49 +42,42 @@ export default function EmployeeSearch({ onSelect }) {
   const pageRows = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="flex flex-col gap-3">
-      <Field label="Search Employee" htmlFor="employee-search" hint="Search by name or employee ID">
-        <Input
+    <Card>
+      <div className="flex flex-col gap-3">
+        <SearchInput
           id="employee-search"
+          label="Search Employee"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="e.g. Santos or PHO-1001"
-          autoComplete="off"
+          onChange={setQuery}
+          placeholder="Search by name or employee ID, e.g. Santos or PHO-1001"
         />
-      </Field>
 
-      <DataTable
-        columns={COLUMNS}
-        rows={pageRows}
-        onRowClick={onSelect}
-        empty={isFetching ? 'Searching…' : 'No matching employees.'}
-      />
+        <DataTable
+          columns={COLUMNS}
+          rows={pageRows}
+          onRowClick={setPreviewEmployee}
+          empty={isFetching ? 'Searching…' : 'No matching employees.'}
+        />
 
-      {results.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between text-sm text-ink-500">
-          <span>
-            Page {currentPage} of {totalPages} ({results.length} employees)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={currentPage <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
+        {results.length > 0 && (
+          <div className="flex items-center justify-between text-sm text-ink-500">
+            <span>
+              Page {currentPage} of {totalPages} ({results.length} employees)
+            </span>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      <PatientPreviewModal
+        patient={previewEmployee}
+        confirmLabel="Select Employee"
+        onClose={() => setPreviewEmployee(null)}
+        onConfirm={() => {
+          onSelect(previewEmployee);
+          setPreviewEmployee(null);
+        }}
+      />
+    </Card>
   );
 }

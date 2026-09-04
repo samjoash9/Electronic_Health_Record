@@ -9,6 +9,9 @@ import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Badge from '../../components/ui/Badge';
 import DataTable from '../../components/ui/DataTable';
+import Pagination from '../../components/ui/Pagination';
+import SearchInput from '../../components/ui/SearchInput';
+import Select from '../../components/ui/Select';
 
 const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
@@ -36,8 +39,17 @@ const COLUMNS = [
   { key: 'formDate', header: 'Date', render: (f) => formatDate(f.formDate) },
 ];
 
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Statuses' },
+  ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+];
+
+const PAGE_SIZE = 10;
+
 export default function FormsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
 
   const { data: forms, isLoading, error, refetch } = useQuery({
@@ -48,30 +60,65 @@ export default function FormsPage() {
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
-  const rows = statusFilter === 'all' ? forms : forms.filter((f) => f.status === statusFilter);
+  const byStatus = statusFilter === 'all' ? forms : forms.filter((f) => f.status === statusFilter);
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? byStatus.filter((f) => {
+        const p = f.patient ?? {};
+        return fullName(p).toLowerCase().includes(q) || p.externalEmployeeId?.toLowerCase().includes(q);
+      })
+    : byStatus;
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const handleSearch = (value) => {
+    setQuery(value);
+    setPage(1);
+  };
 
   return (
     <Card
       title="Forms"
       actions={
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded border border-line px-2 py-1 text-sm"
-        >
-          <option value="all">All Statuses</option>
-          {Object.entries(STATUS_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <SearchInput
+            id="forms-search"
+            value={query}
+            onChange={handleSearch}
+            placeholder="Search by name or employee ID"
+            className="w-72"
+          />
+          <Select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            options={STATUS_FILTER_OPTIONS}
+            className="w-48"
+          />
+        </div>
       }
     >
-      <DataTable
-        columns={COLUMNS}
-        rows={rows}
-        onRowClick={(row) => navigate(`/forms/${row.formID}`)}
-        empty="No forms found."
-      />
+      <div className="flex flex-col gap-3">
+        <DataTable
+          columns={COLUMNS}
+          rows={pageRows}
+          onRowClick={(row) => navigate(`/forms/${row.formID}`)}
+          empty={q ? 'No forms match your search.' : 'No forms found.'}
+        />
+
+        {results.length > 0 && (
+          <div className="flex items-center justify-between text-sm text-ink-500">
+            <span>
+              Page {currentPage} of {totalPages} ({results.length} forms)
+            </span>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
