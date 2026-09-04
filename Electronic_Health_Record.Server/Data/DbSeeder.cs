@@ -27,8 +27,19 @@ namespace Electronic_Health_Record.Server.Data
                 context.Admins.AddRange(
                     new Admin
                     {
-                        Username = "admin",
+                        Username = "superadmin",
                         Role = AdminRoles.SuperAdmin,
+                        ContactNo = "09170000000",
+                        PasswordHash = HashPassword("password123"),
+                        FullName = "System Developer",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    },
+                    new Admin
+                    {
+                        Username = "admin",
+                        Role = AdminRoles.Admin,
                         ContactNo = "09170000001",
                         PasswordHash = HashPassword("password123"),
                         FullName = "System Administrator",
