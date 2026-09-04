@@ -60,6 +60,9 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.Username).HasMaxLength(30).IsRequired();
                 entity.HasIndex(p => p.Username).IsUnique();
                 entity.Property(p => p.PasswordHash).HasMaxLength(255).IsRequired();
+                // Onboarded doctors start on an admin-issued password, so the safe
+                // default for a row nobody set this on is "still owes a change".
+                entity.Property(p => p.MustChangePassword).HasDefaultValue(true).IsRequired();
                 entity.Property(p => p.Surname).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.FirstName).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.MiddleName).HasMaxLength(50);
@@ -85,6 +88,9 @@ namespace Electronic_Health_Record.Server.Data
                 // shared office lines are common, so this is deliberately not unique
                 entity.Property(a => a.ContactNo).HasMaxLength(20).IsUnicode(false);
                 entity.Property(a => a.PasswordHash).HasMaxLength(255).IsRequired();
+                // Onboarded admins start on a superadmin-issued password, so the safe
+                // default for a row nobody set this on is "still owes a change".
+                entity.Property(a => a.MustChangePassword).HasDefaultValue(true).IsRequired();
                 entity.Property(a => a.FullName).HasMaxLength(100).IsRequired();
                 entity.Property(a => a.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
@@ -128,13 +134,25 @@ namespace Electronic_Health_Record.Server.Data
             // activates it later to check the status of their form.
             modelBuilder.Entity<PatientAccount>(entity =>
             {
-                entity.ToTable("PatientAccount", t => t.HasCheckConstraint(
-                    "CK_PatientAccount_Activation",
-                    "Status <> 'Active' OR (PasswordHash IS NOT NULL AND ActivatedAt IS NOT NULL)"));
+                entity.ToTable("PatientAccount", t =>
+                {
+                    t.HasCheckConstraint(
+                        "CK_PatientAccount_Activation",
+                        "Status <> 'Active' OR (PasswordHash IS NOT NULL AND ActivatedAt IS NOT NULL)");
+                    // A rotation can only be owed on a password that exists, so a
+                    // provisioned account with no hash can never carry the flag.
+                    t.HasCheckConstraint(
+                        "CK_PatientAccount_MustChangePassword",
+                        "MustChangePassword = 0 OR PasswordHash IS NOT NULL");
+                });
                 entity.HasKey(a => a.PatientAccountID);
                 entity.Property(a => a.Username).HasMaxLength(30).IsRequired();
                 entity.HasIndex(a => a.Username).IsUnique();
                 entity.Property(a => a.PasswordHash).HasMaxLength(255);
+                // Unlike Admin and Physician this defaults to false: a provisioned
+                // account has no password yet, so nothing is owed until an admin
+                // issues a default or resets one.
+                entity.Property(a => a.MustChangePassword).HasDefaultValue(false).IsRequired();
                 entity.Property(a => a.Status)
                     .HasMaxLength(20)
                     .IsUnicode(false)

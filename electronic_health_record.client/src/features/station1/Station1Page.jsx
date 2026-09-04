@@ -12,6 +12,7 @@ import EmployeeSearch from './EmployeeSearch';
 import IdentityFields from './IdentityFields';
 import VitalsFields from './VitalsFields';
 import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import StationStepIndicator from '../../components/ui/StationStepIndicator';
 
@@ -33,11 +34,25 @@ export default function Station1Page() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+
+  const debugResolver = async (values, context, options) => {
+    console.log('[DEBUG] resolver values', values);
+    try {
+      const base = zodResolver(station1Schema);
+      const result = await base(values, context, options);
+      console.log('[DEBUG] resolver result', result);
+      return result;
+    } catch (err) {
+      console.error('[DEBUG] resolver threw', err);
+      throw err;
+    }
+  };
 
   const {
-    register, handleSubmit, watch, reset, formState: { errors, isSubmitting, isDirty },
+    register, handleSubmit, watch, reset, control, formState: { errors, isSubmitting, isDirty },
   } = useForm({
-    resolver: zodResolver(station1Schema),
+    resolver: debugResolver,
     defaultValues: BLANK_VALUES,
   });
 
@@ -90,30 +105,34 @@ export default function Station1Page() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pb-20">
-      <StationStepIndicator
-        steps={STEPS}
-        current={step}
-        unlockedUpTo={unlockedUpTo}
-        onSelect={goToStep}
-      />
+    <form onSubmit={handleSubmit(onSubmit)} className="border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
+      <Card>
+        <StationStepIndicator
+          steps={STEPS}
+          current={step}
+          unlockedUpTo={unlockedUpTo}
+          onSelect={goToStep}
+        />
+      </Card>
 
       {step === 1 && <EmployeeSearch onSelect={onSelectEmployee} />}
-      {step === 2 && <IdentityFields register={register} watch={watch} errors={errors} />}
+      {step === 2 && <IdentityFields register={register} watch={watch} control={control} />}
       {step === 3 && <VitalsFields register={register} watch={watch} errors={errors} />}
 
-      <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-between gap-2 border-t border-line bg-surface px-4 py-3">
+      <div className="flex justify-between gap-2 rounded-lg bg-surface px-4 py-3">
         <div>
           {step > 1 && (
-            <Button type="button" variant="secondary" onClick={() => setStep(step - 1)}>
+            <Button type="button" variant="secondary" size="lg" onClick={() => setStep(step - 1)}>
               Back
             </Button>
           )}
         </div>
         <div className="flex gap-2">
-          {step < 3 && (
+          {step > 1 && step < 3 && (
             <Button
               type="button"
+              variant="teal"
+              size="lg"
               disabled={!hasSelectedEmployee}
               onClick={() => setStep(step + 1)}
             >
@@ -122,10 +141,10 @@ export default function Station1Page() {
           )}
           {step === 3 && (
             <>
-              <Button type="button" variant="secondary" onClick={() => { reset(BLANK_VALUES); setStep(1); }}>
+              <Button type="button" variant="secondary" size="lg" onClick={() => setResetModalOpen(true)}>
                 Reset
               </Button>
-              <Button type="submit" disabled={isSubmitting || mutation.isPending}>
+              <Button type="submit" variant="teal" size="lg" disabled={isSubmitting || mutation.isPending}>
                 {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
               </Button>
             </>
@@ -136,19 +155,48 @@ export default function Station1Page() {
       <Modal
         open={blocker.state === 'blocked'}
         title="Discard unsaved changes?"
+        size="lg"
         onClose={() => blocker.reset?.()}
         footer={
           <>
-            <Button type="button" variant="secondary" onClick={() => blocker.reset?.()}>
+            <Button type="button" variant="secondary" size="lg" onClick={() => blocker.reset?.()}>
               Keep editing
             </Button>
-            <Button type="button" variant="danger" onClick={() => blocker.proceed?.()}>
+            <Button type="button" variant="danger" size="lg" onClick={() => blocker.proceed?.()}>
               Discard changes
             </Button>
           </>
         }
       >
         This registration has not been submitted yet. Leaving now will discard what you&apos;ve entered.
+      </Modal>
+
+      <Modal
+        open={resetModalOpen}
+        title="Reset progress?"
+        size="lg"
+        onClose={() => setResetModalOpen(false)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" size="lg" onClick={() => setResetModalOpen(false)}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="lg"
+              onClick={() => {
+                reset(BLANK_VALUES);
+                setStep(1);
+                setResetModalOpen(false);
+              }}
+            >
+              Reset Progress
+            </Button>
+          </>
+        }
+      >
+        This will clear everything you&apos;ve entered and take you back to the first step. This cannot be undone.
       </Modal>
     </form>
   );

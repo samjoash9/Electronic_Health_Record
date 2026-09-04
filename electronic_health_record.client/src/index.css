@@ -18,4 +18,8 @@
 
 /* Dense admin defaults. The kiosk questionnaire opts out via its own classes. */
 html { font-size: 14px; }
-body { background: var(--color-canvas); color: var(--color-ink-900); }
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink-900);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}

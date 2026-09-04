@@ -49,6 +49,16 @@ export default function KioskPage() {
       title="Health Assessment"
       subtitle={form?.patient ? fullName(form.patient) : undefined}
       progress={`${answered} of ${total} answered`}
+      headerActions={
+        <>
+          <Button type="button" variant="secondary" onClick={() => navigate('/station2')}>
+            Back
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setAnswers({})}>
+            Reset
+          </Button>
+        </>
+      }
       footer={
         <div className="flex flex-col items-center gap-2">
           {answered < total && (
@@ -58,6 +68,8 @@ export default function KioskPage() {
           )}
           <Button
             type="button"
+            variant="teal"
+            size="lg"
             disabled={answered < total}
             onClick={() => setConfirmOpen(true)}
             className="w-full"
@@ -82,10 +94,10 @@ export default function KioskPage() {
         onClose={() => setConfirmOpen(false)}
         footer={
           <>
-            <Button type="button" variant="secondary" onClick={() => setConfirmOpen(false)}>
+            <Button type="button" variant="secondary" size="lg" onClick={() => setConfirmOpen(false)}>
               Keep answering
             </Button>
-            <Button type="button" onClick={confirmDone}>
+            <Button type="button" variant="teal" size="lg" onClick={confirmDone}>
               Yes, I&apos;m done
             </Button>
           </>

@@ -5,6 +5,18 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Required'),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Required'),
+  newPassword: z.string().min(8, 'At least 8 characters'),
+  confirmPassword: z.string().min(1, 'Required'),
+}).refine((v) => v.newPassword === v.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+}).refine((v) => v.newPassword !== v.currentPassword, {
+  message: 'New password must be different from current password',
+  path: ['newPassword'],
+});
+
 export const vitalsObjectSchema = z.object({
   weightKg: z.coerce.number({ invalid_type_error: 'Required' })
     .min(1, 'Too low').max(400, 'Too high'),

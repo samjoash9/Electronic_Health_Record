@@ -10,10 +10,10 @@ export default function OptionPills({ question, value, onChange }) {
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.optionID)}
-            className={`min-h-11 rounded-full border px-4 py-2 text-base transition
+            className={`min-h-11 rounded-full border px-4 py-2 text-base font-medium transition
               ${selected
-                ? 'border-brand-600 bg-brand-600 text-white'
-                : 'border-line bg-surface text-ink-700 hover:border-brand-500'}`}
+                ? 'border-[#129883] bg-[#129883] text-white shadow-sm'
+                : 'border-line bg-surface text-ink-700 hover:border-[#129883] hover:bg-[#f3fdfb] hover:text-[#0e7d6b]'}`}
           >
             {option.optionText}
           </button>

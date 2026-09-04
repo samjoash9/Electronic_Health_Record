@@ -5,6 +5,10 @@ import { ROLES } from './lib/constants';
 
 import LoginPage from './features/auth/LoginPage';
 import StationPickerPage from './features/auth/StationPickerPage';
+import DashboardPage from './features/admin/DashboardPage';
+import FormsPage from './features/admin/FormsPage';
+import FormDetailPage from './features/admin/FormDetailPage';
+import ActivityLogsPage from './features/admin/ActivityLogsPage';
 import Station1Page from './features/station1/Station1Page';
 import Station2QueuePage from './features/station2/Station2QueuePage';
 import Station2AssessmentPage from './features/station2/Station2AssessmentPage';
@@ -31,10 +35,17 @@ export const routeElements = createRoutesFromElements(
 
     <Route element={<AppShell />}>
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/forms" element={<FormsPage />} />
+        <Route path="/forms/:formId" element={<FormDetailPage />} />
         <Route path="/station1" element={<Station1Page />} />
         <Route path="/station1/:formId" element={<Station1Page />} />
         <Route path="/station2" element={<Station2QueuePage />} />
         <Route path="/station2/:formId" element={<Station2AssessmentPage />} />
+      </Route>
+
+      <Route element={<RequireAuth allow={[ROLES.ADMIN]} requireSuperAdmin />}>
+        <Route path="/activity-logs" element={<ActivityLogsPage />} />
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.DOCTOR]} />}>
