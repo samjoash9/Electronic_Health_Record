@@ -23,7 +23,9 @@ namespace Electronic_Health_Record.Server.Data
             if (!await context.Admins.AnyAsync())
             {
                 // One of each tier, so the permission split has something to exercise
-                // on a fresh development database.
+                // on a fresh development database. The MustChangePassword flags are
+                // deliberately mixed so the forced-rotation flow can be exercised
+                // without having to reset an account by hand first.
                 context.Admins.AddRange(
                     new Admin
                     {
@@ -31,6 +33,10 @@ namespace Electronic_Health_Record.Server.Data
                         Role = AdminRoles.SuperAdmin,
                         ContactNo = "09170000000",
                         PasswordHash = HashPassword("password123"),
+                        // settled account: logs straight in
+                        MustChangePassword = false,
+                        PasswordSetAt = now.AddDays(-30),
+                        PasswordChangedAt = now.AddDays(-30),
                         FullName = "System Developer",
                         IsActive = true,
                         CreatedAt = now,
@@ -42,6 +48,12 @@ namespace Electronic_Health_Record.Server.Data
                         Role = AdminRoles.Admin,
                         ContactNo = "09170000001",
                         PasswordHash = HashPassword("password123"),
+                        // settled account: the rest of the development fixtures are
+                        // attributed to this one, so it should not be stuck behind a
+                        // password prompt
+                        MustChangePassword = false,
+                        PasswordSetAt = now.AddDays(-30),
+                        PasswordChangedAt = now.AddDays(-30),
                         FullName = "System Administrator",
                         IsActive = true,
                         CreatedAt = now,
@@ -53,6 +65,10 @@ namespace Electronic_Health_Record.Server.Data
                         Role = AdminRoles.Admin,
                         ContactNo = "09170000002",
                         PasswordHash = HashPassword("password123"),
+                        // freshly onboarded by the superadmin: still on the default
+                        MustChangePassword = true,
+                        PasswordSetAt = now,
+                        PasswordChangedAt = null,
                         FullName = "Corazon Dimaculangan",
                         IsActive = true,
                         CreatedAt = now,
@@ -265,7 +281,8 @@ namespace Electronic_Health_Record.Server.Data
                 await context.SaveChangesAsync();
             }
 
-            // Seed Physicians
+            // Seed Physicians. As with the admins, one doctor is settled and one is
+            // still on the password an admin issued at onboarding.
             if (!await context.Physicians.AnyAsync())
             {
                 context.Physicians.AddRange(
@@ -273,6 +290,11 @@ namespace Electronic_Health_Record.Server.Data
                     {
                         Username = "doctor",
                         PasswordHash = HashPassword("password123"),
+                        // settled account: the Station 3 fixtures are assigned to this
+                        // doctor, so it should not be stuck behind a password prompt
+                        MustChangePassword = false,
+                        PasswordSetAt = now.AddDays(-30),
+                        PasswordChangedAt = now.AddDays(-30),
                         Surname = "House",
                         FirstName = "Gregory",
                         MiddleName = "H.",
@@ -286,6 +308,10 @@ namespace Electronic_Health_Record.Server.Data
                     {
                         Username = "mgrey",
                         PasswordHash = HashPassword("password123"),
+                        // freshly onboarded by an admin: still on the default
+                        MustChangePassword = true,
+                        PasswordSetAt = now,
+                        PasswordChangedAt = null,
                         Surname = "Grey",
                         FirstName = "Meredith",
                         MiddleName = "E.",
@@ -515,11 +541,11 @@ namespace Electronic_Health_Record.Server.Data
             }
 
             // Seed patient portal accounts. Station 1 provisions one of these the
-            // first time it registers an employee; both states are represented here
-            // so the portal login flow has something to exercise.
+            // first time it registers an employee; all three credential states are
+            // represented here so the portal login flow has something to exercise.
             if (!await context.PatientAccounts.AnyAsync())
             {
-                var portalPatients = await context.Patients.OrderBy(p => p.PatientID).Take(2).ToListAsync();
+                var portalPatients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
 
                 // Usernames are derived from the employee id at provisioning time so
                 // Station 1 can hand the patient a predictable handle; the id itself is
@@ -529,6 +555,10 @@ namespace Electronic_Health_Record.Server.Data
                     PatientID = portalPatients[0].PatientID,
                     Username = UsernameFor(portalPatients[0].ExternalEmployeeId),
                     PasswordHash = HashPassword("patient123"),
+                    // settled account: chose their own password after activating
+                    MustChangePassword = false,
+                    PasswordSetAt = now.AddDays(-1),
+                    PasswordChangedAt = now,
                     Status = "Active",
                     ProvisionedAt = now.AddDays(-1),
                     ActivatedAt = now,
@@ -536,13 +566,31 @@ namespace Electronic_Health_Record.Server.Data
                     UpdatedAt = now
                 });
 
-                // provisioned but never activated: no password yet
+                // provisioned but never activated: no password yet, so nothing is owed
                 context.PatientAccounts.Add(new PatientAccount
                 {
                     PatientID = portalPatients[1].PatientID,
                     Username = UsernameFor(portalPatients[1].ExternalEmployeeId),
+                    MustChangePassword = false,
                     Status = "Provisioned",
                     ProvisionedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                // onboarded by an admin who handed over a default password: active,
+                // but the patient still has to replace it on first login
+                context.PatientAccounts.Add(new PatientAccount
+                {
+                    PatientID = portalPatients[2].PatientID,
+                    Username = UsernameFor(portalPatients[2].ExternalEmployeeId),
+                    PasswordHash = HashPassword("patient123"),
+                    MustChangePassword = true,
+                    PasswordSetAt = now,
+                    PasswordChangedAt = null,
+                    Status = "Active",
+                    ProvisionedAt = now,
+                    ActivatedAt = now,
                     CreatedAt = now,
                     UpdatedAt = now
                 });
