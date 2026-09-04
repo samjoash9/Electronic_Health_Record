@@ -1,12 +1,30 @@
 ﻿using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Electronic_Health_Record.Server.Data
 {
     public static class DbSeeder
     {
+        // -----------------------------------------------------------------
+        // CHANGED: Password hashing must match what AuthController verifies
+        // with. AuthController.Login() uses ASP.NET Identity's
+        // PasswordHasher<T>.VerifyHashedPassword(...) per entity type
+        // (Admin, Physician, PatientAccount). The old HashPassword(string)
+        // here produced a raw SHA256 hex string, which is a completely
+        // different format from what PasswordHasher<T> expects (base64,
+        // versioned, PBKDF2-based, salted). Login would fail for every
+        // seeded account because VerifyHashedPassword would reject the
+        // SHA256 hash outright.
+        //
+        // Fix: use the same PasswordHasher<T> instances, one per entity
+        // type, exactly like AuthController does. One static instance per
+        // type is enough since PasswordHasher<T> is stateless/thread-safe.
+        // -----------------------------------------------------------------
+        private static readonly PasswordHasher<Admin> AdminHasher = new();
+        private static readonly PasswordHasher<Physician> PhysicianHasher = new();
+        private static readonly PasswordHasher<PatientAccount> PatientHasher = new();
+
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ElectronicHealthRecordDbContext>();
@@ -30,7 +48,10 @@ namespace Electronic_Health_Record.Server.Data
                         Username = "admin",
                         Role = AdminRoles.SuperAdmin,
                         ContactNo = "09170000001",
-                        PasswordHash = HashPassword("password123"),
+                        // CHANGED: was HashPassword("password123") (raw SHA256).
+                        // Now uses PasswordHasher<Admin>, matching AuthController's
+                        // _adminPasswordHasher.VerifyHashedPassword(...) call.
+                        PasswordHash = AdminHasher.HashPassword(null!, "password123"),
                         FullName = "System Administrator",
                         IsActive = true,
                         CreatedAt = now,
@@ -41,7 +62,7 @@ namespace Electronic_Health_Record.Server.Data
                         Username = "nurse1",
                         Role = AdminRoles.Admin,
                         ContactNo = "09170000002",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = AdminHasher.HashPassword(null!, "password123"),
                         FullName = "Corazon Dimaculangan",
                         IsActive = true,
                         CreatedAt = now,
@@ -261,7 +282,10 @@ namespace Electronic_Health_Record.Server.Data
                     new Physician
                     {
                         Username = "doctor",
-                        PasswordHash = HashPassword("password123"),
+                        // CHANGED: was HashPassword("password123") (raw SHA256).
+                        // Now uses PasswordHasher<Physician>, matching AuthController's
+                        // _physicianPasswordHasher.VerifyHashedPassword(...) call.
+                        PasswordHash = PhysicianHasher.HashPassword(null!, "password123"),
                         Surname = "House",
                         FirstName = "Gregory",
                         MiddleName = "H.",
@@ -274,7 +298,7 @@ namespace Electronic_Health_Record.Server.Data
                     new Physician
                     {
                         Username = "mgrey",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = PhysicianHasher.HashPassword(null!, "password123"),
                         Surname = "Grey",
                         FirstName = "Meredith",
                         MiddleName = "E.",
@@ -517,7 +541,10 @@ namespace Electronic_Health_Record.Server.Data
                 {
                     PatientID = portalPatients[0].PatientID,
                     Username = UsernameFor(portalPatients[0].ExternalEmployeeId),
-                    PasswordHash = HashPassword("patient123"),
+                    // CHANGED: was HashPassword("patient123") (raw SHA256).
+                    // Now uses PasswordHasher<PatientAccount>, matching AuthController's
+                    // _patientPasswordHasher.VerifyHashedPassword(...) call.
+                    PasswordHash = PatientHasher.HashPassword(null!, "patient123"),
                     Status = "Active",
                     ProvisionedAt = now.AddDays(-1),
                     ActivatedAt = now,
@@ -551,16 +578,13 @@ namespace Electronic_Health_Record.Server.Data
             return cleaned.Length > 30 ? cleaned[..30] : cleaned;
         }
 
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            var builder = new StringBuilder();
-            foreach (var b in bytes)
-            {
-                builder.Append(b.ToString("x2"));
-            }
-            return builder.ToString();
-        }
+        // -----------------------------------------------------------------
+        // REMOVED: the old HashPassword(string) method that used raw
+        // SHA256.Create()/ComputeHash(). It's no longer called anywhere in
+        // this file — every PasswordHash assignment now goes through
+        // PasswordHasher<T>.HashPassword(...) above, so this method (and
+        // the System.Security.Cryptography / System.Text usings it needed)
+        // has been deleted rather than left as dead code.
+        // -----------------------------------------------------------------
     }
 }
