@@ -9,6 +9,7 @@ import ChangePasswordModal from '../ui/ChangePasswordModal';
 
 const CHANGE_STATION_LINK = { to: '/stations', label: 'Change Station', icon: LayoutGrid };
 const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon: ShieldCheck };
+const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope };
 
 const LINKS = {
   admin: [
@@ -17,7 +18,7 @@ const LINKS = {
     { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 },
     { to: '/station2', label: 'Station 2: Assessment', icon: ListChecks, station: 2 },
   ],
-  doctor: [{ to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope }],
+  doctor: [STATION3_LINK],
   patient: [{ to: '/my-record', label: 'My Record', icon: FileText }],
 };
 
@@ -27,10 +28,11 @@ export default function Sidebar({ collapsed }) {
   const navigate = useNavigate();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
+  const superAdmin = isSuperAdmin(user);
   const links = (LINKS[user?.role] ?? []).filter(
-    (link) => !link.station || link.station === station,
+    (link) => superAdmin || !link.station || link.station === station,
   );
-  if (isSuperAdmin(user)) links.push(ACTIVITY_LOGS_LINK);
+  if (superAdmin) links.push(STATION3_LINK, ACTIVITY_LOGS_LINK);
 
   const handleSignOut = async () => {
     await signOut();
@@ -67,7 +69,7 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       <div className="border-t border-white/15 pt-3">
-        {user?.role === 'admin' && (
+        {user?.role === 'admin' && !superAdmin && (
           <NavLink to={CHANGE_STATION_LINK.to} title={CHANGE_STATION_LINK.label} className={linkClass}>
             <CHANGE_STATION_LINK.icon size={18} className="shrink-0" />
             {!collapsed && CHANGE_STATION_LINK.label}
@@ -83,15 +85,17 @@ export default function Sidebar({ collapsed }) {
           <Settings size={18} className="shrink-0" />
           {!collapsed && 'Settings'}
         </button>
-        <button
-          type="button"
-          title="Support"
-          className={`flex h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''
-            }`}
-        >
-          <LifeBuoy size={18} className="shrink-0" />
-          {!collapsed && 'Support'}
-        </button>
+        {!superAdmin && (
+          <button
+            type="button"
+            title="Support"
+            className={`flex h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''
+              }`}
+          >
+            <LifeBuoy size={18} className="shrink-0" />
+            {!collapsed && 'Support'}
+          </button>
+        )}
         <button
           type="button"
           title="Log Out"

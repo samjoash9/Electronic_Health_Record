@@ -40,14 +40,14 @@ export default function LoginPage() {
   };
 
   if (isAuthenticated) {
-    return <Navigate to={homeRouteFor(user.role)} replace />;
+    return <Navigate to={homeRouteFor(user)} replace />;
   }
 
   const onSubmit = async (values) => {
     setLoginError('');
     try {
       const signedInUser = await signIn(values);
-      navigate(homeRouteFor(signedInUser.role), { replace: true });
+      navigate(homeRouteFor(signedInUser), { replace: true });
     } catch (error) {
       setLoginError(error.message);
       toast.error(error.message);

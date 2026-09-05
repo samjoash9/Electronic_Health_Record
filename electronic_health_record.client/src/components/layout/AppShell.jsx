@@ -20,11 +20,11 @@ export default function AppShell() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar collapsed={collapsed} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar collapsed={collapsed} onToggleSidebar={toggleCollapsed} />
-        <main className="flex-1 overflow-y-auto bg-canvas p-4">
+        <main className="flex-1 overflow-y-auto bg-canvas p-4 pb-0">
           <RouteErrorBoundary>
             <Outlet />
           </RouteErrorBoundary>

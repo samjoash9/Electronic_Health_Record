@@ -48,7 +48,7 @@ export const routeElements = createRoutesFromElements(
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
       </Route>
 
-      <Route element={<RequireAuth allow={[ROLES.DOCTOR]} />}>
+      <Route element={<RequireAuth allow={[ROLES.DOCTOR]} allowSuperAdmin />}>
         <Route path="/station3" element={<Station3QueuePage />} />
         <Route path="/station3/:formId" element={<Station3ConsultationPage />} />
       </Route>

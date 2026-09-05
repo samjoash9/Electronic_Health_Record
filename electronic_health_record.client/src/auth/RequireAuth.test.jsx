@@ -41,6 +41,11 @@ describe('homeRouteFor', () => {
     expect(homeRouteFor(ROLES.PATIENT)).toBe('/my-record');
     expect(homeRouteFor(undefined)).toBe('/login');
   });
+
+  it('sends a superadmin to the dashboard instead of the station picker', () => {
+    expect(homeRouteFor({ role: ROLES.ADMIN, adminRole: 'superadmin' })).toBe('/dashboard');
+    expect(homeRouteFor({ role: ROLES.ADMIN, adminRole: 'admin' })).toBe('/stations');
+  });
 });
 
 describe('RequireAuth', () => {

@@ -8,7 +8,10 @@ function normalizeOptions(options) {
 }
 
 const Select = forwardRef(function Select(
-  { error, options = [], className = '', value, defaultValue, onChange, onBlur, name, id, disabled, ...props },
+  {
+    error, options = [], className = '', triggerClassName = '',
+    value, defaultValue, onChange, onBlur, name, id, disabled, ...props
+  },
   ref
 ) {
   const normalized = useMemo(() => normalizeOptions(options), [options]);
@@ -43,7 +46,7 @@ const Select = forwardRef(function Select(
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className={`relative ${className}`}>
       <select
         ref={(node) => {
           nativeRef.current = node;
@@ -78,9 +81,9 @@ const Select = forwardRef(function Select(
         onBlur={onBlur}
         className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg border bg-surface px-3 text-left text-sm outline-none transition
           ${error ? 'border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10' : 'border-line focus:border-[#129883] focus:ring-4 focus:ring-[#129883]/10'}
-          disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-ink-500 ${className}`}
+          disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-ink-500 ${triggerClassName}`}
       >
-        <span className={selected ? 'text-ink-900' : 'text-ink-400'}>
+        <span className={`truncate ${selected ? 'text-ink-900' : 'text-ink-400'}`}>
           {selected ? selected.label : 'Select…'}
         </span>
         <ChevronDown
@@ -92,7 +95,7 @@ const Select = forwardRef(function Select(
       {open && (
         <ul
           role="listbox"
-          className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-line bg-surface p-1.5 text-sm shadow-xl"
+          className="absolute right-0 z-20 mt-2 max-h-64 w-max min-w-full overflow-auto rounded-xl border border-line bg-surface p-1.5 text-sm shadow-xl"
         >
           {normalized.map((option) => {
             const isSelected = String(option.value) === String(internalValue);
@@ -102,7 +105,7 @@ const Select = forwardRef(function Select(
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => commit(option.value)}
-                className={`flex cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 transition-colors
+                className={`flex cursor-pointer items-center justify-between gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 transition-colors
                   ${isSelected ? 'bg-[#129883] font-semibold text-white' : 'text-ink-700 hover:bg-[#cdf2e8] hover:text-[#0e7d6b]'}`}
               >
                 {option.label}

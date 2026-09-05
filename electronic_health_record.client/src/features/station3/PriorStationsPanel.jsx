@@ -1,9 +1,10 @@
+import { HeartPulse, ListChecks } from 'lucide-react';
 import { bmiCategory } from '../../lib/bmi';
 import { scoreAllCategories } from '../../lib/scoring';
 import { formatDateTime } from '../../lib/formatters';
 import Collapsible from '../../components/ui/Collapsible';
 import Badge from '../../components/ui/Badge';
-import ScoreBar from '../../components/ui/ScoreBar';
+import ScoreRing from '../../components/ui/ScoreRing';
 import AnswersReview from '../station2/AnswersReview';
 
 const BMI_TONE = {
@@ -28,8 +29,12 @@ export default function PriorStationsPanel({ form, categories }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Collapsible title="Station 1 — Vital Signs">
-        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Collapsible
+        title="Station 1 — Vital Signs"
+        icon={HeartPulse}
+        subtitle={`Recorded ${formatDateTime(form.station1SubmittedAt)}`}
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <VitalRow label="Weight" value={form.weightKg ? `${form.weightKg} kg` : null} />
           <VitalRow label="Height" value={form.heightCm ? `${form.heightCm} cm` : null} />
           <div>
@@ -45,17 +50,18 @@ export default function PriorStationsPanel({ form, categories }) {
           <VitalRow label="Heart Rate" value={form.heartRate ? `${form.heartRate} bpm` : null} />
           <VitalRow label="Resp. Rate" value={form.respRate ? `${form.respRate} bpm` : null} />
         </div>
-        <p className="text-xs text-ink-500">
-          Recorded {formatDateTime(form.station1SubmittedAt)}
-        </p>
       </Collapsible>
 
-      <Collapsible title="Station 2 — Assessment">
+      <Collapsible
+        title="Station 2 — Assessment"
+        icon={ListChecks}
+        subtitle={`Recorded ${formatDateTime(form.station2SubmittedAt)}`}
+      >
         {categories ? (
           <>
-            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {scores.map((s) => (
-                <ScoreBar key={s.categoryID} label={s.name} percent={s.percent} total={s.total} max={s.max} />
+                <ScoreRing key={s.categoryID} label={s.name} percent={s.percent} total={s.total} max={s.max} />
               ))}
             </div>
             <AnswersReview categories={categories} answers={form.assessmentAnswers} />

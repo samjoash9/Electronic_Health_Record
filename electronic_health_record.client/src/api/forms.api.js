@@ -45,17 +45,24 @@ function pushAuditLog(state, { formID, actorType, actorID, action, details = nul
   });
 }
 
+/**
+ * Forms at one status, or at any of several when given an array — station 3
+ * lists the consultations it has already signed alongside the waiting ones.
+ */
 export async function getQueue(status) {
+  const wanted = Array.isArray(status) ? status : [status];
   if (USE_MOCK) {
     await delay(200);
     const state = db.read();
     return state.forms
-      .filter((f) => f.status === status)
+      .filter((f) => wanted.includes(f.status))
       .map((f) => attachPatient(state, f))
       .sort((a, b) => (a.formDate < b.formDate ? -1 : 1));
   }
   try {
-    const { data } = await client.get('/wellnessforms', { params: { status } });
+    const { data } = await client.get('/wellnessforms', {
+      params: { status: wanted.join(',') },
+    });
     return data.data ?? data;
   } catch (error) {
     throw toApiError(error);

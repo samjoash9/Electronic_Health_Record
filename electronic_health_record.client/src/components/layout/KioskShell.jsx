@@ -14,7 +14,7 @@ export default function KioskShell({ title, subtitle, progress, children, footer
   return (
     <div className="fixed inset-0 flex flex-col overflow-y-auto bg-canvas">
       <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-line bg-surface px-6 py-4 shadow-sm">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold text-ink-900">{title}</h1>
           {subtitle && <p className="mt-0.5 text-sm text-ink-500">{subtitle}</p>}
           {progress && (

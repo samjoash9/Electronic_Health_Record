@@ -1,13 +1,15 @@
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { FORM_STATUS } from '../../lib/constants';
 import { fullName, ageFrom, formatDateTime } from '../../lib/formatters';
+import { ArrowLeft } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
 import PriorStationsPanel from '../station3/PriorStationsPanel';
 
 const STATUS_LABEL = {
@@ -35,6 +37,7 @@ function HistoryList({ items, render, empty }) {
 
 export default function FormDetailPage() {
   const { formId } = useParams();
+  const navigate = useNavigate();
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories } = useQuery({
     queryKey: ['assessment-template'],
@@ -42,17 +45,38 @@ export default function FormDetailPage() {
     staleTime: Infinity,
   });
 
-  if (isLoading) return <Skeleton />;
-  if (error) return <ErrorState error={error} onRetry={refetch} />;
+  const backButton = (
+    <Button
+      type="button"
+      variant="secondary"
+      size="md"
+      className="self-start"
+      onClick={() => navigate('/forms')}
+    >
+      <ArrowLeft size={16} strokeWidth={2.25} />
+      Back to Forms
+    </Button>
+  );
+
+  if (isLoading || error) {
+    return (
+      <div className="flex flex-col gap-3 pb-6">
+        {backButton}
+        {isLoading ? <Skeleton /> : <ErrorState error={error} onRetry={refetch} />}
+      </div>
+    );
+  }
 
   const patient = form.patient;
 
   return (
-    <div className="flex flex-col gap-4 pb-10">
-      <div className="flex items-center justify-between rounded border border-line bg-surface px-4 py-3">
-        <div>
+    <div className="flex flex-col gap-3 pb-6">
+      {backButton}
+
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-lg font-semibold text-ink-900">{fullName(patient)}</p>
-          <p className="text-sm text-ink-500">
+          <p className="mt-0.5 text-sm text-ink-500">
             {patient?.externalEmployeeId} · Age {ageFrom(patient?.birthdate)} · {patient?.sex} · {patient?.agencyOffice}
           </p>
         </div>
@@ -61,7 +85,7 @@ export default function FormDetailPage() {
 
       <PriorStationsPanel form={form} categories={categories} />
 
-      <Card title="Family Medical History">
+      <Card title="Family Medical History" flush>
         <HistoryList
           items={form.familyMedicalHistory}
           empty="No family medical history on file."
@@ -71,7 +95,7 @@ export default function FormDetailPage() {
         />
       </Card>
 
-      <Card title="Past Medical History">
+      <Card title="Past Medical History" flush>
         <HistoryList
           items={form.pastMedicalHistory}
           empty="No past medical history on file."
@@ -79,7 +103,7 @@ export default function FormDetailPage() {
         />
       </Card>
 
-      <Card title="Social History">
+      <Card title="Social History" flush>
         {form.socialHistory ? (
           <dl className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
             <div><dt className="text-xs text-ink-500">Smoking</dt><dd>{form.socialHistory.smokingSticksPerDay ?? 0} sticks/day</dd></div>
@@ -92,7 +116,7 @@ export default function FormDetailPage() {
         )}
       </Card>
 
-      <Card title="Physician's Assessment">
+      <Card title="Physician's Assessment" flush>
         {form.status === FORM_STATUS.COMPLETED ? (
           <>
             <dl className="mb-4 flex flex-col gap-3 text-sm">

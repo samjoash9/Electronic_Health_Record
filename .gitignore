@@ -1,5 +1,8 @@
 # Visual Studio
 .vs/
+
+# Superpowers brainstorming scratch
+.superpowers/
 *.user
 *.suo
 *.userosscache

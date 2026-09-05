@@ -36,20 +36,22 @@ export const STATIONS = {
 };
 
 /**
- * AssessmentCategory has no colour column and will not gain one. Colour is
- * presentation. Unknown names fall back to neutral so a newly seeded category
- * still renders.
+ * AssessmentCategory has no colour column and will not gain one. Each category
+ * gets its own soft accent so the four sections stay visually distinct at a
+ * glance; icons reinforce the same grouping. Unknown names fall back to
+ * neutral so a newly seeded category still renders.
  */
 export const CATEGORY_STYLES = {
-  'Mental Health':    { header: 'bg-purple-50 border-purple-300', title: 'text-purple-700' },
-  'Physical Health':  { header: 'bg-rose-50 border-rose-300',     title: 'text-rose-700' },
-  'Spiritual Health': { header: 'bg-amber-50 border-amber-300',   title: 'text-amber-700' },
-  'Social Health':    { header: 'bg-sky-50 border-sky-300',       title: 'text-sky-700' },
+  'Mental Health':    { header: 'bg-violet-50 border-violet-200', title: 'text-violet-700', icon: 'Brain' },
+  'Physical Health':  { header: 'bg-blue-50 border-blue-200', title: 'text-blue-700', icon: 'HeartPulse' },
+  'Spiritual Health': { header: 'bg-amber-50 border-amber-200', title: 'text-amber-700', icon: 'Sparkles' },
+  'Social Health':    { header: 'bg-rose-50 border-rose-200', title: 'text-rose-700', icon: 'Users' },
 };
 
 export const NEUTRAL_CATEGORY_STYLE = {
   header: 'bg-gray-50 border-gray-300',
   title: 'text-gray-700',
+  icon: 'ClipboardList',
 };
 
 export function categoryStyle(name) {
@@ -77,3 +79,17 @@ export const SEX_OPTIONS = ['Male', 'Female'];
 export const CIVIL_STATUS_OPTIONS = [
   'Single', 'Married', 'Widowed', 'Separated', 'Divorced',
 ];
+
+export const STATUS_LABEL = {
+  [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
+  [FORM_STATUS.PENDING_CONSULTATION]: 'Pending Consultation',
+  [FORM_STATUS.COMPLETED]: 'Completed',
+  [FORM_STATUS.CANCELLED]: 'Cancelled',
+};
+
+export const STATUS_TONE = {
+  [FORM_STATUS.PENDING_ASSESSMENT]: 'info',
+  [FORM_STATUS.PENDING_CONSULTATION]: 'warn',
+  [FORM_STATUS.COMPLETED]: 'success',
+  [FORM_STATUS.CANCELLED]: 'danger',
+};
