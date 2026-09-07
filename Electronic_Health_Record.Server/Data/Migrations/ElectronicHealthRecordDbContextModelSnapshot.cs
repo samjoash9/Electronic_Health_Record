@@ -946,6 +946,75 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Electronic_Health_Record.Server.Models.Employee", b =>
+                {
+                    b.Property<int>("EmployeeID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeID"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("AgencyOffice")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("Birthdate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CivilStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ContactNo")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ExternalEmployeeId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Sex")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("EmployeeID");
+
+                    b.HasIndex("ExternalEmployeeId")
+                        .IsUnique();
+
+                    b.HasIndex("Surname", "FirstName");
+
+                    b.ToTable("Employee", (string)null);
+                });
+
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.FamilyMedicalHistory", b =>
                 {
                     b.Property<int>("FMHID")
@@ -1020,32 +1089,37 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         new
                         {
                             ConditionID = 1,
-                            ConditionName = "Hypertension"
+                            ConditionName = "NONE"
                         },
                         new
                         {
                             ConditionID = 2,
-                            ConditionName = "Stroke"
+                            ConditionName = "HYPERTENSION (Heart Attack)"
                         },
                         new
                         {
                             ConditionID = 3,
-                            ConditionName = "Diabetes Mellitus"
+                            ConditionName = "STROKE"
                         },
                         new
                         {
                             ConditionID = 4,
-                            ConditionName = "Tuberculosis"
+                            ConditionName = "DIABETES MELLITUS"
                         },
                         new
                         {
                             ConditionID = 5,
-                            ConditionName = "Bronchial Asthma"
+                            ConditionName = "CANCER (Breast/Ovarian/Colon, etc.)"
                         },
                         new
                         {
                             ConditionID = 6,
-                            ConditionName = "Cancer"
+                            ConditionName = "TUBERCULOSIS"
+                        },
+                        new
+                        {
+                            ConditionID = 7,
+                            ConditionName = "BRONCHIAL ASTHMA"
                         });
                 });
 
@@ -1161,7 +1235,9 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.Property<string>("Sex")
                         .IsRequired()
-                        .HasColumnType("char(1)");
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
 
                     b.Property<string>("Surname")
                         .IsRequired()

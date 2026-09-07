@@ -1,12 +1,20 @@
-import { USE_MOCK, client, toApiError } from './client';
+import { client, toApiError } from './client';
 import { db } from './mock/db';
 import { delay } from './mock/delay';
 import { ROLES, ADMIN_ROLES } from '../lib/constants';
 
 const SESSION_KEY = 'ehr-session';
 
+// Auth stays mock-only regardless of VITE_USE_MOCK: there is no /auth/login on
+// the server yet, so login always resolves against the mock's admin/physician/
+// patientAccount fixtures. Every other module still switches on USE_MOCK and
+// reads the real API -- see client.js's request interceptor, which forwards
+// this mock session's id as an X-Stub-* header so those real calls carry an
+// identity the server's own auth-stub (ICurrentUser) can read.
+const AUTH_USE_MOCK = true;
+
 export async function login({ identifier, password }) {
-  if (USE_MOCK) {
+  if (AUTH_USE_MOCK) {
     await delay();
     const state = db.read();
     let user = null;
@@ -81,7 +89,7 @@ export async function logout() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem('ehr-token');
   localStorage.removeItem('ehr-station');
-  if (!USE_MOCK) {
+  if (!AUTH_USE_MOCK) {
     try { await client.post('/auth/logout'); } catch { /* best effort */ }
   }
 }

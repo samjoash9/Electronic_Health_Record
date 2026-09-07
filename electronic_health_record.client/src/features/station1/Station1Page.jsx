@@ -105,7 +105,7 @@ export default function Station1Page() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
+    <form onSubmit={handleSubmit(onSubmit)} className="mb-4 border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
       <Card>
         <StationStepIndicator
           steps={STEPS}

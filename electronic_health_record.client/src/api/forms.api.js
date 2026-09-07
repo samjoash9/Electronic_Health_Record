@@ -45,17 +45,24 @@ function pushAuditLog(state, { formID, actorType, actorID, action, details = nul
   });
 }
 
+/**
+ * Forms at one status, or at any of several when given an array — station 3
+ * lists the consultations it has already signed alongside the waiting ones.
+ */
 export async function getQueue(status) {
+  const wanted = Array.isArray(status) ? status : [status];
   if (USE_MOCK) {
     await delay(200);
     const state = db.read();
     return state.forms
-      .filter((f) => f.status === status)
+      .filter((f) => wanted.includes(f.status))
       .map((f) => attachPatient(state, f))
       .sort((a, b) => (a.formDate < b.formDate ? -1 : 1));
   }
   try {
-    const { data } = await client.get('/wellnessforms', { params: { status } });
+    const { data } = await client.get('/wellnessforms', {
+      params: { status: wanted.join(',') },
+    });
     return data.data ?? data;
   } catch (error) {
     throw toApiError(error);
@@ -281,6 +288,46 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
   try {
     const { data } = await client.post(`/wellnessforms/${formID}/station3`, {
       ...consultation, rowVersion,
+    });
+    return data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/**
+ * Soft delete: flips the form to Cancelled so it leaves every station queue.
+ * The row is kept — a wellness form is a medical record, and the audit entry
+ * this writes has to stay resolvable to the form it refers to.
+ */
+export async function cancelForm({ formID, reason, adminID, rowVersion }) {
+  if (USE_MOCK) {
+    await delay(300);
+    return db.write((state) => {
+      const form = state.forms.find((f) => f.formID === formID);
+      if (!form) throw Object.assign(new Error('Form not found.'), { status: 404 });
+      if (form.status === FORM_STATUS.CANCELLED) {
+        throw Object.assign(new Error('This form is already cancelled.'), { status: 409 });
+      }
+      assertFresh(form, rowVersion);
+
+      const previousStatus = form.status;
+      form.status = FORM_STATUS.CANCELLED;
+      form.updatedAt = nowIso();
+      bumpRowVersion(form);
+      pushAuditLog(state, {
+        formID,
+        actorType: 'Admin',
+        actorID: adminID,
+        action: 'FormCancelled',
+        details: `Cancelled from ${previousStatus} (Station ${form.currentStation}). Reason: ${reason}`,
+      });
+      return { ...form };
+    });
+  }
+  try {
+    const { data } = await client.post(`/wellnessforms/${formID}/cancel`, {
+      reason, rowVersion,
     });
     return data;
   } catch (error) {

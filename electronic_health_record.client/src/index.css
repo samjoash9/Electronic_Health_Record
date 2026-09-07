@@ -7,13 +7,26 @@
   --color-brand-600: #255a94;
   --color-brand-700: #1d4674;
 
+  /* Full ramp: the 200–600 steps were already in use across the app but had
+     no definition, so those utilities silently rendered without a color. */
+  --color-ink-200: #e5e7eb;
+  --color-ink-300: #d1d5db;
+  --color-ink-400: #9ca3af;
   --color-ink-500: #6b7280;
+  --color-ink-600: #4b5563;
   --color-ink-700: #374151;
   --color-ink-900: #111827;
 
   --color-line: #e5e7eb;
   --color-surface: #ffffff;
   --color-canvas: #f7f8fa;
+}
+
+/* Conditionally revealed fields fade in, so the row reads as answering the
+   question that revealed it rather than as a jump. */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Dense admin defaults. The kiosk questionnaire opts out via its own classes. */

@@ -11,6 +11,7 @@ namespace Electronic_Health_Record.Server.Data
         }
 
         public DbSet<Patient> Patients => Set<Patient>();
+        public DbSet<Employee> Employees => Set<Employee>();
         public DbSet<Physician> Physicians => Set<Physician>();
         public DbSet<Admin> Admins => Set<Admin>();
         public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
@@ -40,7 +41,9 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.FirstName).HasMaxLength(50).IsRequired();
                 entity.Property(p => p.MiddleName).HasMaxLength(50);
                 entity.Property(p => p.Birthdate).HasColumnType("date");
-                entity.Property(p => p.Sex).HasColumnType("char(1)").IsRequired();
+                // Wire value is the full word ("Male"/"Female"), not an M/F code --
+                // see SEX_OPTIONS in src/lib/constants.js.
+                entity.Property(p => p.Sex).HasMaxLength(10).IsUnicode(false).IsRequired();
                 entity.Property(p => p.CivilStatus).HasMaxLength(20).IsUnicode(false).IsRequired();
                 entity.Property(p => p.Address).HasMaxLength(255);
                 entity.Property(p => p.AgencyOffice).HasMaxLength(100);
@@ -51,6 +54,26 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
                 // Station 1 employee search by name
                 entity.HasIndex(p => new { p.Surname, p.FirstName });
+            });
+
+            // Local stand-in for the external HR API -- see Services/IEmployeeDirectory.
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.ToTable("Employee");
+                entity.HasKey(e => e.EmployeeID);
+                entity.Property(e => e.ExternalEmployeeId).HasMaxLength(50).IsRequired();
+                entity.HasIndex(e => e.ExternalEmployeeId).IsUnique();
+                entity.Property(e => e.Surname).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.FirstName).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.MiddleName).HasMaxLength(50);
+                entity.Property(e => e.Birthdate).HasColumnType("date");
+                entity.Property(e => e.Sex).HasMaxLength(10).IsUnicode(false).IsRequired();
+                entity.Property(e => e.CivilStatus).HasMaxLength(20).IsUnicode(false).IsRequired();
+                entity.Property(e => e.Address).HasMaxLength(255);
+                entity.Property(e => e.AgencyOffice).HasMaxLength(100);
+                entity.Property(e => e.Position).HasMaxLength(50);
+                entity.Property(e => e.ContactNo).HasMaxLength(20).IsUnicode(false);
+                entity.HasIndex(e => new { e.Surname, e.FirstName });
             });
 
             modelBuilder.Entity<Physician>(entity =>
@@ -267,15 +290,21 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasIndex(c => c.ConditionName).IsUnique();
                 entity.Property(c => c.ConditionType).HasMaxLength(100).IsRequired(false);
 
-                // the fixed condition list the wellness form checkbox grids bind to;
-                // the frontend sends back the matching ConditionID
+                // The fixed condition list Station 3's family-history checkbox grid
+                // binds to. IDs, names, and order must match FAMILY_CONDITIONS in
+                // src/lib/constants.js exactly -- the client hardcodes that array
+                // rather than reading it from /api/medicalconditions, so any drift
+                // here silently desyncs the form. "NONE" (id 1) and "Others" are
+                // handled client-side (Others sends ConditionID null with free text
+                // in ConditionOther), so this table only needs the 7 named conditions.
                 entity.HasData(
-                    new MedicalCondition { ConditionID = 1, ConditionName = "Hypertension" },
-                    new MedicalCondition { ConditionID = 2, ConditionName = "Stroke" },
-                    new MedicalCondition { ConditionID = 3, ConditionName = "Diabetes Mellitus" },
-                    new MedicalCondition { ConditionID = 4, ConditionName = "Tuberculosis" },
-                    new MedicalCondition { ConditionID = 5, ConditionName = "Bronchial Asthma" },
-                    new MedicalCondition { ConditionID = 6, ConditionName = "Cancer" }
+                    new MedicalCondition { ConditionID = 1, ConditionName = "NONE" },
+                    new MedicalCondition { ConditionID = 2, ConditionName = "HYPERTENSION (Heart Attack)" },
+                    new MedicalCondition { ConditionID = 3, ConditionName = "STROKE" },
+                    new MedicalCondition { ConditionID = 4, ConditionName = "DIABETES MELLITUS" },
+                    new MedicalCondition { ConditionID = 5, ConditionName = "CANCER (Breast/Ovarian/Colon, etc.)" },
+                    new MedicalCondition { ConditionID = 6, ConditionName = "TUBERCULOSIS" },
+                    new MedicalCondition { ConditionID = 7, ConditionName = "BRONCHIAL ASTHMA" }
                 );
             });
 

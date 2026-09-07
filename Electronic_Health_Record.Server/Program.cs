@@ -12,6 +12,8 @@ using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 using System.Text;
+using Electronic_Health_Record.Server.Filters;
+using Electronic_Health_Record.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

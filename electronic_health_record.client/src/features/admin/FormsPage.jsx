@@ -1,17 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getAllForms } from '../../api/forms.api';
-import { FORM_STATUS } from '../../lib/constants';
+import { Ban } from 'lucide-react';
+import { getAllForms, cancelForm } from '../../api/forms.api';
+import { FORM_STATUS, isSuperAdmin } from '../../lib/constants';
 import { fullName, formatDate } from '../../lib/formatters';
+import { useAuth } from '../../auth/useAuth';
+import { useTableControls } from '../../hooks/useTableControls';
 import Card from '../../components/ui/Card';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
 import DataTable from '../../components/ui/DataTable';
-import Pagination from '../../components/ui/Pagination';
+import TableFooter from '../../components/ui/TableFooter';
 import SearchInput from '../../components/ui/SearchInput';
 import Select from '../../components/ui/Select';
+import CancelFormModal from './CancelFormModal';
 
 const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
@@ -44,39 +49,41 @@ const STATUS_FILTER_OPTIONS = [
   ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
 ];
 
-const PAGE_SIZE = 10;
+const searchFields = (f) => {
+  const p = f.patient ?? {};
+  return [fullName(p), p.externalEmployeeId];
+};
+
+const filterField = (f) => f.status;
 
 export default function FormsPage() {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canCancel = isSuperAdmin(user);
+  const [formToCancel, setFormToCancel] = useState(null);
 
   const { data: forms, isLoading, error, refetch } = useQuery({
     queryKey: ['forms'],
     queryFn: getAllForms,
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: ({ formID, reason, rowVersion }) =>
+      cancelForm({ formID, reason, rowVersion, adminID: user?.id }),
+    onSuccess: () => {
+      // the dashboard reads the same ['forms'] query; cancelling also writes an
+      // audit entry, so the activity log is stale too
+      queryClient.invalidateQueries({ queryKey: ['forms'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+      setFormToCancel(null);
+    },
+  });
+
+  const table = useTableControls(forms, { searchFields, filterField });
+
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
-
-  const byStatus = statusFilter === 'all' ? forms : forms.filter((f) => f.status === statusFilter);
-  const q = query.trim().toLowerCase();
-  const results = q
-    ? byStatus.filter((f) => {
-        const p = f.patient ?? {};
-        return fullName(p).toLowerCase().includes(q) || p.externalEmployeeId?.toLowerCase().includes(q);
-      })
-    : byStatus;
-
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  const handleSearch = (value) => {
-    setQuery(value);
-    setPage(1);
-  };
 
   return (
     <Card
@@ -85,19 +92,16 @@ export default function FormsPage() {
         <div className="flex items-center gap-2">
           <SearchInput
             id="forms-search"
-            value={query}
-            onChange={handleSearch}
+            value={table.query}
+            onChange={table.onSearch}
             placeholder="Search by name or employee ID"
             className="w-72"
           />
           <Select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
+            value={table.filter}
+            onChange={(e) => table.onFilter(e.target.value)}
             options={STATUS_FILTER_OPTIONS}
-            className="w-48"
+            className="w-56"
           />
         </div>
       }
@@ -105,20 +109,51 @@ export default function FormsPage() {
       <div className="flex flex-col gap-3">
         <DataTable
           columns={COLUMNS}
-          rows={pageRows}
+          rows={table.pageRows}
           onRowClick={(row) => navigate(`/forms/${row.formID}`)}
-          empty={q ? 'No forms match your search.' : 'No forms found.'}
+          rowActions={canCancel ? (row) => (
+            row.status === FORM_STATUS.CANCELLED ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-rose-600 hover:bg-rose-50"
+                title={`Cancel form #${row.formID}`}
+                onClick={() => setFormToCancel(row)}
+              >
+                <Ban size={16} />
+                Cancel
+              </Button>
+            )
+          ) : undefined}
+          empty={table.isSearching || table.isFiltered ? 'No forms match your search.' : 'No forms found.'}
         />
 
-        {results.length > 0 && (
-          <div className="flex items-center justify-between text-sm text-ink-500">
-            <span>
-              Page {currentPage} of {totalPages} ({results.length} forms)
-            </span>
-            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
-          </div>
-        )}
+        <TableFooter
+          page={table.page}
+          totalPages={table.totalPages}
+          total={table.total}
+          noun="form"
+          onPageChange={table.setPage}
+        />
       </div>
+
+      {formToCancel && (
+      <CancelFormModal
+        key={formToCancel.formID}
+        form={formToCancel}
+        isPending={cancelMutation.isPending}
+        error={cancelMutation.error}
+        onConfirm={({ reason }) => cancelMutation.mutate({
+          formID: formToCancel.formID,
+          reason,
+          rowVersion: formToCancel.rowVersion,
+        })}
+        onClose={() => {
+          cancelMutation.reset();
+          setFormToCancel(null);
+        }}
+      />
+      )}
     </Card>
   );
 }

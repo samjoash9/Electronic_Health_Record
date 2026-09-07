@@ -5,6 +5,10 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Required'),
 });
 
+export const forgotPasswordSchema = z.object({
+  identifier: z.string().min(1, 'Enter your username or email'),
+});
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Required'),
   newPassword: z.string().min(8, 'At least 8 characters'),

@@ -7,6 +7,7 @@ import { Mail, Lock, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import { homeRouteFor } from '../../auth/RequireAuth';
 import { loginSchema } from '../../lib/schemas';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 const DEMO_CREDENTIALS = [
   { role: 'Super Admin', identifier: 'superadmin', password: 'password123' },
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState('');
   const [demoRole, setDemoRole] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const {
     register, handleSubmit, setValue, formState: { errors, isSubmitting },
@@ -40,14 +42,14 @@ export default function LoginPage() {
   };
 
   if (isAuthenticated) {
-    return <Navigate to={homeRouteFor(user.role)} replace />;
+    return <Navigate to={homeRouteFor(user)} replace />;
   }
 
   const onSubmit = async (values) => {
     setLoginError('');
     try {
       const signedInUser = await signIn(values);
-      navigate(homeRouteFor(signedInUser.role), { replace: true });
+      navigate(homeRouteFor(signedInUser), { replace: true });
     } catch (error) {
       setLoginError(error.message);
       toast.error(error.message);
@@ -137,7 +139,13 @@ export default function LoginPage() {
             </div>
 
             <div className="flex justify-end">
-              <span className="cursor-default text-xs font-medium text-[#0e7d6b]">Forgot your password?</span>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-xs font-medium text-[#0e7d6b] underline-offset-2 transition hover:underline"
+              >
+                Forgot your password?
+              </button>
             </div>
 
             {loginError && <p className="text-xs text-rose-600">{loginError}</p>}
@@ -152,6 +160,8 @@ export default function LoginPage() {
           </form>
         </div>
       </div>
+
+      <ForgotPasswordModal open={forgotOpen} onClose={() => setForgotOpen(false)} />
     </div>
   );
 }

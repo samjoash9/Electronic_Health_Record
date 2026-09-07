@@ -17,16 +17,16 @@ describe('FamilyHistorySection', () => {
   it('reveals a family-members input when a condition is checked', async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    expect(screen.queryByLabelText(/family members with stroke/i)).toBeNull();
+    expect(screen.queryByLabelText(/family members affected/i)).toBeNull();
     await user.click(screen.getByRole('checkbox', { name: /^STROKE$/i }));
-    expect(screen.getByLabelText(/family members with stroke/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/family members affected/i)).toBeInTheDocument();
   });
 
   it('reveals a condition-name input when Others is checked', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(screen.getByRole('checkbox', { name: /others/i }));
-    expect(screen.getByRole('textbox', { name: /^please specify$/i })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /^condition$/i })).toBeInTheDocument();
   });
 
   it('clears and disables every other condition when None is checked', async () => {
@@ -39,7 +39,7 @@ describe('FamilyHistorySection', () => {
     await user.click(screen.getByRole('checkbox', { name: /^NONE$/i }));
     expect(stroke).not.toBeChecked();
     expect(stroke).toBeDisabled();
-    expect(screen.queryByLabelText(/family members with stroke/i)).toBeNull();
+    expect(screen.queryByLabelText(/family members affected/i)).toBeNull();
   });
 
   it('re-enables the other conditions when None is unchecked', async () => {
