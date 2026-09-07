@@ -4,6 +4,14 @@ import { ROLES } from '../lib/constants';
 
 export { getSession };
 
+// Server-side table names don't always match our ROLES values 1:1
+// (Physician table -> 'doctor' role in the frontend).
+const ACCOUNT_TYPE_TO_ROLE = {
+    admin: ROLES.ADMIN,
+    physician: ROLES.DOCTOR,
+    patient: ROLES.PATIENT,
+};
+
 export async function login({ identifier, password }) {
     const response = await api.post('/Auth/login', {
         username: identifier,
@@ -20,7 +28,7 @@ export async function login({ identifier, password }) {
         role,
     } = response.data;
 
-    const tableRole = accountType?.toLowerCase(); // 'admin' | 'doctor' | 'patient'
+    const tableRole = ACCOUNT_TYPE_TO_ROLE[accountType?.toLowerCase()];
 
     const user = {
         accountId,

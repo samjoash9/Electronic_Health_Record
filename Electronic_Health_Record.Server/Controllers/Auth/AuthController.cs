@@ -421,16 +421,36 @@ public class AuthController : ControllerBase
     }
 
 
-    // =========================================================
-    // ME
-    // =========================================================
 
-    [Authorize]
-    [HttpGet("me")]
-    public async Task<ActionResult<MeResponse>> Me()
+
+
+// =========================================================
+// GET USER
+// =========================================================
+//
+// GET /api/Auth/user
+//
+// Returns the authenticated user's account information.
+//
+// Admin     -> Admins
+// Physician -> Physicians
+// Patient   -> PatientAccounts + Patients
+// =========================================================
+
+[Authorize]
+[HttpGet("user")]
+public async Task<IActionResult> GetUser()
     {
+        // ---------------------------------------------------------
+        // Get PrincipalType from JWT
+        // ---------------------------------------------------------
+
         var principalType =
             User.FindFirstValue("PrincipalType");
+
+        // ---------------------------------------------------------
+        // Get User ID from JWT
+        // ---------------------------------------------------------
 
         var userIdValue =
             User.FindFirstValue(
@@ -451,137 +471,176 @@ public class AuthController : ControllerBase
         // ADMIN
         // =========================================================
 
-        switch (principalType)
+        if (principalType == "Admin")
         {
-            case "Admin":
+            var admin = await _db.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a =>
+                    a.AdminID == userId);
+
+            if (admin == null)
+            {
+                return NotFound(new
                 {
-                    var admin = await _db.Admins
-                        .FirstOrDefaultAsync(a =>
-                            a.AdminID == userId);
+                    message = "Admin account not found."
+                });
+            }
 
-                    if (admin == null ||
-                        !admin.IsActive)
-                    {
-                        return Unauthorized(new
-                        {
-                            message =
-                                "Account no longer active."
-                        });
-                    }
-
-                    return Ok(new MeResponse
-                    {
-                        FullName = admin.FullName,
-                        Username = admin.Username,
-                        AccountType = "Admin",
-
-                        Role = admin.Role
-                    });
-                }
-
-
-            // =====================================================
-            // PHYSICIAN
-            // =====================================================
-
-            case "Physician":
+            if (!admin.IsActive)
+            {
+                return Unauthorized(new
                 {
-                    var physician = await _db.Physicians
-                        .FirstOrDefaultAsync(p =>
-                            p.PhysicianID == userId);
+                    message = "Account is inactive."
+                });
+            }
 
-                    if (physician == null ||
-                        !physician.IsActive)
-                    {
-                        return Unauthorized(new
-                        {
-                            message =
-                                "Account no longer active."
-                        });
-                    }
-
-                    return Ok(new MeResponse
-                    {
-                        FullName =
-                            BuildPhysicianFullName(
-                                physician
-                            ),
-
-                        Username =
-                            physician.Username,
-
-                        AccountType = "Physician"
-                    });
-                }
+            return Ok(new
+            {
+                accountId = admin.AdminID,
+                username = admin.Username,
+                fullName = admin.FullName,
+                accountType = "Admin",
+                role = admin.Role
+            });
+        }
 
 
-            // =====================================================
-            // PATIENT
-            // =====================================================
+        // =========================================================
+        // PHYSICIAN
+        // =========================================================
 
-            case "Patient":
+        if (principalType == "Physician")
+        {
+            var physician = await _db.Physicians
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p =>
+                    p.PhysicianID == userId);
+
+            if (physician == null)
+            {
+                return NotFound(new
                 {
-                    var patientAccount =
-                        await _db.PatientAccounts
-                            .FirstOrDefaultAsync(a =>
-                                a.PatientAccountID == userId);
+                    message = "Physician account not found."
+                });
+            }
 
-                    if (patientAccount == null ||
-                        !string.Equals(
-                            patientAccount.Status,
-                            "Active",
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        return Unauthorized(new
-                        {
-                            message =
-                                "Account no longer active."
-                        });
-                    }
+            if (!physician.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Account is inactive."
+                });
+            }
 
-                    var patient =
-                        await _db.Patients
-                            .FirstOrDefaultAsync(p =>
-                                p.PatientID ==
-                                patientAccount.PatientID);
+            return Ok(new
+            {
+                accountId = physician.PhysicianID,
+                username = physician.Username,
 
-                    if (patient == null)
-                    {
-                        return Unauthorized(new
-                        {
-                            message =
-                                "Patient record was not found."
-                        });
-                    }
+                fullName =
+                    BuildPhysicianFullName(physician),
 
-                    return Ok(new MeResponse
-                    {
-                        FullName =
-                            BuildPatientFullName(patient),
+                firstName = physician.FirstName,
+                middleName = physician.MiddleName,
+                surname = physician.Surname,
 
-                        Username =
-                            patientAccount.Username,
-
-                        AccountType = "Patient",
-
-                        Employee =
-                            patient.ExternalEmployeeId
-                    });
-                }
+                accountType = "Physician"
+            });
+        }
 
 
-            // =====================================================
-            // UNKNOWN PRINCIPAL TYPE
-            // =====================================================
+        // =========================================================
+        // PATIENT
+        // =========================================================
 
-            default:
+        if (principalType == "Patient")
+        {
+            var patientAccount =
+                await _db.PatientAccounts
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(a =>
+                        a.PatientAccountID == userId);
+
+            if (patientAccount == null)
+            {
+                return NotFound(new
+                {
+                    message =
+                        "Patient account not found."
+                });
+            }
+
+            if (!string.Equals(
+                patientAccount.Status,
+                "Active",
+                StringComparison.OrdinalIgnoreCase))
+            {
                 return Unauthorized(new
                 {
                     message =
-                        "Unrecognized account type."
+                        "Patient account is not active."
                 });
+            }
+
+            var patient =
+                await _db.Patients
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p =>
+                        p.PatientID ==
+                        patientAccount.PatientID);
+
+            if (patient == null)
+            {
+                return NotFound(new
+                {
+                    message =
+                        "Patient record was not found."
+                });
+            }
+
+            return Ok(new
+            {
+                accountId =
+                    patientAccount.PatientAccountID,
+
+                patientId =
+                    patient.PatientID,
+
+                username =
+                    patientAccount.Username,
+
+                fullName =
+                    BuildPatientFullName(patient),
+
+                firstName =
+                    patient.FirstName,
+
+                middleName =
+                    patient.MiddleName,
+
+                surname =
+                    patient.Surname,
+
+                accountType = "Patient",
+
+                employee =
+                    patient.ExternalEmployeeId
+            });
         }
+
+
+        // =========================================================
+        // UNKNOWN PRINCIPAL TYPE
+        // =========================================================
+
+        return Unauthorized(new
+        {
+            message =
+                "Unrecognized account type."
+        });
     }
+
+
 
 
     // =========================================================

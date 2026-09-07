@@ -2,6 +2,7 @@ using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.WellnessForm;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class WellnessFormsController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;

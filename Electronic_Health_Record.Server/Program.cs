@@ -1,19 +1,17 @@
+using System.Text;
+
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Filters;
 using Electronic_Health_Record.Server.Services;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 using Scalar.AspNetCore;
-
-using System.Text;
-using Electronic_Health_Record.Server.Filters;
-using Electronic_Health_Record.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +30,13 @@ builder.Services.AddDbContext<ElectronicHealthRecordDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
+
+
+// ============================================================
+// HTTP CONTEXT
+// ============================================================
+
+builder.Services.AddHttpContextAccessor();
 
 
 // ============================================================
@@ -56,14 +61,6 @@ builder.Services.AddCors(options =>
 // ============================================================
 // OPENAPI
 // ============================================================
-//
-// This registers the Bearer JWT security scheme in the
-// generated OpenAPI document.
-//
-// Scalar reads this security scheme and provides the
-// "Authorize" button where you can paste your JWT.
-//
-// ============================================================
 
 builder.Services.AddOpenApi(options =>
 {
@@ -76,6 +73,8 @@ builder.Services.AddOpenApi(options =>
 // ============================================================
 
 builder.Services.AddScoped<TokenService>();
+
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
 
 // ============================================================
@@ -108,19 +107,29 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        // Keep true when using HTTPS.
-        // For local HTTP testing only, this can be false.
         options.RequireHttpsMetadata = true;
+
+        options.SaveToken = false;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            // ------------------------------------------------
+            // SIGNATURE
+            // ------------------------------------------------
+
+            ValidateIssuerSigningKey = true,
+
+            IssuerSigningKey =
+                new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtKey)
+                ),
+
             // ------------------------------------------------
             // ISSUER
             // ------------------------------------------------
 
             ValidateIssuer = true,
             ValidIssuer = jwtIssuer,
-
 
             // ------------------------------------------------
             // AUDIENCE
@@ -129,29 +138,26 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwtAudience,
 
-
             // ------------------------------------------------
-            // TOKEN LIFETIME
+            // EXPIRATION
             // ------------------------------------------------
 
             ValidateLifetime = true,
 
-            // Allows a small amount of clock difference
-            // between client and server.
             ClockSkew = TimeSpan.FromMinutes(1),
 
-
             // ------------------------------------------------
-            // SIGNING KEY
+            // CLAIM MAPPING
             // ------------------------------------------------
 
-            ValidateIssuerSigningKey = true,
+            NameClaimType =
+                System.Security.Claims.ClaimTypes.Name,
 
-            IssuerSigningKey =
-                new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtKey)
-                )
+            RoleClaimType =
+                System.Security.Claims.ClaimTypes.Role
         };
+
+     
     });
 
 
@@ -209,35 +215,7 @@ app.MapStaticAssets();
 
 if (app.Environment.IsDevelopment())
 {
-    // -----------------------------------------------
-    // OpenAPI JSON
-    // -----------------------------------------------
-
     app.MapOpenApi();
-
-
-    // -----------------------------------------------
-    // Scalar API Reference
-    // -----------------------------------------------
-    //
-    // "Bearer" MUST match the security scheme name
-    // created inside BearerSecuritySchemeTransformer.
-    //
-    // This makes Bearer the preferred authentication
-    // scheme in Scalar.
-    //
-    // You can then:
-    //
-    // 1. Click Authorize
-    // 2. Paste your JWT
-    // 3. Authorize
-    // 4. Test /me
-    //
-    // Scalar automatically sends:
-    //
-    // Authorization: Bearer <your-token>
-    //
-    // -----------------------------------------------
 
     app.MapScalarApiReference(options =>
     {
@@ -263,27 +241,12 @@ app.UseCors("AllowReactFrontend");
 // ============================================================
 // AUTHENTICATION
 // ============================================================
-//
-// Authentication MUST execute before Authorization.
-//
-// Authentication:
-//     JWT -> validates token -> creates ClaimsPrincipal
-//
-// ============================================================
 
 app.UseAuthentication();
 
 
 // ============================================================
 // AUTHORIZATION
-// ============================================================
-//
-// Authorization checks:
-//
-//     [Authorize]
-//     [Authorize(Roles = "...")]
-//     Policies
-//
 // ============================================================
 
 app.UseAuthorization();
@@ -313,17 +276,6 @@ app.Run();
 // ============================================================
 // OPENAPI BEARER SECURITY SCHEME TRANSFORMER
 // ============================================================
-//
-// This transformer adds:
-//
-//     Bearer
-//
-// to the OpenAPI security schemes.
-//
-// Scalar detects this and displays the authentication
-// interface.
-//
-// ============================================================
 
 internal sealed class BearerSecuritySchemeTransformer(
     IAuthenticationSchemeProvider authenticationSchemeProvider)
@@ -334,17 +286,9 @@ internal sealed class BearerSecuritySchemeTransformer(
         OpenApiDocumentTransformerContext context,
         CancellationToken cancellationToken)
     {
-        // ----------------------------------------------------
-        // Get all registered authentication schemes
-        // ----------------------------------------------------
-
         var authenticationSchemes =
-            await authenticationSchemeProvider.GetAllSchemesAsync();
-
-
-        // ----------------------------------------------------
-        // Make sure JWT Bearer is registered
-        // ----------------------------------------------------
+            await authenticationSchemeProvider
+                .GetAllSchemesAsync();
 
         if (!authenticationSchemes.Any(
             scheme =>
@@ -354,22 +298,11 @@ internal sealed class BearerSecuritySchemeTransformer(
             return;
         }
 
-
-        // ----------------------------------------------------
-        // Initialize OpenAPI Components
-        // ----------------------------------------------------
-
         document.Components ??=
             new OpenApiComponents();
 
-
         document.Components.SecuritySchemes ??=
             new Dictionary<string, IOpenApiSecurityScheme>();
-
-
-        // ----------------------------------------------------
-        // Register Bearer JWT Security Scheme
-        // ----------------------------------------------------
 
         document.Components.SecuritySchemes["Bearer"] =
             new OpenApiSecurityScheme
@@ -388,11 +321,6 @@ internal sealed class BearerSecuritySchemeTransformer(
                     "Do not include the 'Bearer ' prefix."
             };
 
-
-        // ----------------------------------------------------
-        // Create Bearer Security Requirement
-        // ----------------------------------------------------
-
         var bearerRequirement =
             new OpenApiSecurityRequirement
             {
@@ -402,20 +330,6 @@ internal sealed class BearerSecuritySchemeTransformer(
                         document)
                 ] = new List<string>()
             };
-
-
-        // ----------------------------------------------------
-        // Apply Bearer Authentication to Operations
-        // ----------------------------------------------------
-        //
-        // This tells OpenAPI that the endpoints support
-        // Bearer authentication.
-        //
-        // Scalar uses this information to automatically
-        // attach the Authorization header when executing
-        // secured endpoints.
-        //
-        // ----------------------------------------------------
 
         foreach (var operation in document.Paths.Values
                      .SelectMany(pathItem =>
