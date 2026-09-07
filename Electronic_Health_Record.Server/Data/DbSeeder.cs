@@ -20,6 +20,10 @@ namespace Electronic_Health_Record.Server.Data
         // Fix: use the same PasswordHasher<T> instances, one per entity
         // type, exactly like AuthController does. One static instance per
         // type is enough since PasswordHasher<T> is stateless/thread-safe.
+        // The dummy entity instance passed as the first argument is only
+        // used by PasswordHasher<T> for legacy-format detection, not for
+        // anything on the object itself, so `new Admin()` / `new Physician()`
+        // / `new PatientAccount()` is fine here.
         // -----------------------------------------------------------------
         private static readonly PasswordHasher<Admin> AdminHasher = new();
         private static readonly PasswordHasher<Physician> PhysicianHasher = new();
@@ -50,7 +54,7 @@ namespace Electronic_Health_Record.Server.Data
                         Username = "superadmin",
                         Role = AdminRoles.SuperAdmin,
                         ContactNo = "09170000000",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = AdminHasher.HashPassword(new Admin(), "password123"),
                         // settled account: logs straight in
                         MustChangePassword = false,
                         PasswordSetAt = now.AddDays(-30),
@@ -65,7 +69,7 @@ namespace Electronic_Health_Record.Server.Data
                         Username = "admin",
                         Role = AdminRoles.Admin,
                         ContactNo = "09170000001",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = AdminHasher.HashPassword(new Admin(), "password123"),
                         // settled account: the rest of the development fixtures are
                         // attributed to this one, so it should not be stuck behind a
                         // password prompt
@@ -82,7 +86,7 @@ namespace Electronic_Health_Record.Server.Data
                         Username = "nurse1",
                         Role = AdminRoles.Admin,
                         ContactNo = "09170000002",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = AdminHasher.HashPassword(new Admin(), "password123"),
                         // freshly onboarded by the superadmin: still on the default
                         MustChangePassword = true,
                         PasswordSetAt = now,
@@ -307,7 +311,7 @@ namespace Electronic_Health_Record.Server.Data
                     new Physician
                     {
                         Username = "doctor",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = PhysicianHasher.HashPassword(new Physician(), "password123"),
                         // settled account: the Station 3 fixtures are assigned to this
                         // doctor, so it should not be stuck behind a password prompt
                         MustChangePassword = false,
@@ -325,7 +329,7 @@ namespace Electronic_Health_Record.Server.Data
                     new Physician
                     {
                         Username = "mgrey",
-                        PasswordHash = HashPassword("password123"),
+                        PasswordHash = PhysicianHasher.HashPassword(new Physician(), "password123"),
                         // freshly onboarded by an admin: still on the default
                         MustChangePassword = true,
                         PasswordSetAt = now,
@@ -572,7 +576,7 @@ namespace Electronic_Health_Record.Server.Data
                 {
                     PatientID = portalPatients[0].PatientID,
                     Username = UsernameFor(portalPatients[0].ExternalEmployeeId),
-                    PasswordHash = HashPassword("patient123"),
+                    PasswordHash = PatientHasher.HashPassword(new PatientAccount(), "patient123"),
                     // settled account: chose their own password after activating
                     MustChangePassword = false,
                     PasswordSetAt = now.AddDays(-1),
@@ -602,7 +606,7 @@ namespace Electronic_Health_Record.Server.Data
                 {
                     PatientID = portalPatients[2].PatientID,
                     Username = UsernameFor(portalPatients[2].ExternalEmployeeId),
-                    PasswordHash = HashPassword("patient123"),
+                    PasswordHash = PatientHasher.HashPassword(new PatientAccount(), "patient123"),
                     MustChangePassword = true,
                     PasswordSetAt = now,
                     PasswordChangedAt = null,
@@ -631,10 +635,10 @@ namespace Electronic_Health_Record.Server.Data
         // -----------------------------------------------------------------
         // REMOVED: the old HashPassword(string) method that used raw
         // SHA256.Create()/ComputeHash(). It's no longer called anywhere in
-        // this file — every PasswordHash assignment now goes through
-        // PasswordHasher<T>.HashPassword(...) above, so this method (and
-        // the System.Security.Cryptography / System.Text usings it needed)
-        // has been deleted rather than left as dead code.
+        // this file — every PasswordHash assignment now goes through the
+        // typed PasswordHasher<T> instances above, so this method (and the
+        // System.Security.Cryptography / System.Text usings it needed) has
+        // been deleted rather than left as dead code.
         // -----------------------------------------------------------------
     }
 }
