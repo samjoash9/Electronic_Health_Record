@@ -168,13 +168,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CARDS.map(({ key, label, icon, accent }) => (
           <StatCard key={key} label={label} value={counts[key] ?? 0} icon={icon} accent={accent} />
         ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Total Patients" value={totalPatients} icon={Users} accent="violet" />
         <StatCard label="Submitted Today" value={submittedToday} icon={Send} accent="sky" />
         {STATION_CARDS.map(({ key, label, accent }) => (

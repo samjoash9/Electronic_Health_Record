@@ -295,6 +295,46 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
   }
 }
 
+/**
+ * Soft delete: flips the form to Cancelled so it leaves every station queue.
+ * The row is kept — a wellness form is a medical record, and the audit entry
+ * this writes has to stay resolvable to the form it refers to.
+ */
+export async function cancelForm({ formID, reason, adminID, rowVersion }) {
+  if (USE_MOCK) {
+    await delay(300);
+    return db.write((state) => {
+      const form = state.forms.find((f) => f.formID === formID);
+      if (!form) throw Object.assign(new Error('Form not found.'), { status: 404 });
+      if (form.status === FORM_STATUS.CANCELLED) {
+        throw Object.assign(new Error('This form is already cancelled.'), { status: 409 });
+      }
+      assertFresh(form, rowVersion);
+
+      const previousStatus = form.status;
+      form.status = FORM_STATUS.CANCELLED;
+      form.updatedAt = nowIso();
+      bumpRowVersion(form);
+      pushAuditLog(state, {
+        formID,
+        actorType: 'Admin',
+        actorID: adminID,
+        action: 'FormCancelled',
+        details: `Cancelled from ${previousStatus} (Station ${form.currentStation}). Reason: ${reason}`,
+      });
+      return { ...form };
+    });
+  }
+  try {
+    const { data } = await client.post(`/wellnessforms/${formID}/cancel`, {
+      reason, rowVersion,
+    });
+    return data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 function actorName(state, actorType, actorID) {
   if (actorType === 'Admin') {
     const admin = state.admins.find((a) => a.adminID === actorID);

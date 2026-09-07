@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -105,6 +105,9 @@ export default function Station3ConsultationPage() {
   const [signature, setSignature] = useState(restoredDraft?.signature ?? null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(restoredDraft?.savedAt ?? null);
+  // Mirrors mutation.isSuccess but updates synchronously, so the blocker
+  // (read at navigate() time, not at next render) can't see a stale value.
+  const submittedRef = useRef(false);
 
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories } = useQuery({
@@ -161,6 +164,10 @@ export default function Station3ConsultationPage() {
       },
     }),
     onSuccess: () => {
+      // Set synchronously so the blocker (which reads this ref at nav time,
+      // not at next render) never sees a stale unsubmitted state and
+      // re-blocks the navigate() below.
+      submittedRef.current = true;
       // The consultation is final now; a stale draft would restore over it.
       clearDraft(formId);
       toast.success('Form signed and completed.');
@@ -173,7 +180,9 @@ export default function Station3ConsultationPage() {
     },
   });
 
-  const blocker = useUnsavedChangesGuard((isDirty || Boolean(signature)) && !mutation.isSuccess);
+  const blocker = useUnsavedChangesGuard(
+    () => (isDirty || Boolean(signature)) && !submittedRef.current,
+  );
 
   const handleSaveDraftAndLeave = () => {
     handleSaveDraft();

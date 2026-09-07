@@ -1,17 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getAllForms } from '../../api/forms.api';
-import { FORM_STATUS } from '../../lib/constants';
+import { Ban } from 'lucide-react';
+import { getAllForms, cancelForm } from '../../api/forms.api';
+import { FORM_STATUS, isSuperAdmin } from '../../lib/constants';
 import { fullName, formatDate } from '../../lib/formatters';
+import { useAuth } from '../../auth/useAuth';
 import { useTableControls } from '../../hooks/useTableControls';
 import Card from '../../components/ui/Card';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
 import DataTable from '../../components/ui/DataTable';
 import TableFooter from '../../components/ui/TableFooter';
 import SearchInput from '../../components/ui/SearchInput';
 import Select from '../../components/ui/Select';
+import CancelFormModal from './CancelFormModal';
 
 const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
@@ -53,10 +58,26 @@ const filterField = (f) => f.status;
 
 export default function FormsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canCancel = isSuperAdmin(user);
+  const [formToCancel, setFormToCancel] = useState(null);
 
   const { data: forms, isLoading, error, refetch } = useQuery({
     queryKey: ['forms'],
     queryFn: getAllForms,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: ({ formID, reason, rowVersion }) =>
+      cancelForm({ formID, reason, rowVersion, adminID: user?.id }),
+    onSuccess: () => {
+      // the dashboard reads the same ['forms'] query; cancelling also writes an
+      // audit entry, so the activity log is stale too
+      queryClient.invalidateQueries({ queryKey: ['forms'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+      setFormToCancel(null);
+    },
   });
 
   const table = useTableControls(forms, { searchFields, filterField });
@@ -90,6 +111,20 @@ export default function FormsPage() {
           columns={COLUMNS}
           rows={table.pageRows}
           onRowClick={(row) => navigate(`/forms/${row.formID}`)}
+          rowActions={canCancel ? (row) => (
+            row.status === FORM_STATUS.CANCELLED ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-rose-600 hover:bg-rose-50"
+                title={`Cancel form #${row.formID}`}
+                onClick={() => setFormToCancel(row)}
+              >
+                <Ban size={16} />
+                Cancel
+              </Button>
+            )
+          ) : undefined}
           empty={table.isSearching || table.isFiltered ? 'No forms match your search.' : 'No forms found.'}
         />
 
@@ -101,6 +136,24 @@ export default function FormsPage() {
           onPageChange={table.setPage}
         />
       </div>
+
+      {formToCancel && (
+      <CancelFormModal
+        key={formToCancel.formID}
+        form={formToCancel}
+        isPending={cancelMutation.isPending}
+        error={cancelMutation.error}
+        onConfirm={({ reason }) => cancelMutation.mutate({
+          formID: formToCancel.formID,
+          reason,
+          rowVersion: formToCancel.rowVersion,
+        })}
+        onClose={() => {
+          cancelMutation.reset();
+          setFormToCancel(null);
+        }}
+      />
+      )}
     </Card>
   );
 }

@@ -97,10 +97,16 @@ export default function KioskPage() {
         </>
       }
       footer={
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
-          <div>
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 md:items-stretch">
+          <div className="md:flex md:flex-1">
             {step > 0 && (
-              <Button type="button" variant="secondary" size="lg" onClick={() => setStep((s) => s - 1)}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                onClick={() => setStep((s) => s - 1)}
+                className="md:w-full"
+              >
                 Previous
               </Button>
             )}
@@ -118,7 +124,7 @@ export default function KioskPage() {
               size="lg"
               disabled={!categoryComplete}
               onClick={goNext}
-              className="w-full sm:w-auto sm:min-w-40"
+              className="w-full sm:w-auto sm:min-w-40 md:w-full"
             >
               {isLastCategory ? 'Done' : 'Next'}
             </Button>

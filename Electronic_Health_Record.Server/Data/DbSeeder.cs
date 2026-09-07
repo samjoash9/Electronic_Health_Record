@@ -83,6 +83,57 @@ namespace Electronic_Health_Record.Server.Data
             // questions, options) come from the migration via HasData, so there is
             // nothing to seed for them here.
 
+            // Seed Employees: the local stand-in for the external HR API Station 1
+            // searches (see Services/IEmployeeDirectory). Mirrors the shape and
+            // volume of the mock's buildEmployees() so the picker has something
+            // realistic to filter against.
+            if (!await context.Employees.AnyAsync())
+            {
+                string[] surnames = ["Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "Mercado", "Aquino", "Del Rosario"];
+                string[] firstNames = ["Maria", "Jose", "Ana", "Juan", "Rosario", "Antonio", "Carmen", "Ramon"];
+                string[] middleInitials = ["A.", "B.", "C.", "D.", "E.", "F.", "G.", "H."];
+                string[] agencies =
+                [
+                    "Provincial Health Office", "Provincial Engineering Office",
+                    "Provincial Agriculture Office", "Human Resource Management Office",
+                    "Provincial Social Welfare Office", "Provincial Legal Office",
+                    "Provincial Accounting Office",
+                ];
+                string[] positions =
+                [
+                    "Administrative Aide IV", "Administrative Officer II", "Nurse II",
+                    "Engineer I", "Agriculturist II", "Accountant I", "Clerk III",
+                    "Draftsman II", "Social Welfare Officer I", "Legal Assistant",
+                ];
+                string[] civilStatuses = ["Single", "Married", "Widowed", "Separated"];
+
+                var employees = new List<Employee>();
+                for (var i = 0; i < 32; i++)
+                {
+                    var year = 1968 + (i * 7 % 36);
+                    var month = i % 12 + 1;
+                    var day = i * 3 % 27 + 1;
+
+                    employees.Add(new Employee
+                    {
+                        ExternalEmployeeId = $"PHO-{1001 + i}",
+                        Surname = surnames[i % surnames.Length],
+                        FirstName = firstNames[i % firstNames.Length],
+                        MiddleName = middleInitials[i % middleInitials.Length],
+                        Birthdate = new DateTime(year, month, day),
+                        Sex = i % 2 == 0 ? "Female" : "Male",
+                        CivilStatus = civilStatuses[i % civilStatuses.Length],
+                        Address = $"{100 + i} Rizal Street, Barangay {i % 12 + 1}, Trece Martires City, Cavite",
+                        AgencyOffice = agencies[i % agencies.Length],
+                        Position = positions[i % positions.Length],
+                        ContactNo = $"09{170000000 + i * 137}"[..11],
+                    });
+                }
+
+                context.Employees.AddRange(employees);
+                await context.SaveChangesAsync();
+            }
+
             // Seed Patients.
             // Patient rows normally only ever arrive by syncing from the external HR
             // API, so every row needs an ExternalEmployeeId. These development
@@ -97,7 +148,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "John",
                         MiddleName = "Smith",
                         Birthdate = new DateTime(1980, 5, 15),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Married",
                         Address = "123 Main St, Springfield",
                         AgencyOffice = "HR",
@@ -114,7 +165,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Jane",
                         MiddleName = "Ann",
                         Birthdate = new DateTime(1992, 8, 25),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "456 Oak St, Springfield",
                         AgencyOffice = "IT",
@@ -131,7 +182,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "John",
                         MiddleName = "Michael",
                         Birthdate = new DateTime(1988, 3, 14),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Married",
                         Address = "123 Maple St, Springfield",
                         AgencyOffice = "Finance",
@@ -148,7 +199,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Maria",
                         MiddleName = "Elena",
                         Birthdate = new DateTime(1995, 11, 7),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "789 Pine St, Springfield",
                         AgencyOffice = "HR",
@@ -165,7 +216,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Carlos",
                         MiddleName = "Luis",
                         Birthdate = new DateTime(1990, 6, 18),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Single",
                         Address = "321 Cedar Ave, Springfield",
                         AgencyOffice = "Operations",
@@ -182,7 +233,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Angela",
                         MiddleName = "Marie",
                         Birthdate = new DateTime(1985, 1, 30),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Married",
                         Address = "654 Birch Road, Springfield",
                         AgencyOffice = "Administration",
@@ -199,7 +250,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Mark",
                         MiddleName = "Anthony",
                         Birthdate = new DateTime(1997, 9, 12),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Single",
                         Address = "987 Elm Street, Springfield",
                         AgencyOffice = "IT",
@@ -216,7 +267,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Sofia",
                         MiddleName = "Grace",
                         Birthdate = new DateTime(1993, 4, 22),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "147 Willow Lane, Springfield",
                         AgencyOffice = "Marketing",
@@ -233,7 +284,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Daniel",
                         MiddleName = "James",
                         Birthdate = new DateTime(1989, 12, 5),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Married",
                         Address = "258 Oak Avenue, Springfield",
                         AgencyOffice = "Legal",
@@ -250,7 +301,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Patricia",
                         MiddleName = "Anne",
                         Birthdate = new DateTime(1996, 7, 16),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "369 Maple Drive, Springfield",
                         AgencyOffice = "IT",
@@ -267,7 +318,7 @@ namespace Electronic_Health_Record.Server.Data
                         FirstName = "Kevin",
                         MiddleName = "Paul",
                         Birthdate = new DateTime(1991, 2, 28),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Divorced",
                         Address = "741 Pine Avenue, Springfield",
                         AgencyOffice = "Procurement",
@@ -331,8 +382,8 @@ namespace Electronic_Health_Record.Server.Data
             {
                 var patients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
                 var physician = await context.Physicians.FirstAsync();
-                var conditionHypertension = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Hypertension");
-                var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Diabetes Mellitus");
+                var conditionHypertension = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "HYPERTENSION (Heart Attack)");
+                var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "DIABETES MELLITUS");
 
                 // ---- Form A: completed and signed (Station 3 done) ----
                 var completed = new WellnessForm

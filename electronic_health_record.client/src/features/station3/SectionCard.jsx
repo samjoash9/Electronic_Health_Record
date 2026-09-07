@@ -36,7 +36,7 @@ export default function SectionCard({
   step, title, subtitle, icon: Icon, actions, children, flush = false,
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+    <section className="rounded-xl border border-line bg-surface shadow-sm">
       <header className="relative overflow-hidden border-b border-line bg-linear-to-r from-[#f3fdfb] to-surface px-5 py-4">
         <svg
           aria-hidden
