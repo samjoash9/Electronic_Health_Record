@@ -64,14 +64,15 @@ export function categoryStyle(name) {
 /**
  * Station 3 family medical history. "None" is exclusive: checking it clears
  * and disables every other option. "Others" reveals an extra free-text field
- * for the condition name.
+ * for the condition name. Diabetes Mellitus and Cancer reveal a "Specific
+ * type" field; every other condition is bare once checked.
  */
 export const FAMILY_CONDITIONS = [
   { conditionID: 1, name: 'NONE', exclusive: true },
-  { conditionID: 2, name: 'HYPERTENSION', noFamilyMembersField: true },
+  { conditionID: 2, name: 'HYPERTENSION' },
   { conditionID: 3, name: 'STROKE' },
-  { conditionID: 4, name: 'DIABETES MELLITUS' },
-  { conditionID: 5, name: 'CANCER (Breast/Ovarian/Colon, etc.)' },
+  { conditionID: 4, name: 'DIABETES MELLITUS', hasConditionType: true, conditionTypePlaceholder: 'e.g. Type 1, Type 2' },
+  { conditionID: 5, name: 'CANCER (Breast/Ovarian/Colon, etc.)', hasConditionType: true, conditionTypePlaceholder: 'e.g. Breast, Colon' },
   { conditionID: 6, name: 'TUBERCULOSIS' },
   { conditionID: 7, name: 'BRONCHIAL ASTHMA' },
   { conditionID: null, name: 'Others (Please Specify)', isOther: true },

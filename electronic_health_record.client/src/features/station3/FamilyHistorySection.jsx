@@ -40,11 +40,11 @@ export default function FamilyHistorySection({ register, watch, setValue }) {
     for (const condition of FAMILY_CONDITIONS) {
       if (condition.exclusive || condition.isOther) continue;
       setValue(`familyHistory.conditions.${condition.conditionID}.checked`, false);
-      setValue(`familyHistory.conditions.${condition.conditionID}.familyMembers`, '');
+      setValue(`familyHistory.conditions.${condition.conditionID}.conditionType`, '');
     }
     setValue('familyHistory.other.checked', false);
     setValue('familyHistory.other.conditionOther', '');
-    setValue('familyHistory.other.familyMembers', '');
+    setValue('familyHistory.other.conditionType', '');
   }, [none, setValue]);
 
   const noneOption = FAMILY_CONDITIONS.find((c) => c.exclusive);
@@ -120,13 +120,13 @@ export default function FamilyHistorySection({ register, watch, setValue }) {
                     {condition.name}
                   </span>
                 </label>
-                {checked && !none && !condition.noFamilyMembersField && (
+                {checked && !none && condition.hasConditionType && (
                   <div className="border-t border-[#0e7d6b]/15 px-3 pt-3 pb-3">
-                    <Field label="Family members affected" htmlFor={inputId}>
+                    <Field label="Specific type" htmlFor={inputId}>
                       <Input
                         id={inputId}
-                        placeholder="e.g. Mother, Grandfather"
-                        {...register(`${key}.familyMembers`)}
+                        placeholder={condition.conditionTypePlaceholder}
+                        {...register(`${key}.conditionType`)}
                       />
                     </Field>
                   </div>
@@ -162,11 +162,11 @@ export default function FamilyHistorySection({ register, watch, setValue }) {
                     {...register('familyHistory.other.conditionOther')}
                   />
                 </Field>
-                <Field label="Family members affected" htmlFor="other-members">
+                <Field label="Specific type" htmlFor="other-condition-type">
                   <Input
-                    id="other-members"
-                    placeholder="e.g. Mother, Grandfather"
-                    {...register('familyHistory.other.familyMembers')}
+                    id="other-condition-type"
+                    placeholder="e.g. specify subtype"
+                    {...register('familyHistory.other.conditionType')}
                   />
                 </Field>
               </div>

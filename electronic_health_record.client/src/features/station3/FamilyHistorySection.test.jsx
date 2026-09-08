@@ -14,12 +14,19 @@ function Harness() {
 }
 
 describe('FamilyHistorySection', () => {
-  it('reveals a family-members input when a condition is checked', async () => {
+  it('reveals a specific-type input when Diabetes Mellitus is checked', async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    expect(screen.queryByLabelText(/family members affected/i)).toBeNull();
-    await user.click(screen.getByRole('checkbox', { name: /^STROKE$/i }));
-    expect(screen.getByLabelText(/family members affected/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/specific type/i)).toBeNull();
+    await user.click(screen.getByRole('checkbox', { name: /^DIABETES MELLITUS$/i }));
+    expect(screen.getByLabelText(/specific type/i)).toBeInTheDocument();
+  });
+
+  it('reveals a specific-type input when Cancer is checked', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('checkbox', { name: /^CANCER/i }));
+    expect(screen.getByLabelText(/specific type/i)).toBeInTheDocument();
   });
 
   it('reveals a condition-name input when Others is checked', async () => {
@@ -27,13 +34,35 @@ describe('FamilyHistorySection', () => {
     render(<Harness />);
     await user.click(screen.getByRole('checkbox', { name: /others/i }));
     expect(screen.getByRole('textbox', { name: /^condition$/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/specific type/i)).toBeInTheDocument();
   });
 
-  it('does not reveal a family-members input for Hypertension', async () => {
+  it('does not reveal any input for Hypertension', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(screen.getByRole('checkbox', { name: /^HYPERTENSION$/i }));
-    expect(screen.queryByLabelText(/family members affected/i)).toBeNull();
+    expect(screen.queryByLabelText(/specific type/i)).toBeNull();
+  });
+
+  it('does not reveal any input for Stroke', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('checkbox', { name: /^STROKE$/i }));
+    expect(screen.queryByLabelText(/specific type/i)).toBeNull();
+  });
+
+  it('does not reveal any input for Tuberculosis', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('checkbox', { name: /^TUBERCULOSIS$/i }));
+    expect(screen.queryByLabelText(/specific type/i)).toBeNull();
+  });
+
+  it('does not reveal any input for Bronchial Asthma', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('checkbox', { name: /^BRONCHIAL ASTHMA$/i }));
+    expect(screen.queryByLabelText(/specific type/i)).toBeNull();
   });
 
   it('clears and disables every other condition when None is checked', async () => {
