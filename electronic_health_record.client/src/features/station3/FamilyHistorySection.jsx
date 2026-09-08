@@ -120,7 +120,7 @@ export default function FamilyHistorySection({ register, watch, setValue }) {
                     {condition.name}
                   </span>
                 </label>
-                {checked && !none && (
+                {checked && !none && !condition.noFamilyMembersField && (
                   <div className="border-t border-[#0e7d6b]/15 px-3 pt-3 pb-3">
                     <Field label="Family members affected" htmlFor={inputId}>
                       <Input

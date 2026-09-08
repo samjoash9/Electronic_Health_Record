@@ -18,78 +18,156 @@ function buildAssessmentCategories() {
   return [
     {
       categoryID: 1,
-      name: 'Mental Health',
+      name: 'Spiritual',
       displayOrder: 1,
       questions: [
-        q(101, 'How would you rate your current stress level?', 1, [
-          ['None', 4], ['Mild', 3], ['Moderate', 2], ['Severe', 1],
+        q(101, 'Do you have a clear sense of purpose in life?', 1, [
+          ['Strongly Agree', 4], ['Agree', 3], ['Disagree', 2], ['Strongly Disagree', 1],
         ]),
-        // Scores deliberately do not follow display order: 7-8 hrs is healthiest.
-        q(102, 'How many hours of sleep do you get on average?', 2, [
-          ['Less than 5 hrs', 1], ['5-6 hrs', 2], ['7-8 hrs', 4], ['More than 8 hrs', 3],
+        q(102, 'Do you feel inner peace most of the time?', 2, [
+          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
         ]),
-        q(103, 'How would you describe your general mood lately?', 3, [
-          ['Very Good', 4], ['Good', 3], ['Fair', 2], ['Poor', 1],
+        q(103, 'Do you regularly practice gratitude?', 3, [
+          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
         ]),
-        q(104, 'Do you experience frequent anxiety or worry?', 4, [
-          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        q(104, 'Do you find comfort in your faith or personal beliefs?', 4, [
+          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
         ]),
-        q(105, 'Do you have difficulty concentrating or focusing?', 5, [
-          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        q(105, 'Do you feel connected to something greater than yourself?', 5, [
+          ['Strongly Agree', 4], ['Agree', 3], ['Disagree', 2], ['Strongly Disagree', 1],
         ]),
       ],
     },
     {
       categoryID: 2,
-      name: 'Physical Health',
+      name: 'Psychological',
       displayOrder: 2,
       questions: [
-        q(201, 'Do you experience any chronic pain?', 1, [
-          ['None', 4], ['Mild', 3], ['Moderate', 2], ['Severe', 1],
-        ]),
-        q(202, 'How often do you feel fatigued during the day?', 2, [
-          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Always', 1],
-        ]),
-        q(203, 'How is your appetite?', 3, [
+        q(201, 'How would you rate your overall sense of self-worth?', 1, [
           ['Very Good', 4], ['Good', 3], ['Fair', 2], ['Poor', 1],
         ]),
-        q(204, 'How regular are your bowel movements?', 4, [
-          ['Very Regular', 4], ['Regular', 3], ['Irregular', 2], ['Very Irregular', 1],
+        q(202, 'How well do you bounce back after a setback?', 2, [
+          ['Very Well', 4], ['Well', 3], ['Poorly', 2], ['Very Poorly', 1],
         ]),
-        q(205, 'Do you experience any urinary problems?', 5, [
-          ['None', 4], ['Mild', 3], ['Moderate', 2], ['Severe', 1],
+        q(203, 'How confident are you in making everyday decisions?', 3, [
+          ['Very Confident', 4], ['Confident', 3], ['Unsure', 2], ['Very Unsure', 1],
+        ]),
+        q(204, 'Do you feel in control of your thoughts and reactions?', 4, [
+          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
+        ]),
+        q(205, 'How would you describe your outlook on the future?', 5, [
+          ['Very Positive', 4], ['Positive', 3], ['Negative', 2], ['Very Negative', 1],
         ]),
       ],
     },
     {
       categoryID: 3,
-      name: 'Spiritual Health',
+      name: 'Mental',
       displayOrder: 3,
       questions: [
-        q(301, 'Do you have a clear sense of purpose in life?', 1, [
-          ['Strongly Agree', 4], ['Agree', 3], ['Disagree', 2], ['Strongly Disagree', 1],
+        q(301, 'How would you rate your current stress level?', 1, [
+          ['None', 4], ['Mild', 3], ['Moderate', 2], ['Severe', 1],
         ]),
-        q(302, 'Do you feel inner peace most of the time?', 2, [
-          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
+        // Scores deliberately do not follow display order: 7-8 hrs is healthiest.
+        q(302, 'How many hours of sleep do you get on average?', 2, [
+          ['Less than 5 hrs', 1], ['5-6 hrs', 2], ['7-8 hrs', 4], ['More than 8 hrs', 3],
         ]),
-        q(303, 'Do you regularly practice gratitude?', 3, [
-          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
+        q(303, 'How would you describe your general mood lately?', 3, [
+          ['Very Good', 4], ['Good', 3], ['Fair', 2], ['Poor', 1],
+        ]),
+        q(304, 'Do you experience frequent anxiety or worry?', 4, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        ]),
+        q(305, 'Do you have difficulty concentrating or focusing?', 5, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
         ]),
       ],
     },
     {
       categoryID: 4,
-      name: 'Social Health',
+      name: 'Emotional',
       displayOrder: 4,
       questions: [
-        q(401, 'How would you rate your relationships with family and friends?', 1, [
+        q(401, 'How comfortable are you expressing your feelings to others?', 1, [
+          ['Very Comfortable', 4], ['Comfortable', 3], ['Uncomfortable', 2], ['Very Uncomfortable', 1],
+        ]),
+        q(402, 'How often do you experience sudden mood swings?', 2, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        ]),
+        q(403, 'Do you have someone you can turn to when you feel emotionally overwhelmed?', 3, [
+          ['Always', 4], ['Most of the time', 3], ['Rarely', 2], ['Never', 1],
+        ]),
+        q(404, 'How often do you feel overwhelmed by your emotions?', 4, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        ]),
+        q(405, 'How often do you feel joy or contentment in daily life?', 5, [
+          ['Often', 4], ['Sometimes', 3], ['Rarely', 2], ['Never', 1],
+        ]),
+      ],
+    },
+    {
+      categoryID: 5,
+      name: 'Physical',
+      displayOrder: 5,
+      questions: [
+        q(501, 'Do you experience any chronic pain?', 1, [
+          ['None', 4], ['Mild', 3], ['Moderate', 2], ['Severe', 1],
+        ]),
+        q(502, 'How often do you feel fatigued during the day?', 2, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Always', 1],
+        ]),
+        q(503, 'How is your appetite?', 3, [
+          ['Very Good', 4], ['Good', 3], ['Fair', 2], ['Poor', 1],
+        ]),
+        q(504, 'How regular are your bowel movements?', 4, [
+          ['Very Regular', 4], ['Regular', 3], ['Irregular', 2], ['Very Irregular', 1],
+        ]),
+        q(505, 'Do you experience any urinary problems?', 5, [
+          ['None', 4], ['Mild', 3], ['Moderate', 2], ['Severe', 1],
+        ]),
+      ],
+    },
+    {
+      categoryID: 6,
+      name: 'Financial',
+      displayOrder: 6,
+      questions: [
+        q(601, 'How often do you feel stressed about money?', 1, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        ]),
+        q(602, 'How well can you meet your monthly expenses?', 2, [
+          ['Very Well', 4], ['Well', 3], ['Poorly', 2], ['Very Poorly', 1],
+        ]),
+        q(603, 'Do you have savings set aside for emergencies?', 3, [
+          ['Always', 4], ['Often', 3], ['Rarely', 2], ['Never', 1],
+        ]),
+        q(604, 'How often do you worry about outstanding debts?', 4, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        ]),
+        q(605, 'How confident are you in your financial future?', 5, [
+          ['Very Confident', 4], ['Confident', 3], ['Unsure', 2], ['Very Unsure', 1],
+        ]),
+      ],
+    },
+    {
+      categoryID: 7,
+      name: 'Social',
+      displayOrder: 7,
+      questions: [
+        q(701, 'How would you rate your relationships with family and friends?', 1, [
           ['Excellent', 4], ['Good', 3], ['Fair', 2], ['Poor', 1],
         ]),
-        q(402, 'How satisfied are you with your work-life balance?', 2, [
+        q(702, 'How satisfied are you with your work-life balance?', 2, [
           ['Very Satisfied', 4], ['Satisfied', 3], ['Unsatisfied', 2], ['Very Unsatisfied', 1],
         ]),
-        q(403, 'Do you have people you can rely on for support?', 3, [
+        q(703, 'Do you have people you can rely on for support?', 3, [
           ['Always', 4], ['Most of the time', 3], ['Rarely', 2], ['Never', 1],
+        ]),
+        q(704, 'How often do you feel isolated or left out?', 4, [
+          ['Never', 4], ['Rarely', 3], ['Sometimes', 2], ['Often', 1],
+        ]),
+        q(705, 'How often do you take part in social or community activities?', 5, [
+          ['Often', 4], ['Sometimes', 3], ['Rarely', 2], ['Never', 1],
         ]),
       ],
     },

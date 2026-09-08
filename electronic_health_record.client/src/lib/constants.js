@@ -37,15 +37,18 @@ export const STATIONS = {
 
 /**
  * AssessmentCategory has no colour column and will not gain one. Each category
- * gets its own soft accent so the four sections stay visually distinct at a
+ * gets its own soft accent so the seven sections stay visually distinct at a
  * glance; icons reinforce the same grouping. Unknown names fall back to
  * neutral so a newly seeded category still renders.
  */
 export const CATEGORY_STYLES = {
-  'Mental Health':    { header: 'bg-violet-50 border-violet-200', title: 'text-violet-700', icon: 'Brain' },
-  'Physical Health':  { header: 'bg-blue-50 border-blue-200', title: 'text-blue-700', icon: 'HeartPulse' },
-  'Spiritual Health': { header: 'bg-amber-50 border-amber-200', title: 'text-amber-700', icon: 'Sparkles' },
-  'Social Health':    { header: 'bg-rose-50 border-rose-200', title: 'text-rose-700', icon: 'Users' },
+  Spiritual:     { header: 'bg-amber-50 border-amber-200', title: 'text-amber-700', icon: 'Sparkles' },
+  Psychological: { header: 'bg-indigo-50 border-indigo-200', title: 'text-indigo-700', icon: 'BrainCircuit' },
+  Mental:        { header: 'bg-violet-50 border-violet-200', title: 'text-violet-700', icon: 'Brain' },
+  Emotional:     { header: 'bg-pink-50 border-pink-200', title: 'text-pink-700', icon: 'HeartHandshake' },
+  Physical:      { header: 'bg-blue-50 border-blue-200', title: 'text-blue-700', icon: 'HeartPulse' },
+  Financial:     { header: 'bg-emerald-50 border-emerald-200', title: 'text-emerald-700', icon: 'Landmark' },
+  Social:        { header: 'bg-rose-50 border-rose-200', title: 'text-rose-700', icon: 'Users' },
 };
 
 export const NEUTRAL_CATEGORY_STYLE = {
@@ -65,7 +68,7 @@ export function categoryStyle(name) {
  */
 export const FAMILY_CONDITIONS = [
   { conditionID: 1, name: 'NONE', exclusive: true },
-  { conditionID: 2, name: 'HYPERTENSION (Heart Attack)' },
+  { conditionID: 2, name: 'HYPERTENSION', noFamilyMembersField: true },
   { conditionID: 3, name: 'STROKE' },
   { conditionID: 4, name: 'DIABETES MELLITUS' },
   { conditionID: 5, name: 'CANCER (Breast/Ovarian/Colon, etc.)' },

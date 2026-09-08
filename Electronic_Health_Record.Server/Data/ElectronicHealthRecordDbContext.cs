@@ -376,11 +376,18 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(c => c.Name).HasMaxLength(50).IsRequired();
                 entity.HasIndex(c => c.Name).IsUnique();
 
+                // Renamed from the original "X Health" names and expanded from four
+                // sections to seven; CategoryIDs 1-4 keep their original identity
+                // (existing questions/answers still resolve) and only gain new
+                // DisplayOrder values, 5-7 are new sections appended after them.
                 entity.HasData(
-                    new AssessmentCategory { CategoryID = 1, Name = "Mental Health", DisplayOrder = 1 },
-                    new AssessmentCategory { CategoryID = 2, Name = "Physical Health", DisplayOrder = 2 },
-                    new AssessmentCategory { CategoryID = 3, Name = "Spiritual Health", DisplayOrder = 3 },
-                    new AssessmentCategory { CategoryID = 4, Name = "Social Health", DisplayOrder = 4 }
+                    new AssessmentCategory { CategoryID = 3, Name = "Spiritual", DisplayOrder = 1 },
+                    new AssessmentCategory { CategoryID = 5, Name = "Psychological", DisplayOrder = 2 },
+                    new AssessmentCategory { CategoryID = 1, Name = "Mental", DisplayOrder = 3 },
+                    new AssessmentCategory { CategoryID = 6, Name = "Emotional", DisplayOrder = 4 },
+                    new AssessmentCategory { CategoryID = 2, Name = "Physical", DisplayOrder = 5 },
+                    new AssessmentCategory { CategoryID = 7, Name = "Financial", DisplayOrder = 6 },
+                    new AssessmentCategory { CategoryID = 4, Name = "Social", DisplayOrder = 7 }
                 );
             });
 
@@ -416,7 +423,36 @@ namespace Electronic_Health_Record.Server.Data
                     new AssessmentQuestion { QuestionID = 13, CategoryID = 3, QuestionText = "Do you regularly practice gratitude?", DisplayOrder = 3, IsActive = true },
                     new AssessmentQuestion { QuestionID = 14, CategoryID = 4, QuestionText = "How would you rate your relationships with family and friends?", DisplayOrder = 1, IsActive = true },
                     new AssessmentQuestion { QuestionID = 15, CategoryID = 4, QuestionText = "How satisfied are you with your work-life balance?", DisplayOrder = 2, IsActive = true },
-                    new AssessmentQuestion { QuestionID = 16, CategoryID = 4, QuestionText = "Do you have people you can rely on for support?", DisplayOrder = 3, IsActive = true }
+                    new AssessmentQuestion { QuestionID = 16, CategoryID = 4, QuestionText = "Do you have people you can rely on for support?", DisplayOrder = 3, IsActive = true },
+
+                    // Spiritual (CategoryID 3) padded from three to five questions.
+                    new AssessmentQuestion { QuestionID = 17, CategoryID = 3, QuestionText = "Do you find comfort in your faith or personal beliefs?", DisplayOrder = 4, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 18, CategoryID = 3, QuestionText = "Do you feel connected to something greater than yourself?", DisplayOrder = 5, IsActive = true },
+
+                    // Social (CategoryID 4) padded from three to five questions.
+                    new AssessmentQuestion { QuestionID = 19, CategoryID = 4, QuestionText = "How often do you feel isolated or left out?", DisplayOrder = 4, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 20, CategoryID = 4, QuestionText = "How often do you take part in social or community activities?", DisplayOrder = 5, IsActive = true },
+
+                    // Psychological (CategoryID 5) — new section.
+                    new AssessmentQuestion { QuestionID = 21, CategoryID = 5, QuestionText = "How would you rate your overall sense of self-worth?", DisplayOrder = 1, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 22, CategoryID = 5, QuestionText = "How well do you bounce back after a setback?", DisplayOrder = 2, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 23, CategoryID = 5, QuestionText = "How confident are you in making everyday decisions?", DisplayOrder = 3, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 24, CategoryID = 5, QuestionText = "Do you feel in control of your thoughts and reactions?", DisplayOrder = 4, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 25, CategoryID = 5, QuestionText = "How would you describe your outlook on the future?", DisplayOrder = 5, IsActive = true },
+
+                    // Emotional (CategoryID 6) — new section.
+                    new AssessmentQuestion { QuestionID = 26, CategoryID = 6, QuestionText = "How comfortable are you expressing your feelings to others?", DisplayOrder = 1, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 27, CategoryID = 6, QuestionText = "How often do you experience sudden mood swings?", DisplayOrder = 2, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 28, CategoryID = 6, QuestionText = "Do you have someone you can turn to when you feel emotionally overwhelmed?", DisplayOrder = 3, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 29, CategoryID = 6, QuestionText = "How often do you feel overwhelmed by your emotions?", DisplayOrder = 4, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 30, CategoryID = 6, QuestionText = "How often do you feel joy or contentment in daily life?", DisplayOrder = 5, IsActive = true },
+
+                    // Financial (CategoryID 7) — new section.
+                    new AssessmentQuestion { QuestionID = 31, CategoryID = 7, QuestionText = "How often do you feel stressed about money?", DisplayOrder = 1, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 32, CategoryID = 7, QuestionText = "How well can you meet your monthly expenses?", DisplayOrder = 2, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 33, CategoryID = 7, QuestionText = "Do you have savings set aside for emergencies?", DisplayOrder = 3, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 34, CategoryID = 7, QuestionText = "How often do you worry about outstanding debts?", DisplayOrder = 4, IsActive = true },
+                    new AssessmentQuestion { QuestionID = 35, CategoryID = 7, QuestionText = "How confident are you in your financial future?", DisplayOrder = 5, IsActive = true }
                 );
             });
 
@@ -501,7 +537,121 @@ namespace Electronic_Health_Record.Server.Data
                     new AssessmentOption { OptionID = 61, QuestionID = 16, OptionText = "Always", Score = 4, DisplayOrder = 1 },
                     new AssessmentOption { OptionID = 62, QuestionID = 16, OptionText = "Most of the time", Score = 3, DisplayOrder = 2 },
                     new AssessmentOption { OptionID = 63, QuestionID = 16, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
-                    new AssessmentOption { OptionID = 64, QuestionID = 16, OptionText = "Never", Score = 1, DisplayOrder = 4 }
+                    new AssessmentOption { OptionID = 64, QuestionID = 16, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 17 (Spiritual): comfort in faith or personal beliefs.
+                    new AssessmentOption { OptionID = 65, QuestionID = 17, OptionText = "Always", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 66, QuestionID = 17, OptionText = "Often", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 67, QuestionID = 17, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 68, QuestionID = 17, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 18 (Spiritual): connected to something greater.
+                    new AssessmentOption { OptionID = 69, QuestionID = 18, OptionText = "Strongly Agree", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 70, QuestionID = 18, OptionText = "Agree", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 71, QuestionID = 18, OptionText = "Disagree", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 72, QuestionID = 18, OptionText = "Strongly Disagree", Score = 1, DisplayOrder = 4 },
+
+                    // Question 19 (Social): feeling isolated or left out.
+                    new AssessmentOption { OptionID = 73, QuestionID = 19, OptionText = "Never", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 74, QuestionID = 19, OptionText = "Rarely", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 75, QuestionID = 19, OptionText = "Sometimes", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 76, QuestionID = 19, OptionText = "Often", Score = 1, DisplayOrder = 4 },
+
+                    // Question 20 (Social): social or community participation.
+                    new AssessmentOption { OptionID = 77, QuestionID = 20, OptionText = "Often", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 78, QuestionID = 20, OptionText = "Sometimes", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 79, QuestionID = 20, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 80, QuestionID = 20, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 21 (Psychological): sense of self-worth.
+                    new AssessmentOption { OptionID = 81, QuestionID = 21, OptionText = "Very Good", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 82, QuestionID = 21, OptionText = "Good", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 83, QuestionID = 21, OptionText = "Fair", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 84, QuestionID = 21, OptionText = "Poor", Score = 1, DisplayOrder = 4 },
+
+                    // Question 22 (Psychological): bouncing back after a setback.
+                    new AssessmentOption { OptionID = 85, QuestionID = 22, OptionText = "Very Well", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 86, QuestionID = 22, OptionText = "Well", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 87, QuestionID = 22, OptionText = "Poorly", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 88, QuestionID = 22, OptionText = "Very Poorly", Score = 1, DisplayOrder = 4 },
+
+                    // Question 23 (Psychological): confidence in everyday decisions.
+                    new AssessmentOption { OptionID = 89, QuestionID = 23, OptionText = "Very Confident", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 90, QuestionID = 23, OptionText = "Confident", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 91, QuestionID = 23, OptionText = "Unsure", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 92, QuestionID = 23, OptionText = "Very Unsure", Score = 1, DisplayOrder = 4 },
+
+                    // Question 24 (Psychological): control of thoughts and reactions.
+                    new AssessmentOption { OptionID = 93, QuestionID = 24, OptionText = "Always", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 94, QuestionID = 24, OptionText = "Often", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 95, QuestionID = 24, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 96, QuestionID = 24, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 25 (Psychological): outlook on the future.
+                    new AssessmentOption { OptionID = 97, QuestionID = 25, OptionText = "Very Positive", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 98, QuestionID = 25, OptionText = "Positive", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 99, QuestionID = 25, OptionText = "Negative", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 100, QuestionID = 25, OptionText = "Very Negative", Score = 1, DisplayOrder = 4 },
+
+                    // Question 26 (Emotional): comfort expressing feelings to others.
+                    new AssessmentOption { OptionID = 101, QuestionID = 26, OptionText = "Very Comfortable", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 102, QuestionID = 26, OptionText = "Comfortable", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 103, QuestionID = 26, OptionText = "Uncomfortable", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 104, QuestionID = 26, OptionText = "Very Uncomfortable", Score = 1, DisplayOrder = 4 },
+
+                    // Question 27 (Emotional): sudden mood swings.
+                    new AssessmentOption { OptionID = 105, QuestionID = 27, OptionText = "Never", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 106, QuestionID = 27, OptionText = "Rarely", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 107, QuestionID = 27, OptionText = "Sometimes", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 108, QuestionID = 27, OptionText = "Often", Score = 1, DisplayOrder = 4 },
+
+                    // Question 28 (Emotional): support when emotionally overwhelmed.
+                    new AssessmentOption { OptionID = 109, QuestionID = 28, OptionText = "Always", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 110, QuestionID = 28, OptionText = "Most of the time", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 111, QuestionID = 28, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 112, QuestionID = 28, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 29 (Emotional): feeling overwhelmed by emotions.
+                    new AssessmentOption { OptionID = 113, QuestionID = 29, OptionText = "Never", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 114, QuestionID = 29, OptionText = "Rarely", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 115, QuestionID = 29, OptionText = "Sometimes", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 116, QuestionID = 29, OptionText = "Often", Score = 1, DisplayOrder = 4 },
+
+                    // Question 30 (Emotional): joy or contentment in daily life.
+                    new AssessmentOption { OptionID = 117, QuestionID = 30, OptionText = "Often", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 118, QuestionID = 30, OptionText = "Sometimes", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 119, QuestionID = 30, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 120, QuestionID = 30, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 31 (Financial): stress about money.
+                    new AssessmentOption { OptionID = 121, QuestionID = 31, OptionText = "Never", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 122, QuestionID = 31, OptionText = "Rarely", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 123, QuestionID = 31, OptionText = "Sometimes", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 124, QuestionID = 31, OptionText = "Often", Score = 1, DisplayOrder = 4 },
+
+                    // Question 32 (Financial): meeting monthly expenses.
+                    new AssessmentOption { OptionID = 125, QuestionID = 32, OptionText = "Very Well", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 126, QuestionID = 32, OptionText = "Well", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 127, QuestionID = 32, OptionText = "Poorly", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 128, QuestionID = 32, OptionText = "Very Poorly", Score = 1, DisplayOrder = 4 },
+
+                    // Question 33 (Financial): savings for emergencies.
+                    new AssessmentOption { OptionID = 129, QuestionID = 33, OptionText = "Always", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 130, QuestionID = 33, OptionText = "Often", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 131, QuestionID = 33, OptionText = "Rarely", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 132, QuestionID = 33, OptionText = "Never", Score = 1, DisplayOrder = 4 },
+
+                    // Question 34 (Financial): worry about outstanding debts.
+                    new AssessmentOption { OptionID = 133, QuestionID = 34, OptionText = "Never", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 134, QuestionID = 34, OptionText = "Rarely", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 135, QuestionID = 34, OptionText = "Sometimes", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 136, QuestionID = 34, OptionText = "Often", Score = 1, DisplayOrder = 4 },
+
+                    // Question 35 (Financial): confidence in financial future.
+                    new AssessmentOption { OptionID = 137, QuestionID = 35, OptionText = "Very Confident", Score = 4, DisplayOrder = 1 },
+                    new AssessmentOption { OptionID = 138, QuestionID = 35, OptionText = "Confident", Score = 3, DisplayOrder = 2 },
+                    new AssessmentOption { OptionID = 139, QuestionID = 35, OptionText = "Unsure", Score = 2, DisplayOrder = 3 },
+                    new AssessmentOption { OptionID = 140, QuestionID = 35, OptionText = "Very Unsure", Score = 1, DisplayOrder = 4 }
                 );
             });
 

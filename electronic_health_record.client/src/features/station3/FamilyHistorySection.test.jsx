@@ -29,6 +29,13 @@ describe('FamilyHistorySection', () => {
     expect(screen.getByRole('textbox', { name: /^condition$/i })).toBeInTheDocument();
   });
 
+  it('does not reveal a family-members input for Hypertension', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('checkbox', { name: /^HYPERTENSION$/i }));
+    expect(screen.queryByLabelText(/family members affected/i)).toBeNull();
+  });
+
   it('clears and disables every other condition when None is checked', async () => {
     const user = userEvent.setup();
     render(<Harness />);

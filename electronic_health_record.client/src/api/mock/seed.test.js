@@ -4,18 +4,21 @@ import { buildSeed } from './seed';
 const seed = buildSeed();
 
 describe('assessment seed', () => {
-  it('has four categories in display order', () => {
+  it('has seven categories in display order', () => {
     const names = seed.assessmentCategories.map((c) => c.name);
     expect(names).toEqual([
-      'Mental Health', 'Physical Health', 'Spiritual Health', 'Social Health',
+      'Spiritual', 'Psychological', 'Mental', 'Emotional', 'Physical', 'Financial', 'Social',
     ]);
   });
 
-  it('has sixteen questions in total', () => {
+  it('has thirty-five questions in total, five per category', () => {
     const count = seed.assessmentCategories.reduce(
       (n, c) => n + c.questions.length, 0,
     );
-    expect(count).toBe(16);
+    expect(count).toBe(35);
+    for (const category of seed.assessmentCategories) {
+      expect(category.questions).toHaveLength(5);
+    }
   });
 
   it('gives every question exactly four options', () => {
@@ -43,7 +46,7 @@ describe('assessment seed', () => {
   });
 
   it('scores the sleep question against its display order', () => {
-    const mental = seed.assessmentCategories[0];
+    const mental = seed.assessmentCategories.find((c) => c.name === 'Mental');
     const sleep = mental.questions.find((q) =>
       q.questionText.includes('hours of sleep'));
     const byText = Object.fromEntries(

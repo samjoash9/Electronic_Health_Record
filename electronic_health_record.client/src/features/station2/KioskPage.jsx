@@ -82,7 +82,7 @@ export default function KioskPage() {
 
   return (
     <KioskShell
-      title="Health Assessment"
+      title="Wellness Assessment"
       subtitle={form?.patient ? fullName(form.patient) : undefined}
       headerActions={
         <>
