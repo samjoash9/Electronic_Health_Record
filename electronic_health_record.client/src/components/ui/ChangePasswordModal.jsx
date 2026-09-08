@@ -4,15 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, KeyRound } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { changePasswordSchema } from '../../lib/schemas';
+import { changePassword } from '../../services/authService';
 import Modal from './Modal';
 import Button from './Button';
 import Field from './Field';
 import Input from './Input';
 
-const BLANK_VALUES = { currentPassword: '', newPassword: '', confirmPassword: '' };
+const BLANK_VALUES = {
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+};
 
 function PasswordField({ id, label, register, error, autoComplete }) {
   const [visible, setVisible] = useState(false);
+
   return (
     <Field label={label} htmlFor={id} error={error}>
       <div className="relative">
@@ -24,6 +30,7 @@ function PasswordField({ id, label, register, error, autoComplete }) {
           error={Boolean(error)}
           {...register}
         />
+
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
@@ -40,7 +47,10 @@ function PasswordField({ id, label, register, error, autoComplete }) {
 
 export default function ChangePasswordModal({ open, onClose }) {
   const {
-    register, handleSubmit, reset, formState: { errors, isSubmitting },
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: BLANK_VALUES,
@@ -51,10 +61,24 @@ export default function ChangePasswordModal({ open, onClose }) {
     onClose();
   };
 
-  const onSubmit = async () => {
-    // Not implemented yet: no auth endpoint exists for this.
-    toast.info('Change password is not implemented yet.');
-    handleClose();
+  const onSubmit = async (data) => {
+    try {
+      await changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+        confirmPassword: data.confirmPassword,
+      });
+
+      toast.success('Password changed successfully.');
+
+      handleClose();
+    } catch (error) {
+      const message =
+        error.response?.data?.message ||
+        'Failed to change password. Please try again.';
+
+      toast.error(message);
+    }
   };
 
   return (
@@ -65,18 +89,36 @@ export default function ChangePasswordModal({ open, onClose }) {
       onClose={handleClose}
       footer={
         <>
-          <Button type="button" variant="secondary" size="lg" onClick={handleClose}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            onClick={handleClose}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button type="submit" form="change-password-form" variant="teal" size="lg" disabled={isSubmitting}>
-            Change Password
+
+          <Button
+            type="submit"
+            form="change-password-form"
+            variant="teal"
+            size="lg"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Changing Password...' : 'Change Password'}
           </Button>
         </>
       }
     >
-      <form id="change-password-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form
+        id="change-password-form"
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
         <div className="flex items-center gap-3 rounded-lg bg-[#f3fdfb] p-3 text-sm text-[#0e7d6b]">
           <KeyRound size={18} className="shrink-0" />
+
           Choose a new password with at least 8 characters.
         </div>
 
@@ -87,6 +129,7 @@ export default function ChangePasswordModal({ open, onClose }) {
           error={errors.currentPassword?.message}
           autoComplete="current-password"
         />
+
         <PasswordField
           id="newPassword"
           label="New Password"
@@ -94,6 +137,7 @@ export default function ChangePasswordModal({ open, onClose }) {
           error={errors.newPassword?.message}
           autoComplete="new-password"
         />
+
         <PasswordField
           id="confirmPassword"
           label="Confirm New Password"
