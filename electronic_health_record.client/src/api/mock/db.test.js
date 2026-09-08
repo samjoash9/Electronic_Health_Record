@@ -8,7 +8,7 @@ beforeEach(() => {
 
 describe('mock db', () => {
   it('starts from the seed', () => {
-    expect(db.read().assessmentCategories).toHaveLength(4);
+    expect(db.read().assessmentCategories).toHaveLength(7);
     expect(db.read().forms).toHaveLength(0);
   });
 
@@ -22,7 +22,7 @@ describe('mock db', () => {
   it('hands out increasing ids', () => {
     expect(db.nextId('formID')).toBe(1);
     expect(db.nextId('formID')).toBe(2);
-    expect(db.nextId('patientID')).toBe(1);
+    expect(db.nextId('patientID')).toBe(2);
   });
 
   it('survives a reload by rehydrating from localStorage', () => {

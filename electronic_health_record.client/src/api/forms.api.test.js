@@ -6,7 +6,7 @@ import {
 import { FORM_STATUS } from '../lib/constants';
 
 const employee = {
-  externalEmployeeId: 'PHO-1001',
+  externalEmployeeId: 'PHO-9001',
   surname: 'Santos', firstName: 'Maria', middleName: 'A',
   birthdate: '1985-04-12', sex: 'Female', civilStatus: 'Married',
   address: '1 Rizal Street', agencyOffice: 'Provincial Health Office',
@@ -36,8 +36,8 @@ describe('station submissions', () => {
   it('station 1 provisions a patient account', async () => {
     await submitStation1({ patient: employee, vitals, adminID: 1 });
     const state = db.read();
-    expect(state.patientAccounts).toHaveLength(1);
-    expect(state.patientAccounts[0].status).toBe('Provisioned');
+    expect(state.patientAccounts).toHaveLength(2);
+    expect(state.patientAccounts[1].status).toBe('Provisioned');
   });
 
   it('the new form appears in the station 2 queue', async () => {

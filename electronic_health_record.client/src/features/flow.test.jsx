@@ -43,7 +43,7 @@ describe('full station workflow', () => {
         ).optionID,
       })),
     );
-    expect(answers).toHaveLength(16);
+    expect(answers).toHaveLength(35);
 
     const assessed = await submitStation2({
       formID: created.formID, answers, adminID: 2, rowVersion: created.rowVersion,
@@ -54,7 +54,7 @@ describe('full station workflow', () => {
     // A perfect set of answers scores 100% in every category.
     const withAnswers = await getForm(created.formID);
     const scores = scoreAllCategories(categories, withAnswers.assessmentAnswers);
-    expect(scores.map((s) => s.percent)).toEqual([100, 100, 100, 100]);
+    expect(scores.map((s) => s.percent)).toEqual([100, 100, 100, 100, 100, 100, 100]);
 
     // Station 3
     await submitStation3({

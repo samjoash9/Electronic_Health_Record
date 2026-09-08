@@ -89,6 +89,6 @@ describe('directory seed', () => {
   });
 
   it('provides an admin account', () => {
-    expect(seed.admins[0].username).toBe('admin');
+    expect(seed.admins[0].username).toBe('superadmin');
   });
 });
