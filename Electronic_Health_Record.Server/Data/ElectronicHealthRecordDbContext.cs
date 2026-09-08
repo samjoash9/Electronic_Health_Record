@@ -333,7 +333,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(f => f.FMHID);
                 entity.Property(f => f.ConditionOther).HasMaxLength(100);
                 entity.Property(f => f.IsNone).HasDefaultValue(false);
-                entity.Property(f => f.FamilyMembers).HasMaxLength(300);
+                entity.Property(f => f.ConditionType).HasMaxLength(300);
                 entity.Property(f => f.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(f => f.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
 

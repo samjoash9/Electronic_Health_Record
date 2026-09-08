@@ -382,7 +382,6 @@ namespace Electronic_Health_Record.Server.Data
             {
                 var patients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
                 var physician = await context.Physicians.FirstAsync();
-                var conditionHypertension = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "HYPERTENSION (Heart Attack)");
                 var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "DIABETES MELLITUS");
 
                 // ---- Form A: completed and signed (Station 3 done) ----
@@ -522,9 +521,9 @@ namespace Electronic_Health_Record.Server.Data
                 context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
                 {
                     FormID = completed.FormID,
-                    ConditionID = conditionHypertension.ConditionID,
+                    ConditionID = conditionDiabetes.ConditionID,
                     IsNone = false,
-                    FamilyMembers = "Father, paternal grandfather",
+                    ConditionType = "Type 2",
                     CreatedAt = now,
                     UpdatedAt = now
                 });
