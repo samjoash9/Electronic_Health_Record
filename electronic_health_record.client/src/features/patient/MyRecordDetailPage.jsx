@@ -106,7 +106,7 @@ export default function MyRecordDetailPage() {
           empty="No family medical history on file."
           render={(row) => row.isNone
             ? 'None reported'
-            : `${row.conditionOther ?? `Condition #${row.conditionID}`}${row.familyMembers ? ` — ${row.familyMembers}` : ''}`}
+            : `${row.conditionOther ?? `Condition #${row.conditionID}`}${row.conditionType ? ` — ${row.conditionType}` : ''}`}
         />
       </SectionCard>
 

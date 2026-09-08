@@ -71,7 +71,7 @@ describe('station submissions', () => {
       physicianID: 1,
       rowVersion: assessed.rowVersion,
       consultation: {
-        familyMedicalHistory: [{ conditionID: 2, familyMembers: 'Mother' }],
+        familyMedicalHistory: [{ conditionID: 4, conditionType: 'Type 2' }],
         pastMedicalHistory: [{
           conditionOther: 'Asthma', yearDiagnosed: 2015,
           maintenanceDrugGeneric: 'Salbutamol', dosage: '2 puffs', frequency: 'PRN',

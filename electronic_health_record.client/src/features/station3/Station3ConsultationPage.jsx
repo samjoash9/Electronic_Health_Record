@@ -41,7 +41,7 @@ const BLANK_PMH_ROW = {
 };
 
 const DEFAULT_VALUES = {
-  familyHistory: { none: false, conditions: {}, other: { checked: false, conditionOther: '', familyMembers: '' } },
+  familyHistory: { none: false, conditions: {}, other: { checked: false, conditionOther: '', conditionType: '' } },
   pastMedicalHistory: [{ ...BLANK_PMH_ROW }],
   socialHistory: {
     smokingSticksPerDay: '', exerciseFrequency: '', exerciseType: '',
@@ -56,7 +56,7 @@ const DEFAULT_VALUES = {
 
 function buildFamilyHistory(values) {
   const fh = values.familyHistory;
-  if (fh.none) return [{ conditionID: 1, isNone: true, familyMembers: null }];
+  if (fh.none) return [{ conditionID: 1, isNone: true, conditionType: null }];
 
   const rows = [];
   for (const [conditionID, entry] of Object.entries(fh.conditions ?? {})) {
@@ -64,7 +64,7 @@ function buildFamilyHistory(values) {
     rows.push({
       conditionID: Number(conditionID),
       isNone: false,
-      familyMembers: entry.familyMembers || null,
+      conditionType: entry.conditionType || null,
     });
   }
   if (fh.other?.checked) {
@@ -72,7 +72,7 @@ function buildFamilyHistory(values) {
       conditionID: null,
       conditionOther: fh.other.conditionOther || null,
       isNone: false,
-      familyMembers: fh.other.familyMembers || null,
+      conditionType: fh.other.conditionType || null,
     });
   }
   return rows;
