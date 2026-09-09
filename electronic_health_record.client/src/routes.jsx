@@ -9,12 +9,15 @@ import DashboardPage from './features/admin/DashboardPage';
 import FormsPage from './features/admin/FormsPage';
 import FormDetailPage from './features/admin/FormDetailPage';
 import ActivityLogsPage from './features/admin/ActivityLogsPage';
+import OnboardingPage from './features/admin/onboarding/OnboardingPage';
 import Station1Page from './features/station1/Station1Page';
 import Station2QueuePage from './features/station2/Station2QueuePage';
 import Station2AssessmentPage from './features/station2/Station2AssessmentPage';
 import KioskPage from './features/station2/KioskPage';
 import Station3QueuePage from './features/station3/Station3QueuePage';
 import Station3ConsultationPage from './features/station3/Station3ConsultationPage';
+import Station4QueuePage from './features/station4/Station4QueuePage';
+import Station4DentalPage from './features/station4/Station4DentalPage';
 import MyRecordPage from './features/patient/MyRecordPage';
 import MyRecordDetailPage from './features/patient/MyRecordDetailPage';
 import AppShell from './components/layout/AppShell';
@@ -42,6 +45,7 @@ export const routeElements = createRoutesFromElements(
         <Route path="/station1/:formId" element={<Station1Page />} />
         <Route path="/station2" element={<Station2QueuePage />} />
         <Route path="/station2/:formId" element={<Station2AssessmentPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} requireSuperAdmin />}>
@@ -51,6 +55,8 @@ export const routeElements = createRoutesFromElements(
       <Route element={<RequireAuth allow={[ROLES.DOCTOR]} allowSuperAdmin />}>
         <Route path="/station3" element={<Station3QueuePage />} />
         <Route path="/station3/:formId" element={<Station3ConsultationPage />} />
+        <Route path="/station4" element={<Station4QueuePage />} />
+        <Route path="/station4/:formId" element={<Station4DentalPage />} />
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.PATIENT]} />}>

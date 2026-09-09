@@ -4,6 +4,7 @@ import {
   Pen, Upload, X, CheckCircle2, BadgeCheck, IdCard, Eraser, ShieldCheck, RotateCcw,
 } from 'lucide-react';
 import SectionCard from './SectionCard';
+import SearchSelect from '../../components/ui/SearchSelect';
 
 const ACCEPTED = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -13,8 +14,11 @@ const MODES = [
   { id: 'upload', label: 'Upload', icon: Upload },
 ];
 
-/** Identity read off the signed-in account, shown as a credential line. */
-function Credential({ icon: Icon, label, value }) {
+/**
+ * One credential line. `children` replaces the plain value with a control, so
+ * the physician picker sits in the same slot the read-only name used to.
+ */
+function Credential({ icon: Icon, label, value, children }) {
   return (
     <div className="flex items-start gap-3">
       <span
@@ -23,15 +27,30 @@ function Credential({ icon: Icon, label, value }) {
       >
         <Icon size={16} strokeWidth={1.9} />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">{label}</p>
-        <p className="truncate text-sm font-semibold text-ink-900">{value || '—'}</p>
+        {children ?? (
+          <p className="truncate text-sm font-semibold text-ink-900">{value || '—'}</p>
+        )}
       </div>
     </div>
   );
 }
 
-export default function PhysicianSignature({ physicianName, prcLicenseNo, value, onChange }) {
+/**
+ * `physicianOptions` turns the name line into a searchable picker: the signer is
+ * chosen per consultation rather than taken from whoever is signed in. Omit it
+ * (or pass an empty list) and the name renders read-only as before.
+ *
+ * `roleLabel` swaps the user-visible "Physician" copy for another signer role
+ * (Station 4 passes "Dentist") without forking the component -- the signing
+ * mechanics (pad, upload, certification) are identical for any signer.
+ */
+export default function PhysicianSignature({
+  physicianName, prcLicenseNo, value, onChange,
+  physicianOptions, physicianID, onPhysicianChange, physicianError, disabled = false,
+  roleLabel = 'Physician',
+}) {
   const padRef = useRef(null);
   const fileRef = useRef(null);
   const [mode, setMode] = useState('draw');
@@ -91,10 +110,11 @@ export default function PhysicianSignature({ physicianName, prcLicenseNo, value,
 
   const uploaded = mode === 'upload' && value;
   const signed = Boolean(value);
+  const selectable = Array.isArray(physicianOptions) && physicianOptions.length > 0;
 
   return (
     <SectionCard
-      title="Physician Certification"
+      title={`${roleLabel} Certification`}
       subtitle="Sign to certify and complete this consultation."
       icon={BadgeCheck}
       actions={
@@ -117,7 +137,27 @@ export default function PhysicianSignature({ physicianName, prcLicenseNo, value,
             by whom, reads as one statement rather than scattered labels. */}
         <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface/60 p-4 sm:p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Credential icon={BadgeCheck} label="Name of Physician" value={physicianName} />
+            <Credential icon={BadgeCheck} label={`Name of ${roleLabel}`} value={physicianName}>
+              {selectable && (
+                <>
+                  <SearchSelect
+                    id="attending-physician"
+                    className="mt-1"
+                    options={physicianOptions}
+                    value={physicianID ?? ''}
+                    onChange={onPhysicianChange}
+                    disabled={disabled}
+                    error={Boolean(physicianError)}
+                    placeholder={`Select attending ${roleLabel.toLowerCase()}`}
+                    searchPlaceholder="Search by name or licence…"
+                    empty="No registered doctor matches."
+                  />
+                  {physicianError && (
+                    <p className="mt-1 text-[11px] font-medium text-rose-600">{physicianError}</p>
+                  )}
+                </>
+              )}
+            </Credential>
             <Credential icon={IdCard} label="PRC License No." value={prcLicenseNo} />
           </div>
 
@@ -182,7 +222,7 @@ export default function PhysicianSignature({ physicianName, prcLicenseNo, value,
                 <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 px-5 pb-3.5">
                   <div className="border-b border-dashed border-ink-300/70" />
                   <p className="mt-1.5 text-center text-[10px] font-medium tracking-wide text-ink-400 uppercase">
-                    {physicianName || 'Attending physician'}
+                    {physicianName || `Attending ${roleLabel.toLowerCase()}`}
                   </p>
                 </div>
 
@@ -224,7 +264,7 @@ export default function PhysicianSignature({ physicianName, prcLicenseNo, value,
                   <div className="flex h-40 items-center justify-center p-4">
                     <img
                       src={value}
-                      alt="Uploaded physician signature"
+                      alt={`Uploaded ${roleLabel.toLowerCase()} signature`}
                       className="max-h-full max-w-full object-contain"
                     />
                   </div>

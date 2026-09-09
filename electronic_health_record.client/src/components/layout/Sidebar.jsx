@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, LayoutDashboard, Table, ClipboardList, ListChecks, Stethoscope, FileText, LogOut, ShieldCheck, LifeBuoy, Settings } from 'lucide-react';
+import { LayoutGrid, LayoutDashboard, Table, ClipboardList, ListChecks, Stethoscope, Smile, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus } from 'lucide-react';
 import phoLogo from '../../assets/images/PHO_logo.jpg';
 import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
@@ -10,6 +10,7 @@ import ChangePasswordModal from '../ui/ChangePasswordModal';
 const CHANGE_STATION_LINK = { to: '/stations', label: 'Change Station', icon: LayoutGrid };
 const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon: ShieldCheck };
 const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope };
+const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile };
 
 const LINKS = {
   admin: [
@@ -17,8 +18,11 @@ const LINKS = {
     { to: '/forms', label: 'Forms', icon: Table },
     { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 },
     { to: '/station2', label: 'Station 2: Assessment', icon: ListChecks, station: 2 },
+    // No `station`: onboarding is not a station desk, so it stays available
+    // whichever station an admin picked.
+    { to: '/onboarding', label: 'Onboarding', icon: UserPlus },
   ],
-  doctor: [STATION3_LINK],
+  doctor: [STATION3_LINK, STATION4_LINK],
   patient: [{ to: '/my-record', label: 'My Record', icon: FileText }],
 };
 
@@ -32,7 +36,7 @@ export default function Sidebar({ collapsed }) {
   const links = (LINKS[user?.role] ?? []).filter(
     (link) => superAdmin || !link.station || link.station === station,
   );
-  if (superAdmin) links.push(STATION3_LINK, ACTIVITY_LOGS_LINK);
+  if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, ACTIVITY_LOGS_LINK);
 
   const handleSignOut = async () => {
     await signOut();
