@@ -81,6 +81,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     station1 = forms.Count(f => f.CurrentStation == 1),
                     station2 = forms.Count(f => f.CurrentStation == 2),
                     station3 = forms.Count(f => f.CurrentStation == 3),
+                    station4 = forms.Count(f => f.CurrentStation == 4),
                 },
                 totalPatients = forms.Select(f => f.PatientID).Distinct().Count(),
                 submittedToday = forms.Count(f => f.FormDate.Date == today),
@@ -329,8 +330,20 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (_currentUser.PhysicianID is not { } physicianID)
-                return Unauthorized(new { message = "No physician identity on this request." });
+            // The signer is a submitted field now, so it is validated here: an
+            // arbitrary id, or a retired account, must not end up on a record.
+            if (dto.PhysicianID is not { } physicianID)
+                return BadRequest(new { message = "An attending physician is required before submitting." });
+
+            var signerIsActive = await _context.Physicians
+                .AnyAsync(p => p.PhysicianID == physicianID && p.IsActive);
+            if (!signerIsActive)
+            {
+                return UnprocessableEntity(new
+                {
+                    message = "That physician is no longer registered as active."
+                });
+            }
 
             var form = await _context.WellnessForms.FindAsync(formID);
             if (form == null)
@@ -351,6 +364,12 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 .Where(f => f.ConditionID.HasValue
                          || !string.IsNullOrWhiteSpace(f.ConditionOther)
                          || f.IsNone == true)
+                .ToList();
+
+            // the UI always renders one blank Exercise row and drops rows
+            // never filled in; mirror that here rather than trusting the client
+            var exercise = dto.Exercise
+                .Where(e => !string.IsNullOrWhiteSpace(e.ExerciseType))
                 .ToList();
 
             var conditionIds = pastHistory.Where(p => p.ConditionID.HasValue).Select(p => p.ConditionID!.Value)
@@ -386,6 +405,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     _context.FamilyMedicalHistories.Where(f => f.FormID == formID));
                 _context.SocialHistories.RemoveRange(
                     _context.SocialHistories.Where(s => s.FormID == formID));
+                _context.Exercises.RemoveRange(
+                    _context.Exercises.Where(e => e.FormID == formID));
 
                 foreach (var item in pastHistory)
                 {
@@ -411,6 +432,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                         ConditionID = item.ConditionID,
                         ConditionOther = item.ConditionOther,
                         IsNone = item.IsNone ?? false,
+                        ConditionType = item.ConditionType,
                         CreatedAt = now,
                         UpdatedAt = now,
                     });
@@ -421,14 +443,33 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     _context.SocialHistories.Add(new SocialHistory
                     {
                         FormID = formID,
-                        SmokingSticksPerDay = dto.SocialHistory.SmokingSticksPerDay,
+                        Smokes = dto.SocialHistory.Smokes,
+                        SmokesCigarette = dto.SocialHistory.SmokesCigarette,
+                        CigaretteSticksPerDay = dto.SocialHistory.CigaretteSticksPerDay,
+                        CigaretteFrequency = dto.SocialHistory.CigaretteFrequency,
+                        CigaretteYearStarted = dto.SocialHistory.CigaretteYearStarted,
+                        CigarettePuffsPerDay = dto.SocialHistory.CigarettePuffsPerDay,
+                        SmokesEcig = dto.SocialHistory.SmokesEcig,
+                        EcigPodsPerMonth = dto.SocialHistory.EcigPodsPerMonth,
+                        EcigFrequency = dto.SocialHistory.EcigFrequency,
+                        EcigYearStarted = dto.SocialHistory.EcigYearStarted,
+                        EcigPuffsPerDay = dto.SocialHistory.EcigPuffsPerDay,
                         AlcoholType = dto.SocialHistory.AlcoholType,
                         DrinkFrequency = dto.SocialHistory.DrinkFrequency,
                         DrinksPerSession = dto.SocialHistory.DrinksPerSession,
-                        HasBeenDrunk = dto.SocialHistory.HasBeenDrunk,
-                        DrunkFrequency = dto.SocialHistory.DrunkFrequency,
-                        ExerciseFrequency = dto.SocialHistory.ExerciseFrequency,
-                        ExerciseType = dto.SocialHistory.ExerciseType,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    });
+                }
+
+                foreach (var item in exercise)
+                {
+                    _context.Exercises.Add(new Exercise
+                    {
+                        FormID = formID,
+                        ExerciseType = item.ExerciseType,
+                        ExerciseFrequency = item.ExerciseFrequency,
+                        ExerciseYearStarted = item.ExerciseYearStarted,
                         CreatedAt = now,
                         UpdatedAt = now,
                     });
@@ -440,7 +481,11 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.ManagementTreatment = dto.ManagementTreatment;
                 form.Signature = dto.Signature;
                 form.SignedAt = now;
-                form.Status = "Completed";
+                // Station 4 (Dental) owns the transition to Completed now; this
+                // hands the form to the dental queue still carrying the
+                // physician's signature.
+                form.Status = "PendingDental";
+                form.CurrentStation = 4;
                 form.Station3SubmittedAt = now;
                 form.UpdatedByAdminID = null;
                 form.UpdatedAt = now;
@@ -451,6 +496,110 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     ActorType = "Physician",
                     ActorID = physicianID,
                     Action = "Station3Submitted",
+                    OccurredAt = now,
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(await BuildFormResponseAsync(form));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync();
+                return Conflict(new { message = "This record was changed at another station." });
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        // POST /api/wellnessforms/{formID}/station4
+        // Body: { dentistID, dentalAssessment: {...}, dentalSignature, rowVersion }
+        // (see submitStation4 in src/api/forms.api.js). Replaces the dental row
+        // wholesale, same reasoning as Station 2's answers -- a resubmit must not
+        // accumulate duplicates. This is the station that completes the form.
+        [HttpPost("{formID}/station4")]
+        public async Task<IActionResult> SubmitStation4(int formID, [FromBody] Station4SubmitDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // The dentist is a submitted field, so it is validated here: an
+            // arbitrary id, or a retired account, must not end up on a record.
+            if (dto.DentistID is not { } dentistID)
+                return BadRequest(new { message = "An examining dentist is required before submitting." });
+
+            var dentistIsActive = await _context.Physicians
+                .AnyAsync(p => p.PhysicianID == dentistID && p.IsActive);
+            if (!dentistIsActive)
+            {
+                return UnprocessableEntity(new
+                {
+                    message = "That dentist is no longer registered as active."
+                });
+            }
+
+            var form = await _context.WellnessForms.FindAsync(formID);
+            if (form == null)
+                return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            ApplyRowVersionToken(form, dto.RowVersion);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var now = DateTime.UtcNow;
+
+                _context.DentalAssessments.RemoveRange(
+                    _context.DentalAssessments.Where(d => d.FormID == formID));
+
+                if (dto.DentalAssessment is { } dental)
+                {
+                    _context.DentalAssessments.Add(new DentalAssessment
+                    {
+                        FormID = formID,
+                        OralHygieneStatus = dental.OralHygieneStatus,
+                        OralHygieneStatusRemarks = dental.OralHygieneStatusRemarks,
+                        DentalCaries = dental.DentalCaries,
+                        DentalCariesRemarks = dental.DentalCariesRemarks,
+                        GumCondition = dental.GumCondition,
+                        GumConditionRemarks = dental.GumConditionRemarks,
+                        ToothStatus = dental.ToothStatus,
+                        ToothStatusRemarks = dental.ToothStatusRemarks,
+                        ToothachePain = dental.ToothachePain,
+                        ToothachePainRemarks = dental.ToothachePainRemarks,
+                        OralLesions = dental.OralLesions,
+                        OralLesionsRemarks = dental.OralLesionsRemarks,
+                        DentureUse = dental.DentureUse,
+                        DentureUseRemarks = dental.DentureUseRemarks,
+                        DentalTreatmentNeed = dental.DentalTreatmentNeed,
+                        DentalTreatmentNeedRemarks = dental.DentalTreatmentNeedRemarks,
+                        LastDentalVisit = dental.LastDentalVisit,
+                        LastDentalVisitRemarks = dental.LastDentalVisitRemarks,
+                        DentalReferral = dental.DentalReferral,
+                        DentalReferralRemarks = dental.DentalReferralRemarks,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    });
+                }
+
+                form.DentistID = dentistID;
+                form.DentalSignature = dto.DentalSignature;
+                form.DentalSignedAt = now;
+                form.Status = "Completed";
+                form.Station4SubmittedAt = now;
+                form.UpdatedByAdminID = null;
+                form.UpdatedAt = now;
+
+                _context.WellnessFormAuditLogs.Add(new WellnessFormAuditLog
+                {
+                    FormID = formID,
+                    ActorType = "Physician",
+                    ActorID = dentistID,
+                    Action = "Station4Submitted",
                     OccurredAt = now,
                 });
 
@@ -621,6 +770,10 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     .Where(p => p.FormID == form.FormID).ToListAsync(),
                 SocialHistory = await _context.SocialHistories
                     .FirstOrDefaultAsync(s => s.FormID == form.FormID),
+                Exercise = await _context.Exercises
+                    .Where(e => e.FormID == form.FormID).ToListAsync(),
+                DentalAssessment = await _context.DentalAssessments
+                    .FirstOrDefaultAsync(d => d.FormID == form.FormID),
                 AssessmentAnswers = await _context.AssessmentAnswers
                     .Where(a => a.FormID == form.FormID).ToListAsync(),
             };
