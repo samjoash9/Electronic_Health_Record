@@ -16,6 +16,7 @@ const ACTION_LABEL = {
   Station1Submitted: 'Submitted Station 1 — Registration',
   Station2Submitted: 'Submitted Station 2 — Assessment',
   Station3Submitted: 'Submitted Station 3 — Consultation',
+  Station4Submitted: 'Submitted Station 4 — Dental',
   FormCancelled: 'Cancelled Form',
 };
 

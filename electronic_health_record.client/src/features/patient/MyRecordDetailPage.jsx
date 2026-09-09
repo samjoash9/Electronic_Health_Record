@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
   IdCard, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
   Users, Stethoscope, Activity, ClipboardList, FlaskConical, Pill,
-  Cigarette, Dumbbell, Wine, BadgeCheck,
+  Cigarette, Dumbbell, Wine, BadgeCheck, Smile,
 } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
-import { FORM_STATUS } from '../../lib/constants';
+import { FORM_STATUS, DENTAL_INDICATORS } from '../../lib/constants';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -32,7 +32,7 @@ function HistoryList({ items, render, empty }) {
   if (!items?.length) return <p className="text-sm text-ink-500">{empty}</p>;
   return (
     <ul className="flex flex-col gap-1.5 text-sm">
-      {items.map((item, i) => <li key={item.fmhID ?? item.pmhID ?? i}>{render(item)}</li>)}
+      {items.map((item, i) => <li key={item.fmhID ?? item.pmhID ?? item.exerciseID ?? item.dentalAssessmentID ?? i}>{render(item)}</li>)}
     </ul>
   );
 }
@@ -131,11 +131,37 @@ export default function MyRecordDetailPage() {
       >
         {social ? (
           <div className="flex flex-col gap-4">
-            <SubPanel icon={Cigarette} title="Smoking" subtitle="Cigarette usage">
-              <p className="text-sm font-medium text-ink-900">{social.smokingSticksPerDay ?? 0} sticks/day</p>
+            <SubPanel icon={Cigarette} title="Smoking" subtitle="Cigarette and e-cigarette usage">
+              {social.smokes !== true ? (
+                <p className="text-sm text-ink-500">Patient does not smoke.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {social.smokesCigarette && (
+                    <p className="text-sm font-medium text-ink-900">
+                      Cigarette — {social.cigaretteSticksPerDay ?? '—'} sticks/day,{' '}
+                      {social.cigaretteFrequency ?? '—'}, started {social.cigaretteYearStarted ?? '—'},{' '}
+                      {social.cigarettePuffsPerDay ?? '—'} puffs/day
+                    </p>
+                  )}
+                  {social.smokesEcig && (
+                    <p className="text-sm font-medium text-ink-900">
+                      E-cigarette — {social.ecigPodsPerMonth ?? '—'} pods/month,{' '}
+                      {social.ecigFrequency ?? '—'}, started {social.ecigYearStarted ?? '—'},{' '}
+                      {social.ecigPuffsPerDay ?? '—'} puffs/day
+                    </p>
+                  )}
+                  {!social.smokesCigarette && !social.smokesEcig && (
+                    <p className="text-sm text-ink-500">No cigarette or e-cigarette details on file.</p>
+                  )}
+                </div>
+              )}
             </SubPanel>
             <SubPanel icon={Dumbbell} title="Exercise" subtitle="Physical activity">
-              <p className="text-sm font-medium text-ink-900">{social.exerciseFrequency ?? '—'} · {social.exerciseType ?? '—'}</p>
+              <HistoryList
+                items={form.exercise}
+                empty="No exercise on file."
+                render={(row) => `${row.exerciseType} — ${row.exerciseFrequency ?? '—'} · started ${row.exerciseYearStarted ?? '—'}`}
+              />
             </SubPanel>
             <SubPanel icon={Wine} title="Alcohol" subtitle="Alcohol consumption">
               <p className="text-sm font-medium text-ink-900">{social.alcoholType ?? '—'}</p>
@@ -188,6 +214,36 @@ export default function MyRecordDetailPage() {
             <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.signedAt)}</p>
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        step={5}
+        title="Dental Assessment"
+        subtitle="Station 4 findings and the examining dentist's remarks."
+        icon={Smile}
+      >
+        {form.dentalAssessment ? (
+          <div className="flex flex-col gap-4">
+            {DENTAL_INDICATORS.map(({ name, label }, index) => (
+              // SubPanel renders its icon unconditionally with no fallback, and
+              // DENTAL_INDICATORS carries no per-indicator icon, so every row
+              // reuses the section's own Smile icon rather than passing none.
+              <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-semibold text-ink-900">
+                    {form.dentalAssessment[name] || <span className="font-normal text-ink-400 italic">Not assessed</span>}
+                  </p>
+                  <StaticAnswer
+                    value={form.dentalAssessment[`${name}Remarks`]}
+                    placeholder="No remarks."
+                  />
+                </div>
+              </SubPanel>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-ink-500">Not yet completed.</p>
+        )}
       </SectionCard>
     </div>
   );
