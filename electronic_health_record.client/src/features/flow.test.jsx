@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../api/mock/db';
 import {
-  submitStation1, submitStation2, submitStation3, getQueue, getForm, getPatientForms,
+  submitStation1, submitStation2, submitStation3, submitStation4, getQueue, getForm, getPatientForms,
 } from '../api/forms.api';
 import { getAssessmentTemplate } from '../api/assessment.api';
 import { scoreAllCategories } from '../lib/scoring';
@@ -57,18 +57,43 @@ describe('full station workflow', () => {
     expect(scores.map((s) => s.percent)).toEqual([100, 100, 100, 100, 100, 100, 100]);
 
     // Station 3
-    await submitStation3({
+    const signed = await submitStation3({
       formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
       consultation: {
         familyMedicalHistory: [{ conditionID: 1, isNone: true }],
         pastMedicalHistory: [],
-        socialHistory: { smokingSticksPerDay: 0, exerciseFrequency: 'Daily' },
+        socialHistory: { smokes: false },
+        exercise: [{ exerciseType: 'Walking', exerciseFrequency: 'Daily', exerciseYearStarted: '2021' }],
         recommendedDiagnosticTest: 'CBC, Urinalysis',
         impressionClinical: 'Apparently well',
         managementTreatment: 'Annual follow-up',
         signature: 'data:image/png;base64,AAA',
       },
     });
+
+    // Station 3 signs but no longer completes: the form walks to dental first.
+    expect(signed.status).toBe(FORM_STATUS.PENDING_DENTAL);
+
+    const completed = await submitStation4({
+      formID: signed.formID,
+      dentistID: 1,
+      rowVersion: signed.rowVersion,
+      dentalSignature: 'data:image/png;base64,BBB',
+      dentalAssessment: {
+        oralHygieneStatus: 'Good',
+        dentalCaries: 'None',
+        gumCondition: 'Healthy',
+        toothStatus: 'Complete/Functional',
+        toothachePain: 'No',
+        oralLesions: 'None',
+        dentureUse: 'None',
+        dentalTreatmentNeed: 'None',
+        lastDentalVisit: 'Within 6 months',
+        dentalReferral: 'Not needed',
+        dentalReferralRemarks: 'No follow-up needed',
+      },
+    });
+    expect(completed.status).toBe(FORM_STATUS.COMPLETED);
 
     // Patient view
     const mine = await getPatientForms(withAnswers.patientID);
