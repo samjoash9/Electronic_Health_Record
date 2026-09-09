@@ -25,6 +25,7 @@ export function isSuperAdmin(user) {
 export const FORM_STATUS = {
   PENDING_ASSESSMENT: 'PendingAssessment',
   PENDING_CONSULTATION: 'PendingConsultation',
+  PENDING_DENTAL: 'PendingDental',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
 };
@@ -33,6 +34,7 @@ export const STATIONS = {
   ONE: 1,
   TWO: 2,
   THREE: 3,
+  FOUR: 4,
 };
 
 /**
@@ -64,18 +66,49 @@ export function categoryStyle(name) {
 /**
  * Station 3 family medical history. "None" is exclusive: checking it clears
  * and disables every other option. "Others" reveals an extra free-text field
- * for the condition name. Diabetes Mellitus and Cancer reveal a "Specific
- * type" field; every other condition is bare once checked.
+ * for the condition name. Every condition except Hypertension reveals a
+ * specify field once checked (label varies via conditionTypeLabel, default
+ * "Specific type"); Hypertension is the only bare condition — it's binary
+ * (has it or not) with no clinically meaningful subtype for a family-history
+ * screen. The field-revealing conditions are ordered last (before Others) so
+ * their taller tiles don't shift the grid alignment of the bare tile above
+ * them. Respiratory Illness merges what used to be two separate conditions
+ * (Tuberculosis and Bronchial Asthma) under conditionID 6; Bronchial
+ * Asthma's old catalog id (7) is retired, not reused.
  */
 export const FAMILY_CONDITIONS = [
   { conditionID: 1, name: 'NONE', exclusive: true },
   { conditionID: 2, name: 'HYPERTENSION' },
-  { conditionID: 3, name: 'STROKE' },
+  { conditionID: 3, name: 'MENTAL HEALTH CONDITION', hasConditionType: true, conditionTypePlaceholder: 'e.g. specify condition' },
   { conditionID: 4, name: 'DIABETES MELLITUS', hasConditionType: true, conditionTypePlaceholder: 'e.g. Type 1, Type 2' },
   { conditionID: 5, name: 'CANCER (Breast/Ovarian/Colon, etc.)', hasConditionType: true, conditionTypePlaceholder: 'e.g. Breast, Colon' },
-  { conditionID: 6, name: 'TUBERCULOSIS' },
-  { conditionID: 7, name: 'BRONCHIAL ASTHMA' },
+  {
+    conditionID: 6, name: 'RESPIRATORY ILLNESS', hasConditionType: true,
+    conditionTypeLabel: 'Please specify', conditionTypePlaceholder: 'e.g. Tuberculosis, Asthma',
+  },
+  {
+    conditionID: 8, name: 'KIDNEY DISEASE', hasConditionType: true,
+    conditionTypeLabel: 'Please specify', conditionTypePlaceholder: 'e.g. specify condition',
+  },
+  {
+    conditionID: 9, name: 'LIVER DISEASE', hasConditionType: true,
+    conditionTypeLabel: 'Please specify', conditionTypePlaceholder: 'e.g. specify condition',
+  },
+  {
+    conditionID: 10, name: 'ARTHRITIS', hasConditionType: true,
+    conditionTypeLabel: 'Please specify', conditionTypePlaceholder: 'e.g. specify condition',
+  },
+  {
+    conditionID: 11, name: 'REPRODUCTIVE HEALTH PROBLEM', hasConditionType: true,
+    conditionTypeLabel: 'Please specify', conditionTypePlaceholder: 'e.g. specify condition',
+  },
   { conditionID: null, name: 'Others (Please Specify)', isOther: true },
+];
+
+export const DIAGNOSTIC_TESTS = [
+  'CBC', 'BT', 'U/A', 'SE', 'RBS', 'FBS', 'Liquid Profile', 'Crea', 'SGPT/SGOT',
+  'SUA', 'ASO', 'NaK', 'BUN', 'HVC', 'Tumor Markers CA 125', 'TT3', 'TT4',
+  'Drug Test', 'H. Pylori', 'HBA1c', 'ECG', 'UTZ', 'Chest Xray', 'Papsmear',
 ];
 
 export const SEX_OPTIONS = ['Male', 'Female'];
@@ -87,6 +120,7 @@ export const CIVIL_STATUS_OPTIONS = [
 export const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
   [FORM_STATUS.PENDING_CONSULTATION]: 'Pending Consultation',
+  [FORM_STATUS.PENDING_DENTAL]: 'Pending Dental',
   [FORM_STATUS.COMPLETED]: 'Completed',
   [FORM_STATUS.CANCELLED]: 'Cancelled',
 };
@@ -94,6 +128,81 @@ export const STATUS_LABEL = {
 export const STATUS_TONE = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'info',
   [FORM_STATUS.PENDING_CONSULTATION]: 'warn',
+  [FORM_STATUS.PENDING_DENTAL]: 'warn',
   [FORM_STATUS.COMPLETED]: 'success',
   [FORM_STATUS.CANCELLED]: 'danger',
 };
+
+/**
+ * Station 4's dental screening. Each indicator is single-select and carries its
+ * own free-text remarks field for the doctor.
+ *
+ * Option strings are duplicated in the CK_DentalAssessment_* check constraints
+ * in ElectronicHealthRecordDbContext.cs. This array is the client's copy; the
+ * server does not serve the list. A mismatch fails the insert at submit time,
+ * not at build time, so edit both together. The en dashes in '6–12 months',
+ * 'Present – refer for evaluation', 'Yes – satisfactory' and
+ * 'Yes – needs assessment' are U+2013, not hyphens.
+ */
+export const DENTAL_INDICATORS = [
+  {
+    name: 'oralHygieneStatus',
+    label: 'Oral Hygiene Status',
+    options: ['Good', 'Fair', 'Poor'],
+    remarksPlaceholder: 'e.g. heavy plaque along the lower incisors',
+  },
+  {
+    name: 'dentalCaries',
+    label: 'Presence of Dental Caries',
+    options: ['None', 'Present'],
+    remarksPlaceholder: 'e.g. two carious molars, lower left',
+  },
+  {
+    name: 'gumCondition',
+    label: 'Gum Condition',
+    options: ['Healthy', 'Gingivitis', 'Suspected Periodontal Problem'],
+    remarksPlaceholder: 'e.g. bleeding on probing, upper anterior',
+  },
+  {
+    name: 'toothStatus',
+    label: 'Tooth Status',
+    options: ['Complete/Functional', 'Missing Teeth', 'Needs Dental Treatment'],
+    remarksPlaceholder: 'e.g. missing upper right first molar',
+  },
+  {
+    name: 'toothachePain',
+    label: 'Toothache / Dental Pain',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. intermittent pain on cold, two weeks',
+  },
+  {
+    name: 'oralLesions',
+    label: 'Oral Lesions / Abnormalities',
+    options: ['None', 'Present – refer for evaluation'],
+    remarksPlaceholder: 'e.g. white patch on buccal mucosa',
+  },
+  {
+    name: 'dentureUse',
+    label: 'Denture / Prosthesis Use',
+    options: ['None', 'Yes – satisfactory', 'Yes – needs assessment'],
+    remarksPlaceholder: 'e.g. upper partial denture, loose fit',
+  },
+  {
+    name: 'dentalTreatmentNeed',
+    label: 'Dental Treatment Need',
+    options: ['None', 'Preventive Care', 'Restorative Treatment', 'Extraction', 'Other'],
+    remarksPlaceholder: 'Specify if Other, e.g. orthodontic referral',
+  },
+  {
+    name: 'lastDentalVisit',
+    label: 'Last Dental Visit',
+    options: ['Within 6 months', '6–12 months', 'More than 1 year', 'Never'],
+    remarksPlaceholder: 'e.g. last cleaning March 2025',
+  },
+  {
+    name: 'dentalReferral',
+    label: 'Dental Referral',
+    options: ['Not needed', 'Routine referral', 'Urgent referral'],
+    remarksPlaceholder: 'e.g. refer to district hospital dental clinic',
+  },
+];
