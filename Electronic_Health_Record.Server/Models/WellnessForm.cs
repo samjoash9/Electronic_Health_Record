@@ -9,7 +9,11 @@
         // workflow state; drives which station queue the form appears in.
         // "PendingAssessment"   Station 1 done, waiting for Station 2
         // "PendingConsultation" Station 2 done, waiting for Station 3
-        // "Completed"           Station 3 done and signed
+        // "PendingDental"       Station 3 done and signed, waiting for Station 4.
+        //                       Note this is a signed-but-not-completed state:
+        //                       before Station 4 existed, SignedAt and
+        //                       "Completed" were always set together.
+        // "Completed"           Station 4 done and signed by the dentist
         // "Cancelled"
         public string Status { get; set; } = "PendingAssessment";
         public byte CurrentStation { get; set; } = 1;
@@ -42,6 +46,14 @@
         public string? ImpressionClinical { get; set; }
         public string? ManagementTreatment { get; set; }
         public DateTime? Station3SubmittedAt { get; set; }
+
+        // Station 4 (Dental). The dentist is a Physician row -- the schema has no
+        // separate practitioner table -- but is tracked apart from PhysicianID so
+        // the consulting doctor and the examining dentist can differ.
+        public int? DentistID { get; set; }
+        public string? DentalSignature { get; set; }
+        public DateTime? DentalSignedAt { get; set; }
+        public DateTime? Station4SubmittedAt { get; set; }
         public int? CreatedByAdminID { get; set; }
         public int? UpdatedByAdminID { get; set; }
         public DateTime CreatedAt { get; set; }

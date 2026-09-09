@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Electronic_Health_Record.Server.Models;
 
 namespace Electronic_Health_Record.Server.Data
@@ -20,6 +20,8 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<SocialHistory> SocialHistories => Set<SocialHistory>();
         public DbSet<FamilyMedicalHistory> FamilyMedicalHistories => Set<FamilyMedicalHistory>();
         public DbSet<PastMedicalHistory> PastMedicalHistories => Set<PastMedicalHistory>();
+        public DbSet<Exercise> Exercises => Set<Exercise>();
+        public DbSet<DentalAssessment> DentalAssessments => Set<DentalAssessment>();
         public DbSet<PhysicianSession> PhysicianSessions => Set<PhysicianSession>();
         public DbSet<PatientAccount> PatientAccounts => Set<PatientAccount>();
         public DbSet<PatientSession> PatientSessions => Set<PatientSession>();
@@ -73,6 +75,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(e => e.AgencyOffice).HasMaxLength(100);
                 entity.Property(e => e.Position).HasMaxLength(50);
                 entity.Property(e => e.ContactNo).HasMaxLength(20).IsUnicode(false);
+                // Existing rows all came from the seeded HR stand-in, so false.
+                entity.Property(e => e.IsLocallyAdded).HasDefaultValue(false).IsRequired();
                 entity.HasIndex(e => new { e.Surname, e.FirstName });
             });
 
@@ -212,12 +216,18 @@ namespace Electronic_Health_Record.Server.Data
                 entity.ToTable("WellnessForm", t =>
                 {
                     t.HasCheckConstraint("CK_WellnessForm_Status",
-                        "Status IN ('PendingAssessment', 'PendingConsultation', 'Completed', 'Cancelled')");
+                        "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'Completed', 'Cancelled')");
                     t.HasCheckConstraint("CK_WellnessForm_CurrentStation",
-                        "CurrentStation IN (1, 2, 3)");
+                        "CurrentStation IN (1, 2, 3, 4)");
                     // a completed form must be signed by a named physician
                     t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned",
                         "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
+                    // Station 4 owns the transition to Completed, so a completed
+                    // form carries the dentist's signature as well as the
+                    // physician's. CK_WellnessForm_CompletedIsSigned above still
+                    // holds: Station 3 runs strictly before completion now.
+                    t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned",
+                        "Status <> 'Completed' OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
                 });
                 entity.HasKey(w => w.FormID);
                 entity.Property(w => w.Status)
@@ -264,6 +274,13 @@ namespace Electronic_Health_Record.Server.Data
                     .HasForeignKey(w => w.Station2AdminID)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                // optional: only set once Station 4 submits
+                entity.HasOne<Physician>()
+                    .WithMany()
+                    .HasForeignKey(w => w.DentistID)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasOne<Admin>()
                     .WithMany()
                     .HasForeignKey(w => w.CreatedByAdminID)
@@ -296,15 +313,21 @@ namespace Electronic_Health_Record.Server.Data
                 // rather than reading it from /api/medicalconditions, so any drift
                 // here silently desyncs the form. "NONE" (id 1) and "Others" are
                 // handled client-side (Others sends ConditionID null with free text
-                // in ConditionOther), so this table only needs the 7 named conditions.
+                // in ConditionOther), so this table only needs the 10 named conditions.
+                // ConditionID 6 used to be "TUBERCULOSIS" alone; it now covers what
+                // was id 7 ("BRONCHIAL ASTHMA") too under one merged
+                // "RESPIRATORY ILLNESS" condition, so id 7 is retired, not reused.
                 entity.HasData(
                     new MedicalCondition { ConditionID = 1, ConditionName = "NONE" },
                     new MedicalCondition { ConditionID = 2, ConditionName = "HYPERTENSION (Heart Attack)" },
-                    new MedicalCondition { ConditionID = 3, ConditionName = "STROKE" },
+                    new MedicalCondition { ConditionID = 3, ConditionName = "MENTAL HEALTH CONDITION" },
                     new MedicalCondition { ConditionID = 4, ConditionName = "DIABETES MELLITUS" },
                     new MedicalCondition { ConditionID = 5, ConditionName = "CANCER (Breast/Ovarian/Colon, etc.)" },
-                    new MedicalCondition { ConditionID = 6, ConditionName = "TUBERCULOSIS" },
-                    new MedicalCondition { ConditionID = 7, ConditionName = "BRONCHIAL ASTHMA" }
+                    new MedicalCondition { ConditionID = 6, ConditionName = "RESPIRATORY ILLNESS" },
+                    new MedicalCondition { ConditionID = 8, ConditionName = "KIDNEY DISEASE" },
+                    new MedicalCondition { ConditionID = 9, ConditionName = "LIVER DISEASE" },
+                    new MedicalCondition { ConditionID = 10, ConditionName = "ARTHRITIS" },
+                    new MedicalCondition { ConditionID = 11, ConditionName = "REPRODUCTIVE HEALTH PROBLEM" }
                 );
             });
 
@@ -312,18 +335,105 @@ namespace Electronic_Health_Record.Server.Data
             {
                 entity.ToTable("SocialHistory");
                 entity.HasKey(s => s.SocialHistoryID);
+                entity.Property(s => s.CigaretteSticksPerDay).HasMaxLength(20);
+                entity.Property(s => s.CigaretteFrequency).HasMaxLength(50);
+                entity.Property(s => s.CigaretteYearStarted).HasMaxLength(4);
+                entity.Property(s => s.CigarettePuffsPerDay).HasMaxLength(20);
+                entity.Property(s => s.EcigPodsPerMonth).HasMaxLength(20);
+                entity.Property(s => s.EcigFrequency).HasMaxLength(50);
+                entity.Property(s => s.EcigYearStarted).HasMaxLength(4);
+                entity.Property(s => s.EcigPuffsPerDay).HasMaxLength(20);
                 entity.Property(s => s.AlcoholType).HasMaxLength(50);
                 entity.Property(s => s.DrinkFrequency).HasMaxLength(50);
                 entity.Property(s => s.DrinksPerSession).HasMaxLength(20);
-                entity.Property(s => s.DrunkFrequency).HasMaxLength(50);
-                entity.Property(s => s.ExerciseFrequency).HasMaxLength(50);
-                entity.Property(s => s.ExerciseType).HasMaxLength(100);
                 entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(s => s.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithOne()
                     .HasForeignKey<SocialHistory>(s => s.FormID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Exercise>(entity =>
+            {
+                entity.ToTable("Exercise");
+                entity.HasKey(e => e.ExerciseID);
+                entity.Property(e => e.ExerciseType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ExerciseFrequency).HasMaxLength(50);
+                entity.Property(e => e.ExerciseYearStarted).HasMaxLength(4);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                entity.HasOne<WellnessForm>()
+                    .WithMany()
+                    .HasForeignKey(e => e.FormID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<DentalAssessment>(entity =>
+            {
+                // Option text is duplicated from DENTAL_INDICATORS in
+                // src/lib/constants.js. The client hardcodes that array rather
+                // than fetching it, so these strings and that file must stay in
+                // lockstep -- a mismatch fails the insert at submit time rather
+                // than at build time. The en dashes in '6–12 months',
+                // 'Present – refer for evaluation', 'Yes – satisfactory' and
+                // 'Yes – needs assessment' are U+2013, not hyphens.
+                entity.ToTable("DentalAssessment", t =>
+                {
+                    t.HasCheckConstraint("CK_DentalAssessment_OralHygieneStatus",
+                        "OralHygieneStatus IS NULL OR OralHygieneStatus IN ('Good', 'Fair', 'Poor')");
+                    t.HasCheckConstraint("CK_DentalAssessment_DentalCaries",
+                        "DentalCaries IS NULL OR DentalCaries IN ('None', 'Present')");
+                    t.HasCheckConstraint("CK_DentalAssessment_GumCondition",
+                        "GumCondition IS NULL OR GumCondition IN ('Healthy', 'Gingivitis', 'Suspected Periodontal Problem')");
+                    t.HasCheckConstraint("CK_DentalAssessment_ToothStatus",
+                        "ToothStatus IS NULL OR ToothStatus IN ('Complete/Functional', 'Missing Teeth', 'Needs Dental Treatment')");
+                    t.HasCheckConstraint("CK_DentalAssessment_ToothachePain",
+                        "ToothachePain IS NULL OR ToothachePain IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_DentalAssessment_OralLesions",
+                        "OralLesions IS NULL OR OralLesions IN ('None', 'Present – refer for evaluation')");
+                    t.HasCheckConstraint("CK_DentalAssessment_DentureUse",
+                        "DentureUse IS NULL OR DentureUse IN ('None', 'Yes – satisfactory', 'Yes – needs assessment')");
+                    t.HasCheckConstraint("CK_DentalAssessment_DentalTreatmentNeed",
+                        "DentalTreatmentNeed IS NULL OR DentalTreatmentNeed IN ('None', 'Preventive Care', 'Restorative Treatment', 'Extraction', 'Other')");
+                    t.HasCheckConstraint("CK_DentalAssessment_LastDentalVisit",
+                        "LastDentalVisit IS NULL OR LastDentalVisit IN ('Within 6 months', '6–12 months', 'More than 1 year', 'Never')");
+                    t.HasCheckConstraint("CK_DentalAssessment_DentalReferral",
+                        "DentalReferral IS NULL OR DentalReferral IN ('Not needed', 'Routine referral', 'Urgent referral')");
+                });
+                entity.HasKey(d => d.DentalAssessmentID);
+
+                entity.Property(d => d.OralHygieneStatus).HasMaxLength(50);
+                entity.Property(d => d.DentalCaries).HasMaxLength(50);
+                entity.Property(d => d.GumCondition).HasMaxLength(50);
+                entity.Property(d => d.ToothStatus).HasMaxLength(50);
+                entity.Property(d => d.ToothachePain).HasMaxLength(50);
+                entity.Property(d => d.OralLesions).HasMaxLength(50);
+                entity.Property(d => d.DentureUse).HasMaxLength(50);
+                entity.Property(d => d.DentalTreatmentNeed).HasMaxLength(50);
+                entity.Property(d => d.LastDentalVisit).HasMaxLength(50);
+                entity.Property(d => d.DentalReferral).HasMaxLength(50);
+
+                entity.Property(d => d.OralHygieneStatusRemarks).HasMaxLength(300);
+                entity.Property(d => d.DentalCariesRemarks).HasMaxLength(300);
+                entity.Property(d => d.GumConditionRemarks).HasMaxLength(300);
+                entity.Property(d => d.ToothStatusRemarks).HasMaxLength(300);
+                entity.Property(d => d.ToothachePainRemarks).HasMaxLength(300);
+                entity.Property(d => d.OralLesionsRemarks).HasMaxLength(300);
+                entity.Property(d => d.DentureUseRemarks).HasMaxLength(300);
+                entity.Property(d => d.DentalTreatmentNeedRemarks).HasMaxLength(300);
+                entity.Property(d => d.LastDentalVisitRemarks).HasMaxLength(300);
+                entity.Property(d => d.DentalReferralRemarks).HasMaxLength(300);
+
+                entity.Property(d => d.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(d => d.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                // one dental screening per form, same shape as SocialHistory
+                entity.HasOne<WellnessForm>()
+                    .WithOne()
+                    .HasForeignKey<DentalAssessment>(d => d.FormID)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
