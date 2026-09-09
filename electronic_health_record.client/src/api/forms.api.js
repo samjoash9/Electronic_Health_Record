@@ -33,6 +33,22 @@ function attachPatient(state, form) {
   };
 }
 
+/**
+ * The physician fields a form may carry. An explicit pick rather than an omit,
+ * so a credential field added to the row later cannot leak by default.
+ */
+function publicPhysician(physician) {
+  if (!physician) return null;
+  return {
+    physicianID: physician.physicianID,
+    surname: physician.surname,
+    firstName: physician.firstName,
+    middleName: physician.middleName ?? null,
+    prcLicenseNo: physician.prcLicenseNo,
+    contactNo: physician.contactNo ?? null,
+  };
+}
+
 function pushAuditLog(state, { formID, actorType, actorID, action, details = null }) {
   state.wellnessFormAuditLogs.push({
     logID: db.nextId('logID'),
@@ -97,10 +113,15 @@ export async function getForm(formID) {
     }
     return {
       ...attachPatient(state, form),
-      physician: state.physicians.find((p) => p.physicianID === form.physicianID) ?? null,
+      // Projected, never the raw row: a physician record carries credentials.
+      physician: publicPhysician(
+        state.physicians.find((p) => p.physicianID === form.physicianID),
+      ),
       familyMedicalHistory: state.familyMedicalHistory.filter((r) => r.formID === formID),
       pastMedicalHistory: state.pastMedicalHistory.filter((r) => r.formID === formID),
       socialHistory: state.socialHistory.find((r) => r.formID === formID) ?? null,
+      exercise: state.exercise.filter((r) => r.formID === formID),
+      dentalAssessment: state.dentalAssessments.find((r) => r.formID === formID) ?? null,
       assessmentAnswers: state.assessmentAnswers.filter((r) => r.formID === formID),
     };
   }
@@ -167,6 +188,10 @@ export async function submitStation1({ patient, vitals, adminID }) {
         impressionClinical: null,
         managementTreatment: null,
         station3SubmittedAt: null,
+        dentistID: null,
+        dentalSignature: null,
+        dentalSignedAt: null,
+        station4SubmittedAt: null,
         createdAt: nowIso(),
         updatedAt: nowIso(),
       };
@@ -234,10 +259,23 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
     if (!consultation?.signature) {
       throw new Error('A physician signature is required before submitting.');
     }
+    // The attending physician is chosen on the form, so it is a submitted value
+    // like any other and has to be validated rather than trusted.
+    if (!physicianID) {
+      throw new Error('An attending physician is required before submitting.');
+    }
     return db.write((state) => {
       const form = state.forms.find((f) => f.formID === formID);
       if (!form) throw Object.assign(new Error('Form not found.'), { status: 404 });
       assertFresh(form, rowVersion);
+
+      const physician = state.physicians.find((p) => p.physicianID === physicianID);
+      if (!physician?.isActive) {
+        throw Object.assign(
+          new Error('That physician is no longer registered as active.'),
+          { status: 422 },
+        );
+      }
 
       state.familyMedicalHistory = state.familyMedicalHistory.filter(
         (r) => r.formID !== formID,
@@ -268,14 +306,24 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
         });
       }
 
+      state.exercise = state.exercise.filter((r) => r.formID !== formID);
+      for (const row of consultation.exercise ?? []) {
+        state.exercise.push({
+          exerciseID: db.nextId('exerciseID'), formID, ...row,
+          createdAt: nowIso(), updatedAt: nowIso(),
+        });
+      }
+
       form.physicianID = physicianID;
       form.recommendedDiagnosticTest = consultation.recommendedDiagnosticTest ?? null;
       form.impressionClinical = consultation.impressionClinical ?? null;
       form.managementTreatment = consultation.managementTreatment ?? null;
       form.signature = consultation.signature;
       form.signedAt = nowIso();
-      form.status = FORM_STATUS.COMPLETED;
-      form.currentStation = 3;
+      // Station 4 (Dental) completes the form now; this hands it to the dental
+      // queue already carrying the physician's signature.
+      form.status = FORM_STATUS.PENDING_DENTAL;
+      form.currentStation = 4;
       form.station3SubmittedAt = nowIso();
       form.updatedAt = nowIso();
       bumpRowVersion(form);
@@ -287,7 +335,68 @@ export async function submitStation3({ formID, consultation, physicianID, rowVer
   }
   try {
     const { data } = await client.post(`/wellnessforms/${formID}/station3`, {
-      ...consultation, rowVersion,
+      ...consultation, physicianID, rowVersion,
+    });
+    return data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function submitStation4({
+  formID, dentalAssessment, dentistID, dentalSignature, rowVersion,
+}) {
+  if (USE_MOCK) {
+    await delay(500);
+    if (!dentalSignature) {
+      throw new Error('A dentist signature is required before submitting.');
+    }
+    // The examining dentist is chosen on the form, so it is a submitted value
+    // like any other and has to be validated rather than trusted.
+    if (!dentistID) {
+      throw new Error('An examining dentist is required before submitting.');
+    }
+    return db.write((state) => {
+      const form = state.forms.find((f) => f.formID === formID);
+      if (!form) throw Object.assign(new Error('Form not found.'), { status: 404 });
+      assertFresh(form, rowVersion);
+
+      const dentist = state.physicians.find((p) => p.physicianID === dentistID);
+      if (!dentist?.isActive) {
+        throw Object.assign(
+          new Error('That dentist is no longer registered as active.'),
+          { status: 422 },
+        );
+      }
+
+      state.dentalAssessments = state.dentalAssessments.filter(
+        (r) => r.formID !== formID,
+      );
+      if (dentalAssessment) {
+        state.dentalAssessments.push({
+          dentalAssessmentID: db.nextId('dentalAssessmentID'), formID,
+          ...dentalAssessment,
+          createdAt: nowIso(), updatedAt: nowIso(),
+        });
+      }
+
+      form.dentistID = dentistID;
+      form.dentalSignature = dentalSignature;
+      form.dentalSignedAt = nowIso();
+      form.status = FORM_STATUS.COMPLETED;
+      form.currentStation = 4;
+      form.station4SubmittedAt = nowIso();
+      form.updatedAt = nowIso();
+      bumpRowVersion(form);
+      pushAuditLog(state, {
+        formID: form.formID, actorType: 'Physician', actorID: dentistID, action: 'Station4Submitted',
+      });
+      return { ...form };
+    });
+  }
+  try {
+    const { data } = await client.post(`/wellnessforms/${formID}/station4`, {
+      dentalAssessment, dentistID, dentalSignature, rowVersion,
     });
     return data;
   } catch (error) {

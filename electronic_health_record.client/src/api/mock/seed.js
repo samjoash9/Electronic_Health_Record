@@ -232,11 +232,14 @@ function buildMedicalConditions() {
   return [
     { conditionID: 1, conditionName: 'NONE', conditionType: 'Family' },
     { conditionID: 2, conditionName: 'HYPERTENSION (Heart Attack)', conditionType: 'Family' },
-    { conditionID: 3, conditionName: 'STROKE', conditionType: 'Family' },
+    { conditionID: 3, conditionName: 'MENTAL HEALTH CONDITION', conditionType: 'Family' },
     { conditionID: 4, conditionName: 'DIABETES MELLITUS', conditionType: 'Family' },
     { conditionID: 5, conditionName: 'CANCER (Breast/Ovarian/Colon, etc.)', conditionType: 'Family' },
-    { conditionID: 6, conditionName: 'TUBERCULOSIS', conditionType: 'Family' },
-    { conditionID: 7, conditionName: 'BRONCHIAL ASTHMA', conditionType: 'Family' },
+    { conditionID: 6, conditionName: 'RESPIRATORY ILLNESS', conditionType: 'Family' },
+    { conditionID: 8, conditionName: 'KIDNEY DISEASE', conditionType: 'Family' },
+    { conditionID: 9, conditionName: 'LIVER DISEASE', conditionType: 'Family' },
+    { conditionID: 10, conditionName: 'ARTHRITIS', conditionType: 'Family' },
+    { conditionID: 11, conditionName: 'REPRODUCTIVE HEALTH PROBLEM', conditionType: 'Family' },
   ];
 }
 
@@ -281,6 +284,22 @@ export function buildSeed() {
         middleName: 'B',
         prcLicenseNo: '0123456',
         contactNo: '09171234567',
+        // settled account: the Station 3 fixtures are signed by this doctor, so
+        // it must not sit behind a first-login password prompt
+        mustChangePassword: false,
+        isActive: true,
+      },
+      {
+        physicianID: 2,
+        username: 'mgrey',
+        password: 'password123',
+        surname: 'Grey',
+        firstName: 'Meredith',
+        middleName: 'E',
+        prcLicenseNo: '0987654',
+        contactNo: '09176789012',
+        // freshly onboarded by an admin: still on the password they were handed
+        mustChangePassword: true,
         isActive: true,
       },
     ],
@@ -320,6 +339,8 @@ export function buildSeed() {
     familyMedicalHistory: [],
     pastMedicalHistory: [],
     socialHistory: [],
+    exercise: [],
+    dentalAssessments: [],
     assessmentAnswers: [],
     assessmentCategories: buildAssessmentCategories(),
     medicalConditions: buildMedicalConditions(),
@@ -327,10 +348,13 @@ export function buildSeed() {
     nextIds: {
       patientID: 2,
       patientAccountID: 2,
+      physicianID: 3,
       formID: 1,
       fmhID: 1,
       pmhID: 1,
       socialHistoryID: 1,
+      exerciseID: 1,
+      dentalAssessmentID: 1,
       answerID: 1,
       logID: 1,
     },
