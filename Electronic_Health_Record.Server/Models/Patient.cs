@@ -10,6 +10,8 @@
         public string FirstName { get; set; } = string.Empty;
         public string? MiddleName { get; set; }
         public DateTime Birthdate { get; set; }
+
+        public int Age { get; set; }
         public string Sex { get; set; } = string.Empty;
         public string CivilStatus { get; set; } = string.Empty;
         public string? Address { get; set; }

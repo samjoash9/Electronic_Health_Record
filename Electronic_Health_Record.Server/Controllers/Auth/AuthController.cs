@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.AspNetCore.RateLimiting;
 using System.Numerics;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -43,6 +43,7 @@ public class AuthController : ControllerBase
     // =========================================================
 
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(
         [FromBody] LoginRequest request)
@@ -422,30 +423,33 @@ public class AuthController : ControllerBase
 
 
 
-    // =========================================================
-    // CHANGE PASSWORD
-    // =========================================================
-    //
-    // POST /api/Auth/change-password
-    //
-    // Authorization:
-    // Bearer <JWT>
-    //
-    // Only authenticated PATIENT accounts can change their password.
-    //
-    // Request:
-    // {
-    //     "currentPassword": "OldPassword123!",
-    //     "newPassword": "NewPassword123!",
-    //     "confirmPassword": "NewPassword123!"
-    // }
-    //
-    // =========================================================
+// =========================================================
+// CHANGE PASSWORD
+// =========================================================
+//
+// POST /api/Auth/change-password
+//
+// Authorization:
+// Bearer <JWT>
+//
+// Supported accounts:
+// Admin
+// Physician
+// Patient
+//
+// Request:
+// {
+//     "currentPassword": "OldPassword123!",
+//     "newPassword": "NewPassword123!",
+//     "confirmPassword": "NewPassword123!"
+// }
+//
+// =========================================================
 
-    [Authorize]
-    [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword(
-        [FromBody] ChangePasswordRequest request)
+[Authorize]
+[HttpPost("change-password")]
+public async Task<IActionResult> ChangePassword(
+    [FromBody] ChangePasswordRequest request)
     {
         // ---------------------------------------------------------
         // Validate request
@@ -483,6 +487,31 @@ public class AuthController : ControllerBase
             });
         }
 
+        // ---------------------------------------------------------
+        // Confirm new password
+        // ---------------------------------------------------------
+
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            return BadRequest(new
+            {
+                message =
+                    "New password and confirmation password do not match."
+            });
+        }
+
+        // ---------------------------------------------------------
+        // Basic password validation
+        // ---------------------------------------------------------
+
+        if (request.NewPassword.Length < 8)
+        {
+            return BadRequest(new
+            {
+                message =
+                    "New password must be at least 8 characters long."
+            });
+        }
 
         // ---------------------------------------------------------
         // Get PrincipalType from JWT
@@ -499,192 +528,389 @@ public class AuthController : ControllerBase
             });
         }
 
-
         // ---------------------------------------------------------
-        // Only Patient is allowed
-        // ---------------------------------------------------------
-
-        if (!string.Equals(
-                principalType,
-                "Patient",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return Forbid();
-        }
-
-
-        // ---------------------------------------------------------
-        // Get PatientAccountID from JWT
+        // Get Account ID from JWT
         // ---------------------------------------------------------
 
         var userIdValue =
-            User.FindFirstValue(
-                ClaimTypes.NameIdentifier);
+            User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrWhiteSpace(userIdValue) ||
-            !int.TryParse(userIdValue, out var patientAccountId))
+            !int.TryParse(userIdValue, out var userId))
         {
             return Unauthorized(new
             {
-                message = "Invalid patient token."
+                message = "Invalid user token."
             });
         }
 
+        // =========================================================
+        // ADMIN
+        // =========================================================
 
-        // ---------------------------------------------------------
-        // Load PatientAccount
-        // ---------------------------------------------------------
-
-        var patientAccount =
-            await _db.PatientAccounts
-                .FirstOrDefaultAsync(a =>
-                    a.PatientAccountID == patientAccountId);
-
-        if (patientAccount == null)
+        if (string.Equals(
+            principalType,
+            "Admin",
+            StringComparison.OrdinalIgnoreCase))
         {
-            return NotFound(new
+            var admin = await _db.Admins
+                .FirstOrDefaultAsync(a =>
+                    a.AdminID == userId);
+
+            if (admin == null)
             {
-                message = "Patient account not found."
+                return NotFound(new
+                {
+                    message = "Admin account not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check account status
+            // -----------------------------------------------------
+
+            if (!admin.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Admin account is inactive."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check password exists
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(admin.PasswordHash))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Admin account does not have a password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify current password
+            // -----------------------------------------------------
+
+            var currentPasswordResult =
+                _adminPasswordHasher.VerifyHashedPassword(
+                    admin,
+                    admin.PasswordHash,
+                    request.CurrentPassword);
+
+            if (currentPasswordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Current password is incorrect."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Prevent password reuse
+            // -----------------------------------------------------
+
+            var newPasswordMatchesCurrent =
+                _adminPasswordHasher.VerifyHashedPassword(
+                    admin,
+                    admin.PasswordHash,
+                    request.NewPassword);
+
+            if (newPasswordMatchesCurrent !=
+                PasswordVerificationResult.Failed)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "New password must be different from the current password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Hash new password
+            // -----------------------------------------------------
+
+            admin.PasswordHash =
+                _adminPasswordHasher.HashPassword(
+                    admin,
+                    request.NewPassword);
+
+            // -----------------------------------------------------
+            // Update password information
+            // -----------------------------------------------------
+
+            var now = DateTime.UtcNow;
+
+            admin.UpdatedAt = now;
+
+            // -----------------------------------------------------
+            // Save
+            // -----------------------------------------------------
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password changed successfully.",
+                accountType = "Admin",
+                passwordChangedAt = now
             });
         }
 
+        // =========================================================
+        // PHYSICIAN
+        // =========================================================
 
-        // ---------------------------------------------------------
-        // Check account status
-        // ---------------------------------------------------------
+        if (string.Equals(
+            principalType,
+            "Physician",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            var physician = await _db.Physicians
+                .FirstOrDefaultAsync(p =>
+                    p.PhysicianID == userId);
 
-        if (!string.Equals(
+            if (physician == null)
+            {
+                return NotFound(new
+                {
+                    message = "Physician account not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check account status
+            // -----------------------------------------------------
+
+            if (!physician.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Physician account is inactive."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check password exists
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(
+                physician.PasswordHash))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Physician account does not have a password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify current password
+            // -----------------------------------------------------
+
+            var currentPasswordResult =
+                _physicianPasswordHasher.VerifyHashedPassword(
+                    physician,
+                    physician.PasswordHash,
+                    request.CurrentPassword);
+
+            if (currentPasswordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Current password is incorrect."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Prevent password reuse
+            // -----------------------------------------------------
+
+            var newPasswordMatchesCurrent =
+                _physicianPasswordHasher.VerifyHashedPassword(
+                    physician,
+                    physician.PasswordHash,
+                    request.NewPassword);
+
+            if (newPasswordMatchesCurrent !=
+                PasswordVerificationResult.Failed)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "New password must be different from the current password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Hash new password
+            // -----------------------------------------------------
+
+            physician.PasswordHash =
+                _physicianPasswordHasher.HashPassword(
+                    physician,
+                    request.NewPassword);
+
+            // -----------------------------------------------------
+            // Update password information
+            // -----------------------------------------------------
+
+            var now = DateTime.UtcNow;
+
+            physician.UpdatedAt = now;
+
+            // -----------------------------------------------------
+            // Save
+            // -----------------------------------------------------
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password changed successfully.",
+                accountType = "Physician",
+                passwordChangedAt = now
+            });
+        }
+
+        // =========================================================
+        // PATIENT
+        // =========================================================
+
+        if (string.Equals(
+            principalType,
+            "Patient",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            var patientAccount =
+                await _db.PatientAccounts
+                    .FirstOrDefaultAsync(a =>
+                        a.PatientAccountID == userId);
+
+            if (patientAccount == null)
+            {
+                return NotFound(new
+                {
+                    message = "Patient account not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check account status
+            // -----------------------------------------------------
+
+            if (!string.Equals(
                 patientAccount.Status,
                 "Active",
                 StringComparison.OrdinalIgnoreCase))
-        {
-            return Unauthorized(new
             {
-                message = "Patient account is not active."
-            });
-        }
+                return Unauthorized(new
+                {
+                    message =
+                        "Patient account is not active."
+                });
+            }
 
+            // -----------------------------------------------------
+            // Check password exists
+            // -----------------------------------------------------
 
-        // ---------------------------------------------------------
-        // Check password exists
-        // ---------------------------------------------------------
-
-        if (string.IsNullOrWhiteSpace(
+            if (string.IsNullOrWhiteSpace(
                 patientAccount.PasswordHash))
-        {
-            return BadRequest(new
             {
-                message = "Patient account does not have a password."
+                return BadRequest(new
+                {
+                    message =
+                        "Patient account does not have a password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify current password
+            // -----------------------------------------------------
+
+            var currentPasswordResult =
+                _patientPasswordHasher.VerifyHashedPassword(
+                    patientAccount,
+                    patientAccount.PasswordHash,
+                    request.CurrentPassword);
+
+            if (currentPasswordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Current password is incorrect."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Prevent password reuse
+            // -----------------------------------------------------
+
+            var newPasswordMatchesCurrent =
+                _patientPasswordHasher.VerifyHashedPassword(
+                    patientAccount,
+                    patientAccount.PasswordHash,
+                    request.NewPassword);
+
+            if (newPasswordMatchesCurrent !=
+                PasswordVerificationResult.Failed)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "New password must be different from the current password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Hash new password
+            // -----------------------------------------------------
+
+            patientAccount.PasswordHash =
+                _patientPasswordHasher.HashPassword(
+                    patientAccount,
+                    request.NewPassword);
+
+            // -----------------------------------------------------
+            // Update password information
+            // -----------------------------------------------------
+
+            var now = DateTime.UtcNow;
+
+            patientAccount.MustChangePassword = false;
+            patientAccount.PasswordChangedAt = now;
+            patientAccount.UpdatedAt = now;
+
+            // -----------------------------------------------------
+            // Save
+            // -----------------------------------------------------
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password changed successfully.",
+                accountType = "Patient",
+                passwordChangedAt = now
             });
         }
 
+        // =========================================================
+        // UNKNOWN ACCOUNT TYPE
+        // =========================================================
 
-        // ---------------------------------------------------------
-        // Confirm new password
-        // ---------------------------------------------------------
-
-        if (request.NewPassword != request.ConfirmPassword)
+        return Unauthorized(new
         {
-            return BadRequest(new
-            {
-                message = "New password and confirmation password do not match."
-            });
-        }
-
-
-        // ---------------------------------------------------------
-        // Prevent using the same password
-        // ---------------------------------------------------------
-
-        var currentPasswordResult =
-            _patientPasswordHasher.VerifyHashedPassword(
-                patientAccount,
-                patientAccount.PasswordHash,
-                request.CurrentPassword);
-
-        if (currentPasswordResult ==
-            PasswordVerificationResult.Failed)
-        {
-            return Unauthorized(new
-            {
-                message = "Current password is incorrect."
-            });
-        }
-
-
-        // ---------------------------------------------------------
-        // Prevent same old/new password
-        // ---------------------------------------------------------
-
-        var newPasswordMatchesCurrent =
-            _patientPasswordHasher.VerifyHashedPassword(
-                patientAccount,
-                patientAccount.PasswordHash,
-                request.NewPassword);
-
-        if (newPasswordMatchesCurrent !=
-            PasswordVerificationResult.Failed)
-        {
-            return BadRequest(new
-            {
-                message = "New password must be different from the current password."
-            });
-        }
-
-
-        // ---------------------------------------------------------
-        // Basic password validation
-        // ---------------------------------------------------------
-
-        if (request.NewPassword.Length < 8)
-        {
-            return BadRequest(new
-            {
-                message = "New password must be at least 8 characters long."
-            });
-        }
-
-
-        // ---------------------------------------------------------
-        // Hash new password
-        // ---------------------------------------------------------
-
-        patientAccount.PasswordHash =
-            _patientPasswordHasher.HashPassword(
-                patientAccount,
-                request.NewPassword);
-
-
-        // ---------------------------------------------------------
-        // Update password information
-        // ---------------------------------------------------------
-
-        var now = DateTime.UtcNow;
-
-        patientAccount.MustChangePassword = false;
-
-        patientAccount.PasswordChangedAt = now;
-
-        patientAccount.UpdatedAt = now;
-
-
-        // ---------------------------------------------------------
-        // Save changes
-        // ---------------------------------------------------------
-
-        await _db.SaveChangesAsync();
-
-
-        // ---------------------------------------------------------
-        // Response
-        // ---------------------------------------------------------
-
-        return Ok(new
-        {
-            message = "Password changed successfully.",
-            passwordChangedAt = patientAccount.PasswordChangedAt
+            message = "Unrecognized account type."
         });
     }
+
 
 
 

@@ -18,6 +18,7 @@
         public string? MiddleName { get; set; }
         public string PRCLicenseNo { get; set; } = string.Empty;
         public string? ContactNo { get; set; }
+
         public bool IsActive { get; set; } = true;
         public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }

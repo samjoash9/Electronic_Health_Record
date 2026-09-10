@@ -105,57 +105,7 @@ namespace Electronic_Health_Record.Server.Data
             // questions, options) come from the migration via HasData, so there is
             // nothing to seed for them here.
 
-            // Seed Employees: the local stand-in for the external HR API Station 1
-            // searches (see Services/IEmployeeDirectory). Mirrors the shape and
-            // volume of the mock's buildEmployees() so the picker has something
-            // realistic to filter against.
-            if (!await context.Employees.AnyAsync())
-            {
-                string[] surnames = ["Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "Mercado", "Aquino", "Del Rosario"];
-                string[] firstNames = ["Maria", "Jose", "Ana", "Juan", "Rosario", "Antonio", "Carmen", "Ramon"];
-                string[] middleInitials = ["A.", "B.", "C.", "D.", "E.", "F.", "G.", "H."];
-                string[] agencies =
-                [
-                    "Provincial Health Office", "Provincial Engineering Office",
-                    "Provincial Agriculture Office", "Human Resource Management Office",
-                    "Provincial Social Welfare Office", "Provincial Legal Office",
-                    "Provincial Accounting Office",
-                ];
-                string[] positions =
-                [
-                    "Administrative Aide IV", "Administrative Officer II", "Nurse II",
-                    "Engineer I", "Agriculturist II", "Accountant I", "Clerk III",
-                    "Draftsman II", "Social Welfare Officer I", "Legal Assistant",
-                ];
-                string[] civilStatuses = ["Single", "Married", "Widowed", "Separated"];
-
-                var employees = new List<Employee>();
-                for (var i = 0; i < 32; i++)
-                {
-                    var year = 1968 + (i * 7 % 36);
-                    var month = i % 12 + 1;
-                    var day = i * 3 % 27 + 1;
-
-                    employees.Add(new Employee
-                    {
-                        ExternalEmployeeId = $"PHO-{1001 + i}",
-                        Surname = surnames[i % surnames.Length],
-                        FirstName = firstNames[i % firstNames.Length],
-                        MiddleName = middleInitials[i % middleInitials.Length],
-                        Birthdate = new DateTime(year, month, day),
-                        Sex = i % 2 == 0 ? "Female" : "Male",
-                        CivilStatus = civilStatuses[i % civilStatuses.Length],
-                        Address = $"{100 + i} Rizal Street, Barangay {i % 12 + 1}, Trece Martires City, Cavite",
-                        AgencyOffice = agencies[i % agencies.Length],
-                        Position = positions[i % positions.Length],
-                        ContactNo = $"09{170000000 + i * 137}"[..11],
-                    });
-                }
-
-                context.Employees.AddRange(employees);
-                await context.SaveChangesAsync();
-            }
-
+           
             // Seed Patients.
             // Patient rows normally only ever arrive by syncing from the external HR
             // API, so every row needs an ExternalEmployeeId. These development

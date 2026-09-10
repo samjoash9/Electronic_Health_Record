@@ -1,5 +1,6 @@
 using System.Text;
 
+using Electronic_Health_Record.Server.BackgroundJobs;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Filters;
 using Electronic_Health_Record.Server.Services;
@@ -157,8 +158,44 @@ builder.Services
                 System.Security.Claims.ClaimTypes.Role
         };
 
-     
+
     });
+
+
+
+// ============================================================
+// Employee API HttpClient
+// ============================================================
+// Registers the HttpClient used by the EHR application to
+// communicate with the external iHRIS Employee API.
+//
+// The timeout is increased because the Employee API may return
+// a large list of active employees.
+// ============================================================
+
+builder.Services.AddHttpClient<IEmployeeService, EmployeeService>(
+    client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["EmployeeApi:BaseUrl"]!
+        );
+
+        client.Timeout = TimeSpan.FromMinutes(2);
+    });
+
+
+// ============================================================
+// Employee Sync Background Service
+// ============================================================
+// Runs on a timer (every 4 minutes) and pulls employee data
+// from the external HR API into the local database. This is
+// the ONLY place in the app that calls the external HR API —
+// all controller reads (GET /api/Employees) are served from
+// the local database only, so the app keeps working even if
+// the HR source is slow or temporarily unreachable.
+// ============================================================
+
+builder.Services.AddHostedService<EmployeeSyncBackgroundService>();
 
 
 // ============================================================
