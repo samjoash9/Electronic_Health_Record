@@ -134,6 +134,64 @@ export async function submitStation3({
 
 
 /**
+ * Station 4:
+ * Submit dental assessment.
+ */
+export async function submitStation4({
+    formID,
+    dentistID,
+    dentalAssessment,
+    dentalSignature,
+    rowVersion,
+}) {
+    try {
+        const { data } = await api.post(
+            `/wellnessforms/${formID}/station4`,
+            {
+                dentistID,
+                dentalAssessment,
+                dentalSignature,
+                rowVersion,
+            }
+        );
+
+        return data.data ?? data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
+
+/**
+ * Station 5:
+ * Submit vision assessment. Completes the form.
+ */
+export async function submitStation5({
+    formID,
+    optometristID,
+    visionAssessment,
+    visionSignature,
+    rowVersion,
+}) {
+    try {
+        const { data } = await api.post(
+            `/wellnessforms/${formID}/station5`,
+            {
+                optometristID,
+                visionAssessment,
+                visionSignature,
+                rowVersion,
+            }
+        );
+
+        return data.data ?? data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
+
+/**
  * Cancel a wellness form.
  *
  * The authenticated Admin identity is resolved
