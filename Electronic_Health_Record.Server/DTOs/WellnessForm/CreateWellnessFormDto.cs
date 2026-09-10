@@ -52,7 +52,7 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         [Range(0, 999)]
         public short? RespRate { get; set; }
 
-        [MaxLength(150)]
+        [MaxLength(200)]
         public string? RecommendedDiagnosticTest { get; set; }
 
         [MaxLength(300)]
@@ -66,6 +66,8 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         public List<PastMedicalHistoryItemDto> PastMedicalHistory { get; set; } = new();
 
         public List<FamilyMedicalHistoryItemDto> FamilyMedicalHistory { get; set; } = new();
+
+        public List<ExerciseItemDto> Exercise { get; set; } = new();
 
         public SocialHistoryDto? SocialHistory { get; set; }
     }
@@ -95,18 +97,64 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
     {
         public int? ConditionID { get; set; }
 
-        // free text for "Others (Specify)" and the cancer type box
+        // free text for "Others (Specify)"
         [MaxLength(100)]
         public string? ConditionOther { get; set; }
 
         // true for the single "None (No known history)" row
         public bool? IsNone { get; set; }
+
+        // subtype of the condition (e.g. "Type 2", "Breast") — only sent for
+        // Diabetes Mellitus, Cancer, and Others rows
+        [MaxLength(300)]
+        public string? ConditionType { get; set; }
+    }
+
+    public class ExerciseItemDto
+    {
+        [Required]
+        [MaxLength(100)]
+        public string ExerciseType { get; set; } = null!;
+
+        [MaxLength(50)]
+        public string? ExerciseFrequency { get; set; }
+
+        [MaxLength(4)]
+        public string? ExerciseYearStarted { get; set; }
     }
 
     public class SocialHistoryDto
     {
-        [Range(0, 999)]
-        public short? SmokingSticksPerDay { get; set; }
+        // null means unanswered; the Yes/No pair starts with neither selected
+        public bool? Smokes { get; set; }
+
+        public bool SmokesCigarette { get; set; }
+
+        [MaxLength(20)]
+        public string? CigaretteSticksPerDay { get; set; }
+
+        [MaxLength(50)]
+        public string? CigaretteFrequency { get; set; }
+
+        [MaxLength(4)]
+        public string? CigaretteYearStarted { get; set; }
+
+        [MaxLength(20)]
+        public string? CigarettePuffsPerDay { get; set; }
+
+        public bool SmokesEcig { get; set; }
+
+        [MaxLength(20)]
+        public string? EcigPodsPerMonth { get; set; }
+
+        [MaxLength(50)]
+        public string? EcigFrequency { get; set; }
+
+        [MaxLength(4)]
+        public string? EcigYearStarted { get; set; }
+
+        [MaxLength(20)]
+        public string? EcigPuffsPerDay { get; set; }
 
         [MaxLength(50)]
         public string? AlcoholType { get; set; }
@@ -116,16 +164,5 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
 
         [MaxLength(20)]
         public string? DrinksPerSession { get; set; }
-
-        public bool? HasBeenDrunk { get; set; }
-
-        [MaxLength(50)]
-        public string? DrunkFrequency { get; set; }
-
-        [MaxLength(50)]
-        public string? ExerciseFrequency { get; set; }
-
-        [MaxLength(100)]
-        public string? ExerciseType { get; set; }
     }
 }

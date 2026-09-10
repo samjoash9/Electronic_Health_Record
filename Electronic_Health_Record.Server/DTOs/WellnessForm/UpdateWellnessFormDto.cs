@@ -52,7 +52,7 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         [Range(0, 999)]
         public short? RespRate { get; set; }
 
-        [MaxLength(150)]
+        [MaxLength(200)]
         public string? RecommendedDiagnosticTest { get; set; }
 
         [MaxLength(300)]

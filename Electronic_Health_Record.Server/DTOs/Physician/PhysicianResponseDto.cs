@@ -7,22 +7,16 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
     public class PhysicianResponseDto
     {
         public int PhysicianID { get; set; }
+        public string Username { get; set; } = string.Empty;
         public string Surname { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string? MiddleName { get; set; } = string.Empty;
         public string PRCLicenseNo { get; set; } = string.Empty;
-
-        // account status, safe to expose -- never the hash itself
-        public string? Username { get; set; }
+        public string? ContactNo { get; set; }
+        // Still on the password an admin issued: surfaced so Onboarding can show
+        // which accounts have never been claimed.
+        public bool MustChangePassword { get; set; }
         public bool IsActive { get; set; }
-
-        /// <summary>
-        /// True when this physician has portal credentials and is active, i.e. could actually
-        /// sign a form. A directory-only entry can be assigned one but can never sign it, so the
-        /// assignment picker should filter on this.
-        /// </summary>
-        public bool CanSign { get; set; }
-
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 

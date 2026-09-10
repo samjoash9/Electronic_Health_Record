@@ -1,51 +1,44 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, ROLES } from './context/AuthContext';
-import ProtectedRoute from './routes/ProtectedRoute';
-import MainLayout from './layout/MainLayout';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider } from './auth/AuthContext';
+import { routeElements } from './routes';
 
-import Login from './pages/auth/Login';
-import Dashboard from './pages/Dashboard';
-import PatientRecord from './pages/records/PatientRecord';
-import Employee from './pages/admin/Employee';
-import ActivityPage from './pages/ActivityPage';
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: true,
+      staleTime: 10_000,
+    },
+  },
+});
+
+// createBrowserRouter (not <BrowserRouter>) so useBlocker (unsaved-changes
+// guards) has the data router it requires — see routes.jsx.
+const router = createBrowserRouter(routeElements);
 
 export default function App() {
-    return (
-        <AuthProvider>
-            <BrowserRouter>
-                <Routes>
-                    {/* Public Route */}
-                    <Route path="/login" element={<Login />} />
-
-                    {/* All Authenticated Protected Routes wrapped in MainLayout */}
-                    <Route element={<ProtectedRoute />}>
-                        <Route element={<MainLayout />}>
-                            {/* Dashboard - visible to all authenticated users */}
-                            <Route path="/dashboard" element={<Dashboard />} />
-
-                            {/* Station 1, Station 2, Station 3 (Doctor), and Superadmin (Patient Medical Records) */}
-                            <Route element={<ProtectedRoute allowedRoles={[ROLES.SUPERADMIN, ROLES.STATION1, ROLES.STATION2, ROLES.DOCTOR]} />}>
-                                <Route path="/patient-records" element={<PatientRecord />} />
-                            </Route>
-
-                            {/* Super Admin, Station 1, and Station 2 (Activity Logs) */}
-                            <Route element={<ProtectedRoute allowedRoles={[ROLES.SUPERADMIN, ROLES.STATION1, ROLES.STATION2]} />}>
-                                <Route path="/activity" element={<ActivityPage />} />
-                            </Route>
-
-                            {/* Super Admin Only (Employee Management) */}
-                            <Route element={<ProtectedRoute allowedRoles={[ROLES.SUPERADMIN]} />}>
-                                <Route path="/employees" element={<Employee />} />
-                                <Route path="/employee" element={<Navigate to="/employees" replace />} />
-                            </Route>
-                        </Route>
-                    </Route>
-
-                    {/* Fallback */}
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-            </BrowserRouter>
-        </AuthProvider>
-    );
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+        <ToastContainer
+          position="top-right"
+          autoClose={3500}
+          newestOnTop
+          toastClassName="!min-h-0 !rounded-xl !border !border-line !bg-surface !p-4 !text-sm !font-medium !text-ink-900 !shadow-lg"
+          progressClassName="!bg-[#129883]"
+          icon={({ type }) =>
+            type === 'error' ? (
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">✕</div>
+            ) : (
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e9fbf6] text-[#0e7d6b]">✓</div>
+            )
+          }
+        />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
 }

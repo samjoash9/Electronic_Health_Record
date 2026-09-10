@@ -7,6 +7,9 @@
         public int? ConditionID { get; set; }
         public string? ConditionOther { get; set; }
         public bool? IsNone { get; set; }
+        // subtype of the condition (e.g. "Type 2", "Breast") — only set for
+        // Diabetes Mellitus, Cancer, and Others rows
+        public string? ConditionType { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

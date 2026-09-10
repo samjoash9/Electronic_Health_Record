@@ -4,16 +4,27 @@ namespace Electronic_Health_Record.Server.Models
     {
         public int FormID { get; set; }
         public int PatientID { get; set; }
-        // the physician the Admin routed this form to. a routing decision: mutable, and null
-        // while the form is still a draft. required once the status leaves Draft.
-        public int? AssignedPhysicianID { get; set; }
-        // the physician who actually signed. a clinical attestation: written once by the sign
-        // endpoint, never rewritten -- which is what stops a later reassignment from silently
-        // forging the signer.
-        public int? SignedByPhysicianID { get; set; }
-        // "Draft", "PendingSignature" or "Signed" -- see FormStatus
-        public string Status { get; set; } = FormStatus.Draft;
-        // the signing physician's signature, stored as the signature pad's base64 data URL
+        // null until a doctor picks the form up at Station 3
+        public int? PhysicianID { get; set; }
+        // workflow state; drives which station queue the form appears in.
+        // "PendingAssessment"   Station 1 done, waiting for Station 2
+        // "PendingConsultation" Station 2 done, waiting for Station 3
+        // "PendingDental"       Station 3 done and signed, waiting for Station 4.
+        //                       Note this is a signed-but-not-completed state:
+        //                       before Station 4 existed, SignedAt and
+        //                       "Completed" were always set together.
+        // "PendingVision"       Station 4 done and signed, waiting for Station 5.
+        //                       Before Station 5 existed, DentalSignedAt and
+        //                       "Completed" were always set together.
+        // "Completed"           Station 5 done and signed by the optometrist
+        // "Cancelled"
+        public string Status { get; set; } = "PendingAssessment";
+        public byte CurrentStation { get; set; } = 1;
+        // optimistic concurrency: three stations on three devices touch this row,
+        // so a stale submit must not silently clobber a later station's work
+        public byte[]? RowVersion { get; set; }
+        // physician's digital signature, stored as the signature pad's base64 data URL;
+        // a form cannot reach "Completed" without one
         public string? Signature { get; set; }
         // when the signature was captured
         public DateTime? SignedAt { get; set; }
@@ -27,10 +38,33 @@ namespace Electronic_Health_Record.Server.Models
         public decimal? TempCelsius { get; set; }
         public short? HeartRate { get; set; }
         public short? RespRate { get; set; }
+        public int? Station1AdminID { get; set; }
+        public DateTime? Station1SubmittedAt { get; set; }
+
+        // Station 2 answers are rows in AssessmentAnswer; only the station's
+        // attribution and hand-off timestamp live here
+        public int? Station2AdminID { get; set; }
+        public DateTime? Station2SubmittedAt { get; set; }
         public string? RecommendedDiagnosticTest { get; set; }
         public string? ImpressionClinical { get; set; }
         public string? ManagementTreatment { get; set; }
-        // authorship is always staff: physicians sign forms, they never author them
+        public DateTime? Station3SubmittedAt { get; set; }
+
+        // Station 4 (Dental). The dentist is a Physician row -- the schema has no
+        // separate practitioner table -- but is tracked apart from PhysicianID so
+        // the consulting doctor and the examining dentist can differ.
+        public int? DentistID { get; set; }
+        public string? DentalSignature { get; set; }
+        public DateTime? DentalSignedAt { get; set; }
+        public DateTime? Station4SubmittedAt { get; set; }
+
+        // Station 5 (Vision). Same pattern as DentistID: the optometrist is a
+        // Physician row, tracked apart from PhysicianID/DentistID so all three
+        // can differ.
+        public int? OptometristID { get; set; }
+        public string? VisionSignature { get; set; }
+        public DateTime? VisionSignedAt { get; set; }
+        public DateTime? Station5SubmittedAt { get; set; }
         public int? CreatedByAdminID { get; set; }
         public int? UpdatedByAdminID { get; set; }
         public DateTime CreatedAt { get; set; }
