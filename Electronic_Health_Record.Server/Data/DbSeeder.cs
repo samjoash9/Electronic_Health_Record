@@ -1,17 +1,21 @@
 using Electronic_Health_Record.Server.Models;
-using Microsoft.AspNetCore.Identity;
+using Electronic_Health_Record.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Electronic_Health_Record.Server.Data
 {
     public static class DbSeeder
     {
-        private static readonly PasswordHasher<Admin> _adminPasswordHasher = new();
-        private static readonly PasswordHasher<Physician> _physicianPasswordHasher = new();
+        // Set from the service provider on entry, so HashPassword stays a static
+        // helper the seed literals can call inline. The onboarding endpoints hash
+        // through the same service, so a seeded and an onboarded account are
+        // indistinguishable at sign-in.
+        private static IPasswordHasher _passwordHasher = new Sha256PasswordHasher();
 
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ElectronicHealthRecordDbContext>();
+            _passwordHasher = serviceProvider.GetRequiredService<IPasswordHasher>();
 
             // Ensure the database is created / migrated
             if (context.Database.IsRelational())
@@ -19,233 +23,384 @@ namespace Electronic_Health_Record.Server.Data
                 await context.Database.MigrateAsync();
             }
 
-            // Seed staff accounts: one of each role, so the three-role flow is testable.
-            // Checked per-account rather than behind a single AnyAsync guard, because a database
-            // seeded before roles existed already has rows -- such a guard would skip the whole
-            // block and leave that database with no SuperAdmin and no way to create one.
-            await EnsureAdminAsync(context, "admin", "admin@hospital.com", "System Administrator", Roles.SuperAdmin);
-            await EnsureAdminAsync(context, "intake", "intake@hospital.com", "Intake Officer", Roles.Admin);
+            var now = DateTime.UtcNow;
 
-            var currentAdmin = await context.Admins.FirstAsync(a => a.Username == "admin");
+            // Seed Admins
+            if (!await context.Admins.AnyAsync())
+            {
+                // One of each tier, so the permission split has something to exercise
+                // on a fresh development database. The MustChangePassword flags are
+                // deliberately mixed so the forced-rotation flow can be exercised
+                // without having to reset an account by hand first.
+                context.Admins.AddRange(
+                    new Admin
+                    {
+                        Username = "superadmin",
+                        Role = AdminRoles.SuperAdmin,
+                        ContactNo = "09170000000",
+                        PasswordHash = HashPassword("password123"),
+                        // settled account: logs straight in
+                        MustChangePassword = false,
+                        PasswordSetAt = now.AddDays(-30),
+                        PasswordChangedAt = now.AddDays(-30),
+                        FullName = "System Developer",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    },
+                    new Admin
+                    {
+                        Username = "admin",
+                        Role = AdminRoles.Admin,
+                        ContactNo = "09170000001",
+                        PasswordHash = HashPassword("password123"),
+                        // settled account: the rest of the development fixtures are
+                        // attributed to this one, so it should not be stuck behind a
+                        // password prompt
+                        MustChangePassword = false,
+                        PasswordSetAt = now.AddDays(-30),
+                        PasswordChangedAt = now.AddDays(-30),
+                        FullName = "System Administrator",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    },
+                    new Admin
+                    {
+                        Username = "nurse1",
+                        Role = AdminRoles.Admin,
+                        ContactNo = "09170000002",
+                        PasswordHash = HashPassword("password123"),
+                        // freshly onboarded by the superadmin: still on the default
+                        MustChangePassword = true,
+                        PasswordSetAt = now,
+                        PasswordChangedAt = null,
+                        FullName = "Corazon Dimaculangan",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
+                await context.SaveChangesAsync();
+            }
 
-            // MedicalConditions come from the migration (HasData), so nothing to seed here
+            var currentAdmin = await context.Admins.FirstOrDefaultAsync(a => a.Username == "admin");
 
-            // Seed Patients
+            // MedicalConditions and the whole Station 2 question bank (categories,
+            // questions, options) come from the migration via HasData, so there is
+            // nothing to seed for them here.
+
+            // Seed Employees: the local stand-in for the external HR API Station 1
+            // searches (see Services/IEmployeeDirectory). Mirrors the shape and
+            // volume of the mock's buildEmployees() so the picker has something
+            // realistic to filter against.
+            if (!await context.Employees.AnyAsync())
+            {
+                string[] surnames = ["Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "Mercado", "Aquino", "Del Rosario"];
+                string[] firstNames = ["Maria", "Jose", "Ana", "Juan", "Rosario", "Antonio", "Carmen", "Ramon"];
+                string[] middleInitials = ["A.", "B.", "C.", "D.", "E.", "F.", "G.", "H."];
+                string[] agencies =
+                [
+                    "Provincial Health Office", "Provincial Engineering Office",
+                    "Provincial Agriculture Office", "Human Resource Management Office",
+                    "Provincial Social Welfare Office", "Provincial Legal Office",
+                    "Provincial Accounting Office",
+                ];
+                string[] positions =
+                [
+                    "Administrative Aide IV", "Administrative Officer II", "Nurse II",
+                    "Engineer I", "Agriculturist II", "Accountant I", "Clerk III",
+                    "Draftsman II", "Social Welfare Officer I", "Legal Assistant",
+                ];
+                string[] civilStatuses = ["Single", "Married", "Widowed", "Separated"];
+
+                var employees = new List<Employee>();
+                for (var i = 0; i < 32; i++)
+                {
+                    var year = 1968 + (i * 7 % 36);
+                    var month = i % 12 + 1;
+                    var day = i * 3 % 27 + 1;
+
+                    employees.Add(new Employee
+                    {
+                        ExternalEmployeeId = $"PHO-{1001 + i}",
+                        Surname = surnames[i % surnames.Length],
+                        FirstName = firstNames[i % firstNames.Length],
+                        MiddleName = middleInitials[i % middleInitials.Length],
+                        Birthdate = new DateTime(year, month, day),
+                        Sex = i % 2 == 0 ? "Female" : "Male",
+                        CivilStatus = civilStatuses[i % civilStatuses.Length],
+                        Address = $"{100 + i} Rizal Street, Barangay {i % 12 + 1}, Trece Martires City, Cavite",
+                        AgencyOffice = agencies[i % agencies.Length],
+                        Position = positions[i % positions.Length],
+                        ContactNo = $"09{170000000 + i * 137}"[..11],
+                    });
+                }
+
+                context.Employees.AddRange(employees);
+                await context.SaveChangesAsync();
+            }
+
+            // Seed Patients.
+            // Patient rows normally only ever arrive by syncing from the external HR
+            // API, so every row needs an ExternalEmployeeId. These development
+            // fixtures use synthetic EMP-#### ids that no real employee can collide with.
             if (!await context.Patients.AnyAsync())
             {
                 context.Patients.AddRange(
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0001",
                         Surname = "Doe",
                         FirstName = "John",
                         MiddleName = "Smith",
                         Birthdate = new DateTime(1980, 5, 15),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Married",
                         Address = "123 Main St, Springfield",
                         AgencyOffice = "HR",
                         Position = "Manager",
                         ContactNo = "09123456789",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0002",
                         Surname = "Roe",
                         FirstName = "Jane",
                         MiddleName = "Ann",
                         Birthdate = new DateTime(1992, 8, 25),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "456 Oak St, Springfield",
                         AgencyOffice = "IT",
                         Position = "Developer",
                         ContactNo = "09876543210",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
-                        Surname = "Roe",
-                        FirstName = "Jane",
-                        MiddleName = "Ann",
-                        Birthdate = new DateTime(1992, 8, 25),
-                        Sex = "F",
-                        CivilStatus = "Single",
-                        Address = "456 Oak St, Springfield",
-                        AgencyOffice = "IT",
-                        Position = "Developer",
-                        ContactNo = "09876543210",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    },
-                    new Patient
-                    {
+                        ExternalEmployeeId = "EMP-0003",
                         Surname = "Smith",
                         FirstName = "John",
                         MiddleName = "Michael",
                         Birthdate = new DateTime(1988, 3, 14),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Married",
                         Address = "123 Maple St, Springfield",
                         AgencyOffice = "Finance",
                         Position = "Accountant",
                         ContactNo = "09123456789",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0004",
                         Surname = "Garcia",
                         FirstName = "Maria",
                         MiddleName = "Elena",
                         Birthdate = new DateTime(1995, 11, 7),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "789 Pine St, Springfield",
                         AgencyOffice = "HR",
                         Position = "HR Specialist",
                         ContactNo = "09234567890",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0005",
                         Surname = "Santos",
                         FirstName = "Carlos",
                         MiddleName = "Luis",
                         Birthdate = new DateTime(1990, 6, 18),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Single",
                         Address = "321 Cedar Ave, Springfield",
                         AgencyOffice = "Operations",
                         Position = "Operations Officer",
                         ContactNo = "09345678901",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0006",
                         Surname = "Reyes",
                         FirstName = "Angela",
                         MiddleName = "Marie",
                         Birthdate = new DateTime(1985, 1, 30),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Married",
                         Address = "654 Birch Road, Springfield",
                         AgencyOffice = "Administration",
                         Position = "Administrative Officer",
                         ContactNo = "09456789012",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0007",
                         Surname = "Dela Cruz",
                         FirstName = "Mark",
                         MiddleName = "Anthony",
                         Birthdate = new DateTime(1997, 9, 12),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Single",
                         Address = "987 Elm Street, Springfield",
                         AgencyOffice = "IT",
                         Position = "Software Engineer",
                         ContactNo = "09567890123",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0008",
                         Surname = "Mendoza",
                         FirstName = "Sofia",
                         MiddleName = "Grace",
                         Birthdate = new DateTime(1993, 4, 22),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "147 Willow Lane, Springfield",
                         AgencyOffice = "Marketing",
                         Position = "Marketing Officer",
                         ContactNo = "09678901234",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0009",
                         Surname = "Villanueva",
                         FirstName = "Daniel",
                         MiddleName = "James",
                         Birthdate = new DateTime(1989, 12, 5),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Married",
                         Address = "258 Oak Avenue, Springfield",
                         AgencyOffice = "Legal",
                         Position = "Legal Officer",
                         ContactNo = "09789012345",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0010",
                         Surname = "Torres",
                         FirstName = "Patricia",
                         MiddleName = "Anne",
                         Birthdate = new DateTime(1996, 7, 16),
-                        Sex = "F",
+                        Sex = "Female",
                         CivilStatus = "Single",
                         Address = "369 Maple Drive, Springfield",
                         AgencyOffice = "IT",
                         Position = "Systems Analyst",
                         ContactNo = "09890123456",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     },
                     new Patient
                     {
+                        ExternalEmployeeId = "EMP-0011",
                         Surname = "Navarro",
                         FirstName = "Kevin",
                         MiddleName = "Paul",
                         Birthdate = new DateTime(1991, 2, 28),
-                        Sex = "M",
+                        Sex = "Male",
                         CivilStatus = "Divorced",
                         Address = "741 Pine Avenue, Springfield",
                         AgencyOffice = "Procurement",
                         Position = "Procurement Officer",
                         ContactNo = "09901234567",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        LastSyncedAt = now,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     }
-
                 );
                 await context.SaveChangesAsync();
             }
 
-            // Seed Physicians, keyed on the PRC licence number so an existing database gets the
-            // new credential columns backfilled instead of being skipped wholesale.
-            // The first two carry credentials so the signing flow is testable; the third is a
-            // directory-only row, exercising the credential-less case the Doctors page produces.
-            await EnsurePhysicianAsync(context, "PRC-12345", "House", "Gregory", "H.", "ghouse");
-            await EnsurePhysicianAsync(context, "PRC-67890", "Grey", "Meredith", "E.", "mgrey");
-            await EnsurePhysicianAsync(context, "PRC-24680", "Bautista", "Ramon", "P.", username: null);
+            // Seed Physicians. As with the admins, one doctor is settled and one is
+            // still on the password an admin issued at onboarding.
+            if (!await context.Physicians.AnyAsync())
+            {
+                context.Physicians.AddRange(
+                    new Physician
+                    {
+                        Username = "doctor",
+                        PasswordHash = HashPassword("password123"),
+                        // settled account: the Station 3 fixtures are assigned to this
+                        // doctor, so it should not be stuck behind a password prompt
+                        MustChangePassword = false,
+                        PasswordSetAt = now.AddDays(-30),
+                        PasswordChangedAt = now.AddDays(-30),
+                        Surname = "House",
+                        FirstName = "Gregory",
+                        MiddleName = "H.",
+                        PRCLicenseNo = "PRC-12345",
+                        ContactNo = "09171234567",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    },
+                    new Physician
+                    {
+                        Username = "mgrey",
+                        PasswordHash = HashPassword("password123"),
+                        // freshly onboarded by an admin: still on the default
+                        MustChangePassword = true,
+                        PasswordSetAt = now,
+                        PasswordChangedAt = null,
+                        Surname = "Grey",
+                        FirstName = "Meredith",
+                        MiddleName = "E.",
+                        PRCLicenseNo = "PRC-67890",
+                        ContactNo = "09176789012",
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    }
+                );
+                await context.SaveChangesAsync();
+            }
 
-            // Seed WellnessForms with related records
+            // Seed wellness forms: one parked at each stage of the workflow, so every
+            // station queue has something in it on a fresh development database.
             if (!await context.WellnessForms.AnyAsync())
             {
-                var patient = await context.Patients.FirstAsync();
+                var patients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
                 var physician = await context.Physicians.FirstAsync();
-                var conditionHypertension = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Hypertension");
-                var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "Diabetes Mellitus");
+                var conditionDiabetes = await context.MedicalConditions.FirstAsync(c => c.ConditionName == "DIABETES MELLITUS");
 
-                var form = new WellnessForm
+                // ---- Form A: completed and signed (Station 3 done) ----
+                var completed = new WellnessForm
                 {
-                    PatientID = patient.PatientID,
-                    AssignedPhysicianID = physician.PhysicianID,
-                    // a fully signed record: CK_WellnessForm_SignedIntegrity requires the assignee,
-                    // the signer, the signature and the timestamp to all be present together
-                    Status = FormStatus.Signed,
-                    SignedByPhysicianID = physician.PhysicianID,
+                    PatientID = patients[0].PatientID,
+                    PhysicianID = physician.PhysicianID,
+                    Status = "Completed",
+                    CurrentStation = 3,
+                    // a completed form must be signed, so the seed carries a placeholder signature
                     Signature = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                    SignedAt = DateTime.UtcNow,
-                    FormDate = DateTime.UtcNow.Date,
+                    SignedAt = now,
+                    FormDate = now.Date,
                     WeightKg = 75.5m,
                     HeightCm = 175.0m,
                     BMI = 24.65m,
@@ -255,221 +410,268 @@ namespace Electronic_Health_Record.Server.Data
                     TempCelsius = 36.5m,
                     HeartRate = 72,
                     RespRate = 16,
+                    Station1AdminID = currentAdmin?.AdminID,
+                    Station1SubmittedAt = now.AddHours(-3),
+                    Station2AdminID = currentAdmin?.AdminID,
+                    Station2SubmittedAt = now.AddHours(-2),
                     RecommendedDiagnosticTest = "CBC, Urinalysis, FBS",
                     ImpressionClinical = "Generally healthy; pre-diabetic monitoring",
                     ManagementTreatment = "Maintain healthy diet, exercise regularly",
-                    CreatedByAdminID = currentAdmin.AdminID,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    Station3SubmittedAt = now,
+                    CreatedByAdminID = currentAdmin?.AdminID,
+                    CreatedAt = now,
+                    UpdatedAt = now
                 };
 
-                context.WellnessForms.Add(form);
+                // ---- Form B: Station 2 done, sitting in the doctor's queue ----
+                var pendingConsultation = new WellnessForm
+                {
+                    PatientID = patients[1].PatientID,
+                    Status = "PendingConsultation",
+                    CurrentStation = 3,
+                    FormDate = now.Date,
+                    WeightKg = 58.0m,
+                    HeightCm = 162.0m,
+                    BMI = 22.10m,
+                    IdealBMI = 21.5m,
+                    BPSystolic = 118,
+                    BPDiastolic = 76,
+                    TempCelsius = 36.7m,
+                    HeartRate = 68,
+                    RespRate = 15,
+                    Station1AdminID = currentAdmin?.AdminID,
+                    Station1SubmittedAt = now.AddHours(-2),
+                    Station2AdminID = currentAdmin?.AdminID,
+                    Station2SubmittedAt = now.AddHours(-1),
+                    CreatedByAdminID = currentAdmin?.AdminID,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                // ---- Form C: Station 1 done, sitting in the assessment queue ----
+                var pendingAssessment = new WellnessForm
+                {
+                    PatientID = patients[2].PatientID,
+                    Status = "PendingAssessment",
+                    CurrentStation = 2,
+                    FormDate = now.Date,
+                    WeightKg = 82.3m,
+                    HeightCm = 178.0m,
+                    BMI = 25.98m,
+                    IdealBMI = 23.0m,
+                    BPSystolic = 132,
+                    BPDiastolic = 85,
+                    TempCelsius = 36.4m,
+                    HeartRate = 78,
+                    RespRate = 17,
+                    Station1AdminID = currentAdmin?.AdminID,
+                    Station1SubmittedAt = now.AddMinutes(-20),
+                    CreatedByAdminID = currentAdmin?.AdminID,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                context.WellnessForms.AddRange(completed, pendingConsultation, pendingAssessment);
                 await context.SaveChangesAsync();
 
-                // SocialHistory
+                // ---- Station 2 answers for the two forms that cleared assessment ----
+                // Picks a mid-range option for every active question rather than
+                // hand-listing 32 answers, so the seed survives question-bank edits.
+                var questions = await context.AssessmentQuestions
+                    .Where(q => q.IsActive)
+                    .OrderBy(q => q.QuestionID)
+                    .ToListAsync();
+                var optionsByQuestion = await context.AssessmentOptions
+                    .OrderBy(o => o.DisplayOrder)
+                    .ToListAsync();
+
+                foreach (var form in new[] { completed, pendingConsultation })
+                {
+                    // alternate between the best and second-best option so the two
+                    // seeded forms do not produce identical category scores
+                    var pickBest = form.FormID == completed.FormID;
+                    foreach (var question in questions)
+                    {
+                        var choices = optionsByQuestion
+                            .Where(o => o.QuestionID == question.QuestionID)
+                            .OrderByDescending(o => o.Score)
+                            .ToList();
+                        var chosen = pickBest ? choices[0] : choices[Math.Min(1, choices.Count - 1)];
+
+                        context.AssessmentAnswers.Add(new AssessmentAnswer
+                        {
+                            FormID = form.FormID,
+                            QuestionID = question.QuestionID,
+                            OptionID = chosen.OptionID,
+                            CreatedAt = now
+                        });
+                    }
+                }
+
+                // ---- Station 3 clinical history, on the completed form only ----
                 context.SocialHistories.Add(new SocialHistory
                 {
-                    FormID = form.FormID,
-                    SmokingSticksPerDay = 0,
+                    FormID = completed.FormID,
+                    Smokes = false,
                     AlcoholType = "Beer",
                     DrinkFrequency = "Occasional",
                     DrinksPerSession = "1-2",
-                    HasBeenDrunk = false,
-                    DrunkFrequency = "Never",
-                    ExerciseFrequency = "3x a week",
-                    ExerciseType = "Jogging",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now
                 });
 
-                // FamilyMedicalHistory
+                context.Exercises.Add(new Exercise
+                {
+                    FormID = completed.FormID,
+                    ExerciseType = "Jogging",
+                    ExerciseFrequency = "3x a week",
+                    ExerciseYearStarted = "2019",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
                 context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
                 {
-                    FormID = form.FormID,
-                    ConditionID = conditionHypertension.ConditionID,
+                    FormID = completed.FormID,
+                    ConditionID = conditionDiabetes.ConditionID,
                     IsNone = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    ConditionType = "Type 2",
+                    CreatedAt = now,
+                    UpdatedAt = now
                 });
 
-                // PastMedicalHistory
                 context.PastMedicalHistories.Add(new PastMedicalHistory
                 {
-                    FormID = form.FormID,
+                    FormID = completed.FormID,
                     ConditionID = conditionDiabetes.ConditionID,
                     YearDiagnosed = 2020,
                     MaintenanceDrugGeneric = "Metformin",
                     Dosage = "500mg",
                     Frequency = "Once a day",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now
                 });
+
+                // ---- Audit trail for the hand-offs the seed data represents ----
+                if (currentAdmin is not null)
+                {
+                    context.WellnessFormAuditLogs.AddRange(
+                        new WellnessFormAuditLog
+                        {
+                            FormID = completed.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station1Submitted",
+                            OccurredAt = now.AddHours(-3)
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = completed.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station2Submitted",
+                            OccurredAt = now.AddHours(-2)
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = completed.FormID,
+                            ActorType = "Physician",
+                            ActorID = physician.PhysicianID,
+                            Action = "Station3Signed",
+                            OccurredAt = now
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = pendingConsultation.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station2Submitted",
+                            OccurredAt = now.AddHours(-1)
+                        },
+                        new WellnessFormAuditLog
+                        {
+                            FormID = pendingAssessment.FormID,
+                            ActorType = "Admin",
+                            ActorID = currentAdmin.AdminID,
+                            Action = "Station1Submitted",
+                            OccurredAt = now.AddMinutes(-20)
+                        }
+                    );
+                }
 
                 await context.SaveChangesAsync();
             }
 
-            // A form sitting in a physician's signing queue: routed but not yet signed, so
-            // Signature / SignedAt / SignedByPhysicianID stay null. Guarded on its own so an
-            // existing database -- which already has forms and would skip the block above --
-            // still gets something to exercise the sign flow against.
-            if (!await context.WellnessForms.AnyAsync(f => f.Status == FormStatus.PendingSignature))
+            // Seed patient portal accounts. Station 1 provisions one of these the
+            // first time it registers an employee; all three credential states are
+            // represented here so the portal login flow has something to exercise.
+            if (!await context.PatientAccounts.AnyAsync())
             {
-                // only a physician with credentials can actually sign, so route it to one
-                var signer = await context.Physicians
-                    .FirstOrDefaultAsync(p => p.Username != null && p.IsActive);
-                var pendingPatient = await context.Patients.OrderBy(p => p.PatientID).Skip(1).FirstOrDefaultAsync()
-                    ?? await context.Patients.OrderBy(p => p.PatientID).FirstOrDefaultAsync();
+                var portalPatients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
 
-                if (signer is not null && pendingPatient is not null)
+                // Usernames are derived from the employee id at provisioning time so
+                // Station 1 can hand the patient a predictable handle; the id itself is
+                // no longer a login identifier.
+                context.PatientAccounts.Add(new PatientAccount
                 {
-                    context.WellnessForms.Add(new WellnessForm
-                    {
-                        PatientID = pendingPatient.PatientID,
-                        AssignedPhysicianID = signer.PhysicianID,
-                        Status = FormStatus.PendingSignature,
-                        FormDate = DateTime.UtcNow.Date,
-                        WeightKg = 62.0m,
-                        HeightCm = 163.0m,
-                        BMI = 23.34m,
-                        IdealBMI = 22.0m,
-                        BPSystolic = 118,
-                        BPDiastolic = 76,
-                        TempCelsius = 36.7m,
-                        HeartRate = 68,
-                        RespRate = 15,
-                        RecommendedDiagnosticTest = "CBC, Lipid Profile",
-                        ImpressionClinical = "Within normal limits",
-                        ManagementTreatment = "Routine annual follow-up",
-                        CreatedByAdminID = currentAdmin.AdminID,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    });
+                    PatientID = portalPatients[0].PatientID,
+                    Username = UsernameFor(portalPatients[0].ExternalEmployeeId),
+                    PasswordHash = HashPassword("patient123"),
+                    // settled account: chose their own password after activating
+                    MustChangePassword = false,
+                    PasswordSetAt = now.AddDays(-1),
+                    PasswordChangedAt = now,
+                    Status = "Active",
+                    ProvisionedAt = now.AddDays(-1),
+                    ActivatedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
 
-                    await context.SaveChangesAsync();
-                }
+                // provisioned but never activated: no password yet, so nothing is owed
+                context.PatientAccounts.Add(new PatientAccount
+                {
+                    PatientID = portalPatients[1].PatientID,
+                    Username = UsernameFor(portalPatients[1].ExternalEmployeeId),
+                    MustChangePassword = false,
+                    Status = "Provisioned",
+                    ProvisionedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                // onboarded by an admin who handed over a default password: active,
+                // but the patient still has to replace it on first login
+                context.PatientAccounts.Add(new PatientAccount
+                {
+                    PatientID = portalPatients[2].PatientID,
+                    Username = UsernameFor(portalPatients[2].ExternalEmployeeId),
+                    PasswordHash = HashPassword("patient123"),
+                    MustChangePassword = true,
+                    PasswordSetAt = now,
+                    PasswordChangedAt = null,
+                    Status = "Active",
+                    ProvisionedAt = now,
+                    ActivatedAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                await context.SaveChangesAsync();
             }
         }
 
-        // Creates the staff account if it is missing, and corrects its role if it drifted.
-        // If it already exists with a legacy (pre-PasswordHasher) hash, rehashes it in place --
-        // no password reset needed, since the seed password is known.
-        // Never touches a password that's already in the current format.
-        private static async Task EnsureAdminAsync(
-            ElectronicHealthRecordDbContext context,
-            string username, string email, string fullName, string role)
+        // "EMP-0001" -> "emp0001". Keeps the handle easy to dictate at the counter
+        // while staying inside the 30-char unique column.
+        private static string UsernameFor(string externalEmployeeId)
         {
-            var admin = await context.Admins.FirstOrDefaultAsync(a => a.Username == username);
-
-            if (admin is null)
-            {
-                // an unrelated account may already hold this email (Email is unique)
-                if (await context.Admins.AnyAsync(a => a.Email == email))
-                    return;
-
-                var newAdmin = new Admin
-                {
-                    Username = username,
-                    Email = email,
-                    FullName = fullName,
-                    Role = role,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                // HashPassword only reads the instance's type, not its state, but the API
-                // requires one regardless -- newAdmin is safe to pass before it's saved.
-                newAdmin.PasswordHash = _adminPasswordHasher.HashPassword(newAdmin, SeedPassword);
-
-                context.Admins.Add(newAdmin);
-            }
-            else if (IsLegacyHash(admin.PasswordHash))
-            {
-                admin.PasswordHash = _adminPasswordHasher.HashPassword(admin, SeedPassword);
-                admin.UpdatedAt = DateTime.UtcNow;
-            }
-            else if (admin.Role != role)
-            {
-                admin.Role = role;
-                admin.UpdatedAt = DateTime.UtcNow;
-            }
-            else
-            {
-                return;
-            }
-
-            await context.SaveChangesAsync();
+            var cleaned = new string(externalEmployeeId
+                .Where(char.IsLetterOrDigit)
+                .ToArray())
+                .ToLowerInvariant();
+            return cleaned.Length > 30 ? cleaned[..30] : cleaned;
         }
 
-        // Creates the physician if the licence number is unknown, and grants credentials to an
-        // existing credential-less row. Pass username: null for a directory-only entry.
-        // Also rehashes a legacy (pre-PasswordHasher) hash in place if one is found.
-        private static async Task EnsurePhysicianAsync(
-            ElectronicHealthRecordDbContext context,
-            string prcLicenseNo, string surname, string firstName, string? middleName, string? username)
-        {
-            var physician = await context.Physicians
-                .FirstOrDefaultAsync(p => p.PRCLicenseNo == prcLicenseNo);
-
-            if (physician is null)
-            {
-                physician = new Physician
-                {
-                    Surname = surname,
-                    FirstName = firstName,
-                    MiddleName = middleName,
-                    PRCLicenseNo = prcLicenseNo,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                context.Physicians.Add(physician);
-            }
-            else if (username is null || physician.Username is not null)
-            {
-                // already present with a login of its own (or none intended); still worth
-                // rehashing if a legacy hash slipped in before this fix
-                if (physician.PasswordHash is not null && IsLegacyHash(physician.PasswordHash))
-                {
-                    physician.PasswordHash = _physicianPasswordHasher.HashPassword(physician, SeedPassword);
-                    physician.UpdatedAt = DateTime.UtcNow;
-                    await context.SaveChangesAsync();
-                }
-
-                return;
-            }
-
-            if (username is not null)
-            {
-                var email = $"{username}@hospital.com";
-
-                // CK_Physician_CredentialSet requires all four together; the unique indexes on
-                // Username and Email are filtered, so only non-null values can collide
-                if (await context.Physicians.AnyAsync(p =>
-                        p.PhysicianID != physician.PhysicianID &&
-                        (p.Username == username || p.Email == email)))
-                {
-                    return;
-                }
-
-                physician.Username = username;
-                physician.Email = email;
-                physician.PasswordHash = _physicianPasswordHasher.HashPassword(physician, SeedPassword);
-                physician.MustChangePassword = true;
-                physician.UpdatedAt = DateTime.UtcNow;
-            }
-
-            await context.SaveChangesAsync();
-        }
-
-        // Development seed credential only. Every seeded account lands with MustChangePassword
-        // set where a real login is intended.
-        private const string SeedPassword = "password123";
-
-        // Detects a hash written by the old unsalted-SHA256 seeder: 64 lowercase hex chars.
-        // PBKDF2 via PasswordHasher<T> instead produces ~84-char Base64 starting "AQAAAA",
-        // so the two formats never collide and this check is safe.
-        private static bool IsLegacyHash(string hash) =>
-            hash.Length == 64 && hash.All(Uri.IsHexDigit);
+        private static string HashPassword(string password) => _passwordHasher.Hash(password);
     }
 }

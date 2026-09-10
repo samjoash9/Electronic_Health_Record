@@ -1,21 +1,45 @@
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Filters;
 using Electronic_Health_Record.Server.Services;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.OpenApi;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
-using Scalar.AspNetCore;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiExceptionFilter>();
+});
 
-// Register your Database Context for Entity Framework Core
+// [ApiController]'s automatic model validation short-circuits before an action
+// (and ApiExceptionFilter) ever runs, returning the default ProblemDetails shape
+// (title/detail/errors). The client's toApiError (src/api/client.js) only reads
+// error.response.data.message, so a validation failure needs the same {message}
+// shape as everything else, not ASP.NET's default.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var firstError = context.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => e.ErrorMessage)
+            .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
+
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new
+        {
+            message = firstError ?? "One or more validation errors occurred.",
+        });
+    };
+});
+
+builder.Services.AddHttpContextAccessor();
+
+// Stand-ins until real auth exists -- see Services/StubCurrentUser.cs and
+// Services/SeededEmployeeDirectory.cs for what each will be replaced with.
+builder.Services.AddScoped<ICurrentUser, StubCurrentUser>();
+builder.Services.AddScoped<IEmployeeDirectory, SeededEmployeeDirectory>();
+builder.Services.AddSingleton<IPasswordHasher, Sha256PasswordHasher>();
+
+// 1. ADD THIS BACK: Register your Database Context for Entity Framework Core
 builder.Services.AddDbContext<ElectronicHealthRecordDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -25,7 +49,14 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactFrontend",
         policy =>
         {
-            policy.WithOrigins("https://localhost:53807", "http://localhost:53807")
+            // Vite claims the next free port when 53807 is already in use, so a
+            // fixed origin list breaks on every second `npm run dev`. Matching
+            // any localhost/vite.dev.localhost port is fine for a dev-only
+            // policy, but this runs in every environment (UseCors below is not
+            // gated on IsDevelopment) -- revisit before a real deployment.
+            policy.SetIsOriginAllowed(origin =>
+                    Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+                    (uri.Host == "localhost" || uri.Host == "vite.dev.localhost"))
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });

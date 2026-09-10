@@ -9,12 +9,22 @@ namespace Electronic_Health_Record.Server.Models
     {
         public int AdminID { get; set; }
         public string Username { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        // The hash is self-describing, so no companion "algorithm" column is needed:
-        //   64 lowercase hex chars  -> legacy unsalted SHA-256 (what DbSeeder writes)
-        //   84-char Base64 "AQAAAA..." -> PBKDF2, via ASP.NET's PasswordHasher<T>
-        // Login can therefore verify a legacy hash and rewrite it as PBKDF2 in place.
+        // Permission tier within the Admin table: "admin" (hospital staff working
+        // Stations 1-2) or "superadmin". Distinct from the session's role field,
+        // which says which table the account authenticated against.
+        public string Role { get; set; } = AdminRoles.Admin;
+        public string? ContactNo { get; set; }
         public string PasswordHash { get; set; } = string.Empty;
+        // true while the account is still on the password whoever created it handed
+        // out. Onboarding and admin resets set it back to true; changing the password
+        // clears it.
+        public bool MustChangePassword { get; set; } = true;
+        // When the default password was issued. Lets an unclaimed account be expired
+        // without guessing from CreatedAt, which never moves on a reset.
+        public DateTime? PasswordSetAt { get; set; }
+        // Last time the account holder chose their own password. null means they
+        // never have.
+        public DateTime? PasswordChangedAt { get; set; }
         public string FullName { get; set; } = string.Empty;
         // "SuperAdmin" or "Admin" -- see Roles. CK_Admin_Role rejects anything else,
         // which is what stops a staff account from ever being able to sign.
