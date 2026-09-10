@@ -1,6 +1,14 @@
+using System.Text;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Filters;
 using Electronic_Health_Record.Server.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 

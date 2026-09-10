@@ -5,27 +5,32 @@ export default function Topbar({ collapsed, onToggleSidebar }) {
   const { user } = useAuth();
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-black/10 bg-linear-to-r from-[#14a690] to-[#0e7d6b] px-4 text-white">
+    <header className="font-sans flex h-16 items-center justify-between border-b border-[#08483e] bg-[#0A594D] px-4 text-white shadow-sm relative z-10">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onToggleSidebar}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
+          className="cursor-pointer flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white/70 transition-all duration-200 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20"
         >
           {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
         </button>
-        <span className="hidden text-base font-bold text-white sm:block">Electronic Health Care Wellness Record</span>
+        <span className="hidden text-[15px] font-bold tracking-wide text-white sm:block">
+          Electronic Health Care Wellness Record
+        </span>
       </div>
 
-      <div className="flex items-center gap-3 rounded-full bg-white/10 py-1.5 pl-1.5 pr-4 transition hover:bg-white/15">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-white/90 to-white/70 text-sm font-bold text-[#0e7d6b] shadow-sm ring-2 ring-white/40">
+      <div className="flex items-center gap-3 rounded-full bg-white/10 py-1 pl-1 pr-4 transition-all duration-200 hover:bg-white/15 cursor-default border border-white/5">
+        {/* DESIGN UPDATE: Avatar pill uses solid white with #0A594D text to match the theme */}
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-[#0A594D] shadow-sm">
           {user?.name?.[0]?.toUpperCase() ?? '?'}
         </div>
-        <div className="leading-tight">
-          <p className="text-sm font-semibold text-white">{user?.name}</p>
+        <div className="leading-tight flex flex-col justify-center">
+          <p className="text-sm font-semibold text-white tracking-wide">{user?.name || 'System User'}</p>
           {/* admins show their tier, so a superadmin is not labelled plain "admin" */}
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">{user?.adminRole ?? user?.role}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-teal-200/70 mt-0.5">
+            {user?.adminRole ?? user?.role ?? 'Role'}
+          </p>
         </div>
       </div>
     </header>

@@ -36,7 +36,7 @@ export default function OnboardingPage() {
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`cursor-pointer flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out ${
               tab === id
                 ? 'bg-[#129883] text-white shadow-sm'
                 : 'text-ink-600 hover:bg-[#e9fbf6] hover:text-[#0e7d6b]'
@@ -48,7 +48,9 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {tab === 'doctors' ? <DoctorsPanel /> : <EmployeesPanel />}
+      <div key={tab} className="animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out">
+        {tab === 'doctors' ? <DoctorsPanel /> : <EmployeesPanel />}
+      </div>
     </div>
   );
 }
