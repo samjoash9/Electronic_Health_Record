@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    [Migration("20260910020021_AddAgeColumn")]
-    partial class AddAgeColumn
+    [Migration("20260910063823_WidenEmployeeColumnsForHrSync")]
+    partial class WidenEmployeeColumnsForHrSync
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -59,7 +59,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<bool>("MustChangePassword")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
-                        .HasDefaultValue(true);
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime?>("PasswordChangedAt")
                         .HasColumnType("datetime2");
@@ -78,7 +78,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(20)
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)")
-                        .HasDefaultValue("admin");
+                        .HasDefaultValue("Admin");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -1885,26 +1885,28 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeID"));
 
                     b.Property<string>("Address")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<int>("Age")
+                        .HasColumnType("int");
 
                     b.Property<string>("AgencyOffice")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("Birthdate")
                         .HasColumnType("date");
 
                     b.Property<string>("CivilStatus")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("ContactNo")
-                        .HasMaxLength(20)
+                        .HasMaxLength(150)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("ExternalEmployeeId")
                         .IsRequired()
@@ -1913,8 +1915,8 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<bool>("IsLocallyAdded")
                         .ValueGeneratedOnAdd()
@@ -1922,23 +1924,23 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasDefaultValue(false);
 
                     b.Property<string>("MiddleName")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("Position")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
 
                     b.Property<string>("Sex")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(10)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("Surname")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.HasKey("EmployeeID");
 
@@ -2383,6 +2385,10 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("SYSDATETIME()");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -2438,13 +2444,21 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.HasKey("PhysicianID");
 
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_Physician_Email")
+                        .HasFilter("[Email] IS NOT NULL");
+
                     b.HasIndex("PRCLicenseNo")
                         .IsUnique();
 
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Physician", (string)null);
+                    b.ToTable("Physician", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Physician_CredentialSet", "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL) OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.PhysicianSession", b =>

@@ -20,13 +20,20 @@ namespace Electronic_Health_Record.Server.Data.Migrations
             // --- Admin -----------------------------------------------------------
             // Defaults to 1 so an account created by any path that forgets to set it
             // fails safe: worst case the holder is asked to change a password they
-            // already own.
-            migrationBuilder.AddColumn<bool>(
+            // already own. The column itself already exists from AddRoleBasedAccess,
+            // which defaulted it to 0, so this only changes the default. (Both
+            // migrations added it outright when this branch was merged, which failed a
+            // from-scratch replay with "Column name 'MustChangePassword' in table
+            // 'Admin' is specified more than once".)
+            migrationBuilder.AlterColumn<bool>(
                 name: "MustChangePassword",
                 table: "Admin",
                 type: "bit",
                 nullable: false,
-                defaultValue: true);
+                defaultValue: true,
+                oldClrType: typeof(bool),
+                oldType: "bit",
+                oldDefaultValue: false);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PasswordSetAt",
@@ -50,12 +57,17 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     [PasswordChangedAt] = [CreatedAt];");
 
             // --- Physician -------------------------------------------------------
-            migrationBuilder.AddColumn<bool>(
+            // Same story as Admin: AddRoleBasedAccess created the column with a 0
+            // default, so this only flips the default to 1.
+            migrationBuilder.AlterColumn<bool>(
                 name: "MustChangePassword",
                 table: "Physician",
                 type: "bit",
                 nullable: false,
-                defaultValue: true);
+                defaultValue: true,
+                oldClrType: typeof(bool),
+                oldType: "bit",
+                oldDefaultValue: false);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PasswordSetAt",
@@ -141,9 +153,17 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 name: "PasswordSetAt",
                 table: "Physician");
 
-            migrationBuilder.DropColumn(
+            // MustChangePassword on Admin and Physician belongs to AddRoleBasedAccess,
+            // so its default is restored rather than the column dropped.
+            migrationBuilder.AlterColumn<bool>(
                 name: "MustChangePassword",
-                table: "Physician");
+                table: "Physician",
+                type: "bit",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "bit",
+                oldDefaultValue: true);
 
             migrationBuilder.DropColumn(
                 name: "PasswordChangedAt",
@@ -153,9 +173,15 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 name: "PasswordSetAt",
                 table: "Admin");
 
-            migrationBuilder.DropColumn(
+            migrationBuilder.AlterColumn<bool>(
                 name: "MustChangePassword",
-                table: "Admin");
+                table: "Admin",
+                type: "bit",
+                nullable: false,
+                defaultValue: false,
+                oldClrType: typeof(bool),
+                oldType: "bit",
+                oldDefaultValue: true);
         }
     }
 }

@@ -4,7 +4,6 @@ using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Electronic_Health_Record.Server.Controllers.Auth
 {

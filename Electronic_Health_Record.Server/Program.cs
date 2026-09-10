@@ -183,6 +183,10 @@ builder.Services.AddHttpClient<IEmployeeService, EmployeeService>(
         client.Timeout = TimeSpan.FromMinutes(2);
     });
 
+// Employee directory (search/create/update) used by the Onboarding page.
+// Stand-in until the real HR API accepts writes -- see IEmployeeDirectory.
+builder.Services.AddScoped<IEmployeeDirectory, SeededEmployeeDirectory>();
+
 
 // ============================================================
 // Employee Sync Background Service

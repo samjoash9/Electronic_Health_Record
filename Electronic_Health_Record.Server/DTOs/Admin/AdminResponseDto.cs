@@ -8,7 +8,7 @@ namespace Electronic_Health_Record.Server.DTOs.Admin
     {
         public int AdminID { get; set; }
         public string Username { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
+        public string? ContactNo { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; }
@@ -21,7 +21,7 @@ namespace Electronic_Health_Record.Server.DTOs.Admin
         {
             AdminID = a.AdminID,
             Username = a.Username,
-            Email = a.Email,
+            ContactNo = a.ContactNo,
             FullName = a.FullName,
             Role = a.Role,
             IsActive = a.IsActive,

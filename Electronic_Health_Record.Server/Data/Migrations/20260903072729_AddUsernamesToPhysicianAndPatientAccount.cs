@@ -13,33 +13,12 @@ namespace Electronic_Health_Record.Server.Data.Migrations
             // Physician and PatientAccount gain their own login handles, so all three
             // roles authenticate the same way. Both columns are NOT NULL + unique, so
             // each is added nullable, backfilled for existing rows, then tightened.
-            migrationBuilder.AddColumn<string>(
-                name: "Username",
-                table: "Physician",
-                type: "nvarchar(30)",
-                maxLength: 30,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "PasswordHash",
-                table: "Physician",
-                type: "nvarchar(255)",
-                maxLength: 255,
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "IsActive",
-                table: "Physician",
-                type: "bit",
-                nullable: false,
-                defaultValue: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "LastLoginAt",
-                table: "Physician",
-                type: "datetime2",
-                nullable: true);
-
+            //
+            // Physician.Username/PasswordHash/IsActive/LastLoginAt are NOT added here:
+            // AddRoleBasedAccess already created them as optional credential columns.
+            // This migration only tightens them below. (They were added twice when this
+            // branch was merged, which failed with "Column name 'Username' in table
+            // 'Physician' is specified more than once" on a from-scratch replay.)
             migrationBuilder.AddColumn<string>(
                 name: "Username",
                 table: "PatientAccount",
@@ -70,6 +49,14 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 FROM [PatientAccount] pa
                 INNER JOIN [Patient] p ON p.[PatientID] = pa.[PatientID]
                 WHERE pa.[Username] IS NULL;");
+
+            // AddRoleBasedAccess put a filtered unique index on Username. SQL Server will
+            // not alter a column an index depends on, and the "[Username] IS NOT NULL"
+            // filter is meaningless once the column is NOT NULL, so it is dropped here and
+            // replaced by the unfiltered IX_Physician_Username created below.
+            migrationBuilder.DropIndex(
+                name: "UQ_Physician_Username",
+                table: "Physician");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Username",
@@ -135,21 +122,34 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 name: "Username",
                 table: "PatientAccount");
 
-            migrationBuilder.DropColumn(
-                name: "LastLoginAt",
-                table: "Physician");
-
-            migrationBuilder.DropColumn(
-                name: "IsActive",
-                table: "Physician");
-
-            migrationBuilder.DropColumn(
-                name: "PasswordHash",
-                table: "Physician");
-
-            migrationBuilder.DropColumn(
+            // Physician credential columns belong to AddRoleBasedAccess, so they are
+            // relaxed back to nullable here rather than dropped.
+            migrationBuilder.AlterColumn<string>(
                 name: "Username",
-                table: "Physician");
+                table: "Physician",
+                type: "nvarchar(30)",
+                maxLength: 30,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(30)",
+                oldMaxLength: 30);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "PasswordHash",
+                table: "Physician",
+                type: "nvarchar(255)",
+                maxLength: 255,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(255)",
+                oldMaxLength: 255);
+
+            migrationBuilder.CreateIndex(
+                name: "UQ_Physician_Username",
+                table: "Physician",
+                column: "Username",
+                unique: true,
+                filter: "[Username] IS NOT NULL");
         }
     }
 }

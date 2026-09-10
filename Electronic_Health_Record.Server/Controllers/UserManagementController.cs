@@ -28,37 +28,28 @@ public class UserManagementController : ControllerBase
     // CREATE ADMIN
     // =========================================================
 
-    [Authorize(Roles = Roles.SuperAdmin)]
+    [Authorize(Roles = AdminRoles.SuperAdmin)]
     [HttpPost("admin")]
     public async Task<ActionResult<CreateAdminResponse>> CreateAdmin(
         CreateAdminRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username) ||
-            string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.FullName))
         {
             return BadRequest(new
             {
-                message = "Username, email, and full name are required."
+                message = "Username and full name are required."
             });
         }
 
         var username = request.Username.Trim();
-        var email = request.Email.Trim();
+        var contactNo = string.IsNullOrWhiteSpace(request.ContactNo) ? null : request.ContactNo.Trim();
 
         if (await _db.Admins.AnyAsync(a => a.Username == username))
         {
             return BadRequest(new
             {
                 message = "That username is already taken."
-            });
-        }
-
-        if (await _db.Admins.AnyAsync(a => a.Email == email))
-        {
-            return BadRequest(new
-            {
-                message = "That email is already in use."
             });
         }
 
@@ -69,9 +60,9 @@ public class UserManagementController : ControllerBase
         var admin = new Admin
         {
             Username = username,
-            Email = email,
+            ContactNo = contactNo,
             FullName = request.FullName.Trim(),
-            Role = Roles.Admin,
+            Role = AdminRoles.Admin,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -88,7 +79,7 @@ public class UserManagementController : ControllerBase
         {
             AdminID = admin.AdminID,
             Username = admin.Username,
-            Email = admin.Email,
+            ContactNo = admin.ContactNo,
             FullName = admin.FullName,
             Role = admin.Role,
             TemporaryPassword = DefaultPassword
@@ -99,7 +90,7 @@ public class UserManagementController : ControllerBase
     // CREATE PHYSICIAN
     // =========================================================
 
-    [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.Admin}")]
+    [Authorize(Roles = $"{AdminRoles.SuperAdmin},{AdminRoles.Admin}")]
     [HttpPost("physician")]
     public async Task<ActionResult<CreatePhysicianResponse>> CreatePhysician(
         CreatePhysicianRequest request)

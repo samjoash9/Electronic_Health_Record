@@ -26,12 +26,7 @@ namespace Electronic_Health_Record.Server.Models
         // never have.
         public DateTime? PasswordChangedAt { get; set; }
         public string FullName { get; set; } = string.Empty;
-        // "SuperAdmin" or "Admin" -- see Roles. CK_Admin_Role rejects anything else,
-        // which is what stops a staff account from ever being able to sign.
-        public string Role { get; set; } = Roles.Admin;
         public bool IsActive { get; set; } = true;
-        // set on a provisioned account so the first login lands on a forced-reset screen
-        public bool MustChangePassword { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

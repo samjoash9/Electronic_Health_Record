@@ -17,6 +17,9 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
         // which accounts have never been claimed.
         public bool MustChangePassword { get; set; }
         public bool IsActive { get; set; }
+        // A directory-only row (no login granted yet) has an empty Username and can be
+        // assigned a form but never actually sign it -- see Models.Physician's doc comment.
+        public bool CanSign { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 
@@ -29,7 +32,7 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
             PRCLicenseNo = p.PRCLicenseNo,
             Username = p.Username,
             IsActive = p.IsActive,
-            CanSign = p.Username != null && p.IsActive,
+            CanSign = !string.IsNullOrEmpty(p.Username) && p.IsActive,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
         };

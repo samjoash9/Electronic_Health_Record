@@ -9,13 +9,16 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeService _employeeService;
+        private readonly IEmployeeDirectory _directory;
         private readonly ILogger<EmployeesController> _logger;
 
         public EmployeesController(
             IEmployeeService employeeService,
+            IEmployeeDirectory directory,
             ILogger<EmployeesController> logger)
         {
             _employeeService = employeeService;
+            _directory = directory;
             _logger = logger;
         }
 
@@ -61,6 +64,28 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 _logger.LogError(ex,
                     "Unexpected error while retrieving employee {ExternalEmployeeId}.",
                     externalEmployeeId);
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { message = "An unexpected error occurred." });
+            }
+        }
+
+        // GET /api/employees/search?q=
+        // Directory search backing the Onboarding page's employee picker -- case-insensitive
+        // substring over name or employee id. Distinct from GetEmployees: this reads through
+        // IEmployeeDirectory (writable, HR-swappable) rather than the HR-sync read models.
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string? q)
+        {
+            try
+            {
+                var employees = await _directory.SearchAsync(q);
+                return Ok(employees);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while searching the employee directory.");
 
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,

@@ -32,7 +32,6 @@ namespace Electronic_Health_Record.Server.Data
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ElectronicHealthRecordDbContext>();
-            _passwordHasher = serviceProvider.GetRequiredService<IPasswordHasher>();
 
             // Ensure the database is created / migrated
             if (context.Database.IsRelational())
@@ -313,6 +312,9 @@ namespace Electronic_Health_Record.Server.Data
                     new Physician
                     {
                         Username = "doctor",
+                        // CK_Physician_CredentialSet takes username, email and hash
+                        // together or not at all, so a login account needs all three.
+                        Email = "ghouse@pgas.ph",
                         PasswordHash = PhysicianHasher.HashPassword(new Physician(), "password123"),
                         // settled account: the Station 3 fixtures are assigned to this
                         // doctor, so it should not be stuck behind a password prompt
@@ -331,6 +333,7 @@ namespace Electronic_Health_Record.Server.Data
                     new Physician
                     {
                         Username = "mgrey",
+                        Email = "mgrey@pgas.ph",
                         PasswordHash = PhysicianHasher.HashPassword(new Physician(), "password123"),
                         // freshly onboarded by an admin: still on the default
                         MustChangePassword = true,

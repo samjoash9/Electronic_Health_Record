@@ -14,7 +14,7 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<Employee> Employees => Set<Employee>();
         public DbSet<Physician> Physicians => Set<Physician>();
         public DbSet<Admin> Admins => Set<Admin>();
-        public DbSet<UserSession> UserSessions => Set<UserSession>();
+        public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
         public DbSet<WellnessForm> WellnessForms => Set<WellnessForm>();
         public DbSet<MedicalCondition> MedicalConditions => Set<MedicalCondition>();
         public DbSet<SocialHistory> SocialHistories => Set<SocialHistory>();
@@ -66,16 +66,21 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(e => e.EmployeeID);
                 entity.Property(e => e.ExternalEmployeeId).HasMaxLength(50).IsRequired();
                 entity.HasIndex(e => e.ExternalEmployeeId).IsUnique();
-                entity.Property(e => e.Surname).HasMaxLength(50).IsRequired();
-                entity.Property(e => e.FirstName).HasMaxLength(50).IsRequired();
-                entity.Property(e => e.MiddleName).HasMaxLength(50);
+                // Widths follow the [MaxLength] attributes on Employee. They are sized
+                // for what the external HR API actually returns, which overflowed the
+                // original directory-sized columns ("String or binary data would be
+                // truncated" on sync). Sex and CivilStatus are free text there rather
+                // than the short codes assumed here, so they are unicode as well.
+                entity.Property(e => e.Surname).HasMaxLength(150).IsRequired();
+                entity.Property(e => e.FirstName).HasMaxLength(150).IsRequired();
+                entity.Property(e => e.MiddleName).HasMaxLength(150);
                 entity.Property(e => e.Birthdate).HasColumnType("date");
-                entity.Property(e => e.Sex).HasMaxLength(10).IsUnicode(false).IsRequired();
-                entity.Property(e => e.CivilStatus).HasMaxLength(20).IsUnicode(false).IsRequired();
-                entity.Property(e => e.Address).HasMaxLength(255);
-                entity.Property(e => e.AgencyOffice).HasMaxLength(100);
-                entity.Property(e => e.Position).HasMaxLength(50);
-                entity.Property(e => e.ContactNo).HasMaxLength(20).IsUnicode(false);
+                entity.Property(e => e.Sex).HasMaxLength(150).IsRequired();
+                entity.Property(e => e.CivilStatus).HasMaxLength(150).IsRequired();
+                entity.Property(e => e.Address).HasMaxLength(400);
+                entity.Property(e => e.AgencyOffice).HasMaxLength(200);
+                entity.Property(e => e.Position).HasMaxLength(400);
+                entity.Property(e => e.ContactNo).HasMaxLength(150).IsUnicode(false);
                 // Existing rows all came from the seeded HR stand-in, so false.
                 entity.Property(e => e.IsLocallyAdded).HasDefaultValue(false).IsRequired();
                 entity.HasIndex(e => new { e.Surname, e.FirstName });
@@ -95,6 +100,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(p => p.PhysicianID);
                 entity.Property(p => p.Username).HasMaxLength(30).IsRequired();
                 entity.HasIndex(p => p.Username).IsUnique();
+                entity.Property(p => p.Email).HasMaxLength(255);
+                entity.HasIndex(p => p.Email).IsUnique().HasDatabaseName("UQ_Physician_Email").HasFilter("[Email] IS NOT NULL");
                 entity.Property(p => p.PasswordHash).HasMaxLength(255).IsRequired();
                 // Onboarded doctors start on an admin-issued password, so the safe
                 // default for a row nobody set this on is "still owes a change".

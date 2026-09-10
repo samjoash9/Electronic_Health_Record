@@ -11,6 +11,7 @@ namespace Electronic_Health_Record.Server.Models
     {
         public int PhysicianID { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string? Email { get; set; }
         public string PasswordHash { get; set; } = string.Empty;
         // true while the doctor is still on the password the admin handed out at
         // onboarding. Admin resets set it back to true; changing it clears it.

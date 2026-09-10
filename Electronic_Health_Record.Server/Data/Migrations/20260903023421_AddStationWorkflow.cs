@@ -13,6 +13,133 @@ namespace Electronic_Health_Record.Server.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // ---------------------------------------------------------------
+            // 0. Unwind the AddRoleBasedAccess split of the physician column.
+            //    That migration renamed PhysicianID -> AssignedPhysicianID and added
+            //    SignedByPhysicianID; the station workflow collapses the pair back into
+            //    the single PhysicianID this migration's model snapshot expects. Without
+            //    this, every statement below that names PhysicianID fails with
+            //    "Invalid column name 'PhysicianID'".
+            // ---------------------------------------------------------------
+
+            // The check constraints reference the columns being dropped/renamed, so they
+            // have to go first. CK_WellnessForm_Status is re-added further down with the
+            // new station status values.
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_WellnessForm_SignedIntegrity",
+                table: "WellnessForm");
+
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_WellnessForm_AssignedWhenPending",
+                table: "WellnessForm");
+
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_WellnessForm_Status",
+                table: "WellnessForm");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_WellnessForm_Physician_SignedByPhysicianID",
+                table: "WellnessForm");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_WellnessForm_Physician_AssignedPhysicianID",
+                table: "WellnessForm");
+
+            migrationBuilder.DropIndex(
+                name: "IX_WellnessForm_SignedByPhysicianID",
+                table: "WellnessForm");
+
+            migrationBuilder.DropIndex(
+                name: "IX_WellnessForm_Status_AssignedPhysicianID",
+                table: "WellnessForm");
+
+            // Who actually signed is recoverable from the assignee, so the split column
+            // is dropped rather than merged.
+            migrationBuilder.DropColumn(
+                name: "SignedByPhysicianID",
+                table: "WellnessForm");
+
+            migrationBuilder.RenameColumn(
+                name: "AssignedPhysicianID",
+                table: "WellnessForm",
+                newName: "PhysicianID");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_WellnessForm_AssignedPhysicianID",
+                table: "WellnessForm",
+                newName: "IX_WellnessForm_PhysicianID");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_WellnessForm_Physician_PhysicianID",
+                table: "WellnessForm",
+                column: "PhysicianID",
+                principalTable: "Physician",
+                principalColumn: "PhysicianID",
+                onDelete: ReferentialAction.Restrict);
+
+            // This migration's model snapshot also drops the Physician.Email credential
+            // column and its filtered unique index that AddRoleBasedAccess introduced.
+            // The operations were lost in the same merge, leaving the column in the
+            // database but absent from every later snapshot; a later migration re-adds
+            // it deliberately. CK_Physician_CredentialSet references Email, so it goes
+            // first.
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_Physician_CredentialSet",
+                table: "Physician");
+
+            migrationBuilder.DropIndex(
+                name: "UQ_Physician_Email",
+                table: "Physician");
+
+            migrationBuilder.DropColumn(
+                name: "Email",
+                table: "Physician");
+
+            // Station 3 gives physicians their own PhysicianSession table (created
+            // below), so the combined UserSession that AddRoleBasedAccess introduced
+            // goes away and the per-role AdminSession comes back. These operations were
+            // lost in the same merge: the snapshot recorded the swap but nothing
+            // performed it, leaving the app querying a table that does not exist
+            // ("Invalid object name 'AdminSession'" on login). Sessions are bearer
+            // tokens with a short lifetime and no historical value, so the table is
+            // recreated empty rather than migrated.
+            migrationBuilder.DropTable(
+                name: "UserSession");
+
+            migrationBuilder.CreateTable(
+                name: "AdminSession",
+                columns: table => new
+                {
+                    SessionID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AdminID = table.Column<int>(type: "int", nullable: false),
+                    TokenHash = table.Column<string>(type: "char(64)", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSDATETIME()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AdminSession", x => x.SessionID);
+                    table.ForeignKey(
+                        name: "FK_AdminSession_Admin_AdminID",
+                        column: x => x.AdminID,
+                        principalTable: "Admin",
+                        principalColumn: "AdminID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AdminSession_AdminID",
+                table: "AdminSession",
+                column: "AdminID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AdminSession_TokenHash",
+                table: "AdminSession",
+                column: "TokenHash",
+                unique: true);
+
             migrationBuilder.DropIndex(
                 name: "IX_WellnessForm_PatientID",
                 table: "WellnessForm");
@@ -757,6 +884,144 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                 name: "IX_WellnessForm_PatientID",
                 table: "WellnessForm",
                 column: "PatientID");
+
+            // ---------------------------------------------------------------
+            // Mirror of step 0: put the AddRoleBasedAccess physician split back.
+            // SignedByPhysicianID returns empty -- the signer identity it held was
+            // dropped on the way up and cannot be reconstructed.
+            // ---------------------------------------------------------------
+            migrationBuilder.DropForeignKey(
+                name: "FK_WellnessForm_Physician_PhysicianID",
+                table: "WellnessForm");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_WellnessForm_PhysicianID",
+                table: "WellnessForm",
+                newName: "IX_WellnessForm_AssignedPhysicianID");
+
+            migrationBuilder.RenameColumn(
+                name: "PhysicianID",
+                table: "WellnessForm",
+                newName: "AssignedPhysicianID");
+
+            migrationBuilder.AddColumn<int>(
+                name: "SignedByPhysicianID",
+                table: "WellnessForm",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WellnessForm_SignedByPhysicianID",
+                table: "WellnessForm",
+                column: "SignedByPhysicianID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WellnessForm_Status_AssignedPhysicianID",
+                table: "WellnessForm",
+                columns: new[] { "Status", "AssignedPhysicianID" });
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_WellnessForm_Physician_AssignedPhysicianID",
+                table: "WellnessForm",
+                column: "AssignedPhysicianID",
+                principalTable: "Physician",
+                principalColumn: "PhysicianID",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_WellnessForm_Physician_SignedByPhysicianID",
+                table: "WellnessForm",
+                column: "SignedByPhysicianID",
+                principalTable: "Physician",
+                principalColumn: "PhysicianID",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_WellnessForm_Status",
+                table: "WellnessForm",
+                sql: "[Status] IN ('Draft','PendingSignature','Signed')");
+
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_WellnessForm_AssignedWhenPending",
+                table: "WellnessForm",
+                sql: "[Status] = 'Draft' OR [AssignedPhysicianID] IS NOT NULL");
+
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_WellnessForm_SignedIntegrity",
+                table: "WellnessForm",
+                sql: "[Status] <> 'Signed' OR ([AssignedPhysicianID] IS NOT NULL AND [SignedByPhysicianID] IS NOT NULL AND [Signature] IS NOT NULL AND [SignedAt] IS NOT NULL)");
+
+            // Restore the Physician.Email credential column dropped in Up().
+            migrationBuilder.AddColumn<string>(
+                name: "Email",
+                table: "Physician",
+                type: "nvarchar(255)",
+                maxLength: 255,
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "UQ_Physician_Email",
+                table: "Physician",
+                column: "Email",
+                unique: true,
+                filter: "[Email] IS NOT NULL");
+
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_Physician_CredentialSet",
+                table: "Physician",
+                sql: "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL) OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
+
+            // Mirror of the session swap in Up(): AdminSession goes away and the
+            // combined UserSession returns, again empty.
+            migrationBuilder.DropTable(
+                name: "AdminSession");
+
+            migrationBuilder.CreateTable(
+                name: "UserSession",
+                columns: table => new
+                {
+                    SessionID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AdminID = table.Column<int>(type: "int", nullable: true),
+                    PhysicianID = table.Column<int>(type: "int", nullable: true),
+                    TokenHash = table.Column<string>(type: "char(64)", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSDATETIME()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserSession", x => x.SessionID);
+                    table.CheckConstraint("CK_UserSession_ExactlyOnePrincipal", "([AdminID] IS NOT NULL AND [PhysicianID] IS NULL) OR ([AdminID] IS NULL AND [PhysicianID] IS NOT NULL)");
+                    table.ForeignKey(
+                        name: "FK_UserSession_Admin_AdminID",
+                        column: x => x.AdminID,
+                        principalTable: "Admin",
+                        principalColumn: "AdminID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_UserSession_Physician_PhysicianID",
+                        column: x => x.PhysicianID,
+                        principalTable: "Physician",
+                        principalColumn: "PhysicianID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserSession_AdminID",
+                table: "UserSession",
+                column: "AdminID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserSession_PhysicianID",
+                table: "UserSession",
+                column: "PhysicianID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserSession_TokenHash",
+                table: "UserSession",
+                column: "TokenHash",
+                unique: true);
         }
     }
 }

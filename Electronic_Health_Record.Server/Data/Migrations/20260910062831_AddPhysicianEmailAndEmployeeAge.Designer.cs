@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    [Migration("20260910020021_AddAgeColumn")]
-    partial class AddAgeColumn
+    [Migration("20260910062831_AddPhysicianEmailAndEmployeeAge")]
+    partial class AddPhysicianEmailAndEmployeeAge
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -59,7 +59,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<bool>("MustChangePassword")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
-                        .HasDefaultValue(true);
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime?>("PasswordChangedAt")
                         .HasColumnType("datetime2");
@@ -78,7 +78,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(20)
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)")
-                        .HasDefaultValue("admin");
+                        .HasDefaultValue("Admin");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -1888,6 +1888,9 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<int>("Age")
+                        .HasColumnType("int");
+
                     b.Property<string>("AgencyOffice")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1926,6 +1929,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Position")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -2383,6 +2387,10 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("SYSDATETIME()");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -2438,13 +2446,21 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.HasKey("PhysicianID");
 
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_Physician_Email")
+                        .HasFilter("[Email] IS NOT NULL");
+
                     b.HasIndex("PRCLicenseNo")
                         .IsUnique();
 
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Physician", (string)null);
+                    b.ToTable("Physician", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Physician_CredentialSet", "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL) OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.PhysicianSession", b =>

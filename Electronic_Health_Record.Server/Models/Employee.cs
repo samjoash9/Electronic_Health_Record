@@ -12,6 +12,7 @@ namespace Electronic_Health_Record.Server.Models
         public string Surname { get; set; } = string.Empty;
         [MaxLength(150)]
         public string FirstName { get; set; } = string.Empty;
+        [MaxLength(150)]
         public string? MiddleName { get; set; }
         public DateTime Birthdate { get; set; }
         public int Age { get; set; }
@@ -19,6 +20,7 @@ namespace Electronic_Health_Record.Server.Models
         public string Sex { get; set; } = string.Empty;
         [MaxLength(150)]
         public string CivilStatus { get; set; } = string.Empty;
+        [MaxLength(400)]
         public string? Address { get; set; }
         [MaxLength(200)]
         public string? AgencyOffice { get; set; }
