@@ -26,6 +26,7 @@ export const FORM_STATUS = {
   PENDING_ASSESSMENT: 'PendingAssessment',
   PENDING_CONSULTATION: 'PendingConsultation',
   PENDING_DENTAL: 'PendingDental',
+  PENDING_VISION: 'PendingVision',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
 };
@@ -35,6 +36,7 @@ export const STATIONS = {
   TWO: 2,
   THREE: 3,
   FOUR: 4,
+  FIVE: 5,
 };
 
 /**
@@ -121,6 +123,7 @@ export const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
   [FORM_STATUS.PENDING_CONSULTATION]: 'Pending Consultation',
   [FORM_STATUS.PENDING_DENTAL]: 'Pending Dental',
+  [FORM_STATUS.PENDING_VISION]: 'Pending Vision',
   [FORM_STATUS.COMPLETED]: 'Completed',
   [FORM_STATUS.CANCELLED]: 'Cancelled',
 };
@@ -129,6 +132,7 @@ export const STATUS_TONE = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'info',
   [FORM_STATUS.PENDING_CONSULTATION]: 'warn',
   [FORM_STATUS.PENDING_DENTAL]: 'warn',
+  [FORM_STATUS.PENDING_VISION]: 'warn',
   [FORM_STATUS.COMPLETED]: 'success',
   [FORM_STATUS.CANCELLED]: 'danger',
 };
@@ -204,5 +208,117 @@ export const DENTAL_INDICATORS = [
     label: 'Dental Referral',
     options: ['Not needed', 'Routine referral', 'Urgent referral'],
     remarksPlaceholder: 'e.g. refer to district hospital dental clinic',
+  },
+];
+
+/**
+ * Station 5's vision screening. Ten Yes/No-style single-selects, two free-text
+ * acuity readings (visualAcuityRightEye / visualAcuityLeftEye, type: 'text'),
+ * and one single-select-with-specify (eyeConditionIdentified, type: 'choice',
+ * hasOther: true reveals an eyeConditionOther free-text field when "Other" is
+ * picked -- same pattern as FAMILY_CONDITIONS' isOther entries).
+ *
+ * Option strings are duplicated in the CK_VisionAssessment_* check constraints
+ * in ElectronicHealthRecordDbContext.cs. This array is the client's copy; the
+ * server does not serve the list. A mismatch fails the insert at submit time,
+ * not at build time, so edit both together.
+ */
+export const VISION_INDICATORS = [
+  {
+    name: 'historyOfEyeProblems',
+    label: 'History of Eye Problems',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. cataract surgery, left eye, 2019',
+  },
+  {
+    name: 'eyePainDiscomfort',
+    label: 'Eye Pain / Discomfort',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. intermittent stinging, both eyes',
+  },
+  {
+    name: 'blurredVision',
+    label: 'Blurred Vision',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. worse toward end of shift',
+  },
+  {
+    name: 'difficultySeeingNear',
+    label: 'Difficulty Seeing Near Objects',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. trouble reading fine print',
+  },
+  {
+    name: 'difficultySeeingDistant',
+    label: 'Difficulty Seeing Distant Objects',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. trouble reading road signs',
+  },
+  {
+    name: 'headacheEyeStrain',
+    label: 'Headache / Eye Strain',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. after prolonged screen use',
+  },
+  {
+    name: 'usesEyeglassesContactLenses',
+    label: 'Uses Eyeglasses / Contact Lenses',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. reading glasses only',
+  },
+  {
+    name: 'visualAcuityRightEye',
+    label: 'Visual Acuity – Right Eye',
+    type: 'text',
+    placeholder: 'e.g. 20/20',
+    remarksPlaceholder: 'e.g. with corrective lenses',
+  },
+  {
+    name: 'visualAcuityLeftEye',
+    label: 'Visual Acuity – Left Eye',
+    type: 'text',
+    placeholder: 'e.g. 20/20',
+    remarksPlaceholder: 'e.g. with corrective lenses',
+  },
+  {
+    name: 'eyeConditionIdentified',
+    label: 'Eye Condition Identified',
+    type: 'choice',
+    options: ['None', 'Refractive error', 'Other'],
+    hasOther: true,
+    // Not `${name}Other` -- VisionAssessment.EyeConditionOther on the server
+    // doesn't repeat "Identified", so the specify field's name is spelled out
+    // rather than derived.
+    otherFieldName: 'eyeConditionOther',
+    otherPlaceholder: 'e.g. glaucoma, cataract',
+    remarksPlaceholder: 'e.g. suspected early-stage, recommend monitoring',
+  },
+  {
+    name: 'correctiveLensesRecommended',
+    label: 'Corrective Lenses Recommended',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. reading glasses, +1.00',
+  },
+  {
+    name: 'referralToEyeSpecialist',
+    label: 'Referral to Eye Specialist Needed',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. refer to ophthalmologist for glaucoma screening',
+  },
+  {
+    name: 'followUpConsultationAdvised',
+    label: 'Follow-up Consultation Advised',
+    type: 'choice',
+    options: ['No', 'Yes'],
+    remarksPlaceholder: 'e.g. recheck acuity in 6 months',
   },
 ];

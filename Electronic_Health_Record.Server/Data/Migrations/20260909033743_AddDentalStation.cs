@@ -102,7 +102,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
             migrationBuilder.AddCheckConstraint(
                 name: "CK_WellnessForm_CompletedIsDentalSigned",
                 table: "WellnessForm",
-                sql: "Status <> 'Completed' OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                sql: "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_WellnessForm_CurrentStation",

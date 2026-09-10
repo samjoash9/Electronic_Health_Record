@@ -35,7 +35,7 @@ export default function StationPickerPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-[#e9fbf6] to-[#eef2f6] p-4">
+    <div className="flex h-full min-h-full items-center justify-center overflow-y-auto bg-linear-to-br from-[#e9fbf6] to-[#eef2f6] p-4">
       <div className="flex w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-xl">
         <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-linear-to-br from-[#1fc8a8] to-[#0e7d6b] px-12 py-16 text-center text-white sm:flex">
           <div className="pointer-events-none absolute -top-10 -left-10 h-48 w-48 rounded-full bg-white/10" />

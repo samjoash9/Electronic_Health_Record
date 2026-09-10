@@ -122,6 +122,7 @@ export async function getForm(formID) {
       socialHistory: state.socialHistory.find((r) => r.formID === formID) ?? null,
       exercise: state.exercise.filter((r) => r.formID === formID),
       dentalAssessment: state.dentalAssessments.find((r) => r.formID === formID) ?? null,
+      visionAssessment: state.visionAssessments.find((r) => r.formID === formID) ?? null,
       assessmentAnswers: state.assessmentAnswers.filter((r) => r.formID === formID),
     };
   }
@@ -383,8 +384,10 @@ export async function submitStation4({
       form.dentistID = dentistID;
       form.dentalSignature = dentalSignature;
       form.dentalSignedAt = nowIso();
-      form.status = FORM_STATUS.COMPLETED;
-      form.currentStation = 4;
+      // Station 5 (Vision) owns the transition to Completed now; this hands
+      // the form to the vision queue still carrying the dentist's signature.
+      form.status = FORM_STATUS.PENDING_VISION;
+      form.currentStation = 5;
       form.station4SubmittedAt = nowIso();
       form.updatedAt = nowIso();
       bumpRowVersion(form);
@@ -397,6 +400,67 @@ export async function submitStation4({
   try {
     const { data } = await client.post(`/wellnessforms/${formID}/station4`, {
       dentalAssessment, dentistID, dentalSignature, rowVersion,
+    });
+    return data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function submitStation5({
+  formID, visionAssessment, optometristID, visionSignature, rowVersion,
+}) {
+  if (USE_MOCK) {
+    await delay(500);
+    if (!visionSignature) {
+      throw new Error('An optometrist signature is required before submitting.');
+    }
+    // The examining optometrist is chosen on the form, so it is a submitted
+    // value like any other and has to be validated rather than trusted.
+    if (!optometristID) {
+      throw new Error('An examining optometrist is required before submitting.');
+    }
+    return db.write((state) => {
+      const form = state.forms.find((f) => f.formID === formID);
+      if (!form) throw Object.assign(new Error('Form not found.'), { status: 404 });
+      assertFresh(form, rowVersion);
+
+      const optometrist = state.physicians.find((p) => p.physicianID === optometristID);
+      if (!optometrist?.isActive) {
+        throw Object.assign(
+          new Error('That optometrist is no longer registered as active.'),
+          { status: 422 },
+        );
+      }
+
+      state.visionAssessments = state.visionAssessments.filter(
+        (r) => r.formID !== formID,
+      );
+      if (visionAssessment) {
+        state.visionAssessments.push({
+          visionAssessmentID: db.nextId('visionAssessmentID'), formID,
+          ...visionAssessment,
+          createdAt: nowIso(), updatedAt: nowIso(),
+        });
+      }
+
+      form.optometristID = optometristID;
+      form.visionSignature = visionSignature;
+      form.visionSignedAt = nowIso();
+      form.status = FORM_STATUS.COMPLETED;
+      form.currentStation = 5;
+      form.station5SubmittedAt = nowIso();
+      form.updatedAt = nowIso();
+      bumpRowVersion(form);
+      pushAuditLog(state, {
+        formID: form.formID, actorType: 'Physician', actorID: optometristID, action: 'Station5Submitted',
+      });
+      return { ...form };
+    });
+  }
+  try {
+    const { data } = await client.post(`/wellnessforms/${formID}/station5`, {
+      visionAssessment, optometristID, visionSignature, rowVersion,
     });
     return data;
   } catch (error) {

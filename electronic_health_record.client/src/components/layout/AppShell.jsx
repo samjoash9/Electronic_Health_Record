@@ -20,7 +20,7 @@ export default function AppShell() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       <Sidebar collapsed={collapsed} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar collapsed={collapsed} onToggleSidebar={toggleCollapsed} />

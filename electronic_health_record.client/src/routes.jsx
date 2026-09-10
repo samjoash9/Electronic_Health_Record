@@ -18,6 +18,8 @@ import Station3QueuePage from './features/station3/Station3QueuePage';
 import Station3ConsultationPage from './features/station3/Station3ConsultationPage';
 import Station4QueuePage from './features/station4/Station4QueuePage';
 import Station4DentalPage from './features/station4/Station4DentalPage';
+import Station5QueuePage from './features/station5/Station5QueuePage';
+import Station5VisionPage from './features/station5/Station5VisionPage';
 import MyRecordPage from './features/patient/MyRecordPage';
 import MyRecordDetailPage from './features/patient/MyRecordDetailPage';
 import AppShell from './components/layout/AppShell';
@@ -57,6 +59,8 @@ export const routeElements = createRoutesFromElements(
         <Route path="/station3/:formId" element={<Station3ConsultationPage />} />
         <Route path="/station4" element={<Station4QueuePage />} />
         <Route path="/station4/:formId" element={<Station4DentalPage />} />
+        <Route path="/station5" element={<Station5QueuePage />} />
+        <Route path="/station5/:formId" element={<Station5VisionPage />} />
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.PATIENT]} />}>

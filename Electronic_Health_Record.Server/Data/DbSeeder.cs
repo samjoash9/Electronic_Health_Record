@@ -1,15 +1,21 @@
-﻿using Electronic_Health_Record.Server.Models;
+using Electronic_Health_Record.Server.Models;
+using Electronic_Health_Record.Server.Services;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Electronic_Health_Record.Server.Data
 {
     public static class DbSeeder
     {
+        // Set from the service provider on entry, so HashPassword stays a static
+        // helper the seed literals can call inline. The onboarding endpoints hash
+        // through the same service, so a seeded and an onboarded account are
+        // indistinguishable at sign-in.
+        private static IPasswordHasher _passwordHasher = new Sha256PasswordHasher();
+
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ElectronicHealthRecordDbContext>();
+            _passwordHasher = serviceProvider.GetRequiredService<IPasswordHasher>();
 
             // Ensure the database is created / migrated
             if (context.Database.IsRelational())
@@ -506,14 +512,20 @@ namespace Electronic_Health_Record.Server.Data
                 context.SocialHistories.Add(new SocialHistory
                 {
                     FormID = completed.FormID,
-                    SmokingSticksPerDay = 0,
+                    Smokes = false,
                     AlcoholType = "Beer",
                     DrinkFrequency = "Occasional",
                     DrinksPerSession = "1-2",
-                    HasBeenDrunk = false,
-                    DrunkFrequency = "Never",
-                    ExerciseFrequency = "3x a week",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                context.Exercises.Add(new Exercise
+                {
+                    FormID = completed.FormID,
                     ExerciseType = "Jogging",
+                    ExerciseFrequency = "3x a week",
+                    ExerciseYearStarted = "2019",
                     CreatedAt = now,
                     UpdatedAt = now
                 });
@@ -660,16 +672,6 @@ namespace Electronic_Health_Record.Server.Data
             return cleaned.Length > 30 ? cleaned[..30] : cleaned;
         }
 
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            var builder = new StringBuilder();
-            foreach (var b in bytes)
-            {
-                builder.Append(b.ToString("x2"));
-            }
-            return builder.ToString();
-        }
+        private static string HashPassword(string password) => _passwordHasher.Hash(password);
     }
 }

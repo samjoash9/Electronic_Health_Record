@@ -36,3 +36,11 @@ body {
   color: var(--color-ink-900);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 }
+
+/* Browser zoom does not rescale vh/dvh on Chromium, so a viewport-unit shell
+   keeps its unzoomed height and pushes a second scrollbar onto the document —
+   scrolling it drags the whole shell up and exposes blank space underneath.
+   A percentage height chain resolves against the real containing block, which
+   does shrink with zoom, so the shell stays exactly as tall as what is visible. */
+html, body, #root { height: 100%; }
+body { overflow: hidden; }

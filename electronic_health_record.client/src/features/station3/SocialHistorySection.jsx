@@ -1,28 +1,21 @@
-import { useController } from 'react-hook-form';
+import { useController, useFieldArray } from 'react-hook-form';
 import {
-  Cigarette, Dumbbell, Wine, Activity, Info,
-  Minus, Plus, CalendarDays, PersonStanding, Beer, GlassWater, Check,
+  Cigarette, Dumbbell, Wine, Activity, Wind,
+  Plus, CalendarDays, Beer, GlassWater, Check, Trash2,
 } from 'lucide-react';
 import Field from '../../components/ui/Field';
+import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import SectionCard, { SubPanel } from './SectionCard';
 
-const EXERCISE_FREQUENCY = [
-  'Rarely / never', '1–2× per week', '3–4× per week', '5–6× per week', 'Daily',
-];
-const EXERCISE_TYPES = [
-  'Brisk walking', 'Running / jogging', 'Cycling', 'Swimming',
-  'Gym / weight training', 'Sports', 'Yoga / stretching', 'Other',
-];
+const BLANK_EXERCISE_ROW = { exerciseType: '', exerciseFrequency: '', exerciseYearStarted: '' };
+
 const ALCOHOL_TYPES = ['Beer', 'Wine', 'Spirits / hard liquor', 'Mixed drinks', 'Other'];
 const DRINK_FREQUENCY = [
   'Never', 'Occasionally', 'Monthly', 'Weekly', 'Several times a week', 'Daily',
 ];
 const DRINKS_PER_SESSION = [
   '1 drink', '2–3 drinks', '4–5 drinks', '6 or more drinks',
-];
-const DRUNK_FREQUENCY = [
-  'Once or twice ever', 'A few times a year', 'Monthly', 'Weekly or more',
 ];
 
 // Sized to its label rather than Tailwind's sr-only: a 1px box with a negative
@@ -53,49 +46,78 @@ function IconSelect({ icon: Icon, control, name, id, options }) {
 }
 
 /**
- * Stepper for a small count. Typing stays available for large values, while
- * the buttons cover the common 0–2 answers without opening the keyboard.
+ * Free-text input with a leading glyph, matching IconSelect's layout so the
+ * two can sit in the same row. Driven through useController for the same
+ * reason as IconSelect: a controlled value to reflect a restored draft.
  */
-function CounterField({ control, name, id, min = 0, max = 99 }) {
+function IconInput({ icon: Icon, control, name, id, placeholder, ...props }) {
   const { field } = useController({ control, name });
-  const current = Number(field.value) || 0;
-  const step = (delta) => field.onChange(String(Math.min(max, Math.max(min, current + delta))));
-
-  const BTN =
-    'flex h-10 w-11 shrink-0 items-center justify-center text-ink-500 transition-colors hover:bg-[#f3fdfb] hover:text-[#0e7d6b] disabled:cursor-not-allowed disabled:text-ink-300 disabled:hover:bg-transparent';
 
   return (
-    <div className="flex h-10 w-40 items-stretch overflow-hidden rounded-lg border border-line bg-surface transition focus-within:border-[#129883] focus-within:ring-4 focus-within:ring-[#129883]/10">
-      <button
-        type="button"
-        onClick={() => step(-1)}
-        disabled={current <= min}
-        aria-label="Decrease"
-        className={`${BTN} border-r border-line`}
+    <div className="relative">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#0e7d6b]"
       >
-        <Minus size={15} />
-      </button>
-      <input
-        id={id}
-        type="number"
-        inputMode="numeric"
-        min={min}
-        max={max}
-        {...field}
-        value={field.value ?? ''}
-        placeholder="0"
-        className="w-full min-w-0 border-0 bg-transparent text-center text-sm font-semibold tabular-nums text-ink-900 outline-none [appearance:textfield] placeholder:font-normal placeholder:text-ink-400 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-      <button
-        type="button"
-        onClick={() => step(1)}
-        disabled={current >= max}
-        aria-label="Increase"
-        className={`${BTN} border-l border-line`}
-      >
-        <Plus size={15} />
-      </button>
+        <Icon size={16} strokeWidth={1.9} />
+      </span>
+      <Input id={id} placeholder={placeholder} className="w-full pl-9" {...field} value={field.value ?? ''} {...props} />
     </div>
+  );
+}
+
+/**
+ * Checkbox tile, visually similar to YesNoField's Yes/No pair but independent
+ * rather than mutually exclusive — Cigarette and E-cigarette can both be
+ * checked, since a patient may use either or both.
+ */
+// Each toggle echoes its own field-block's accent color once checked, so the
+// choice hints at which colored box it's about to reveal before it appears.
+const TOGGLE_ACCENT = {
+  teal: { border: 'border-[#0e7d6b]/40', bg: 'bg-[#f3fdfb]', check: 'border-[#0e7d6b] bg-[#0e7d6b]', icon: 'text-[#0e7d6b]' },
+  amber: { border: 'border-amber-400/60', bg: 'bg-amber-50', check: 'border-amber-600 bg-amber-600', icon: 'text-amber-700' },
+  sky: { border: 'border-sky-400/60', bg: 'bg-sky-50', check: 'border-sky-600 bg-sky-600', icon: 'text-sky-700' },
+};
+
+function ToggleField({ control, name, label, id, icon: Icon, accent = 'teal' }) {
+  const { field } = useController({ control, name });
+  const checked = Boolean(field.value);
+  const tone = TOGGLE_ACCENT[accent];
+
+  return (
+    <label
+      htmlFor={id}
+      className={`relative flex h-11 cursor-pointer items-center gap-2.5 rounded-lg border px-3.5 transition-colors ${
+        checked
+          ? `${tone.border} ${tone.bg}`
+          : 'border-line bg-canvas hover:border-[#0e7d6b]/30 hover:bg-[#f9fefd]'
+      }`}
+    >
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={(e) => field.onChange(e.target.checked)}
+        onBlur={field.onBlur}
+        className={HIDDEN_INPUT}
+      />
+      <span
+        aria-hidden
+        className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#0e7d6b]/40 peer-focus-visible:ring-offset-1 ${
+          checked ? `${tone.check} text-white` : 'border-gray-300 bg-white'
+        }`}
+      >
+        {checked && <Check size={11} strokeWidth={3.5} />}
+      </span>
+      {Icon && <Icon size={15} className={checked ? tone.icon : 'text-ink-400'} />}
+      <span
+        className={`text-sm transition-colors ${
+          checked ? 'font-semibold text-ink-900' : 'font-medium text-ink-700'
+        }`}
+      >
+        {label}
+      </span>
+    </label>
   );
 }
 
@@ -159,8 +181,27 @@ function YesNoField({ control, name, label, htmlFor }) {
 }
 
 export default function SocialHistorySection({ control, watch }) {
-  const hasBeenDrunk = watch('socialHistory.hasBeenDrunk');
+  const smokes = watch('socialHistory.smokes');
+  const smokesCigarette = watch('socialHistory.smokesCigarette');
+  const smokesEcig = watch('socialHistory.smokesEcig');
   const selectProps = (name) => ({ control, name: `socialHistory.${name}`, id: name });
+  const inputProps = (name) => ({ control, name: `socialHistory.${name}`, id: name });
+
+  const { fields: exerciseFields, append: appendExercise, remove: removeExercise } = useFieldArray({
+    control,
+    name: 'exercise',
+  });
+
+  // Keep at least one row on screen: emptying the last row resets it instead
+  // of leaving the section with nothing to type into.
+  const handleRemoveExercise = (index) => {
+    if (exerciseFields.length === 1) {
+      removeExercise(0);
+      appendExercise({ ...BLANK_EXERCISE_ROW });
+      return;
+    }
+    removeExercise(index);
+  };
 
   return (
     <SectionCard
@@ -170,87 +211,205 @@ export default function SocialHistorySection({ control, watch }) {
       icon={Activity}
     >
       <div className="flex flex-col gap-4">
-        <SubPanel icon={Cigarette} title="Smoking" subtitle="Cigarette usage">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <Field label="Sticks per day" htmlFor="smokingSticksPerDay">
-              <CounterField
-                control={control}
-                name="socialHistory.smokingSticksPerDay"
-                id="smokingSticksPerDay"
-              />
-            </Field>
-            <p className="flex items-start gap-2 rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-ink-500">
-              <Info size={14} className="mt-px shrink-0 text-ink-400" />
-              Enter 0 if the patient does not smoke.
-            </p>
-          </div>
+        <SubPanel icon={Cigarette} title="Smoking" subtitle="Cigarette and e-cigarette usage">
+          <YesNoField
+            control={control}
+            name="socialHistory.smokes"
+            label="Does the patient smoke?"
+            htmlFor="smokes"
+          />
+
+          {/* The choice and its fields fade in beside the trigger, so
+              revealing them reads as an answer rather than the section
+              jumping. Both may be checked: a patient can use either or both. */}
+          {smokes === true && (
+            <div className="mt-4 flex flex-col gap-4 border-t border-line pt-4 motion-safe:animate-[fade-in_150ms_ease-out]">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <ToggleField
+                  control={control}
+                  name="socialHistory.smokesCigarette"
+                  label="Cigarette"
+                  id="smokesCigarette"
+                  icon={Cigarette}
+                  accent="amber"
+                />
+                <ToggleField
+                  control={control}
+                  name="socialHistory.smokesEcig"
+                  label="E-cigarette"
+                  id="smokesEcig"
+                  icon={Wind}
+                  accent="sky"
+                />
+              </div>
+
+              {/* Each block carries its own header, icon, and accent color so
+                  the two stay visually distinct even at a glance. Side by side
+                  as two full-height columns when both are checked, so neither
+                  reads as the other's continuation; a lone block takes the
+                  full width instead of leaving an empty half beside it. */}
+              <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2">
+                {smokesCigarette && (
+                  <div
+                    className={`overflow-hidden rounded-lg border border-amber-300/50 bg-amber-50/60 ${
+                      smokesEcig ? '' : 'sm:col-span-2'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 border-b border-amber-300/40 bg-amber-100/50 px-3.5 py-2">
+                      <Cigarette size={15} className="text-amber-700" />
+                      <span className="text-xs font-semibold tracking-wide text-amber-800">Cigarette details</span>
+                    </div>
+                    <div className="flex flex-col gap-4 p-3.5">
+                      <Field label="Sticks per day" htmlFor="cigaretteSticksPerDay">
+                        <IconInput icon={Cigarette} placeholder="e.g. 10-15" {...inputProps('cigaretteSticksPerDay')} />
+                      </Field>
+                      <Field label="Cigarette frequency" htmlFor="cigaretteFrequency">
+                        <IconInput icon={CalendarDays} placeholder="e.g. Daily" {...inputProps('cigaretteFrequency')} />
+                      </Field>
+                      <Field label="Cigarette — year started" htmlFor="cigaretteYearStarted">
+                        <IconInput
+                          icon={CalendarDays}
+                          placeholder="e.g. 2015"
+                          inputMode="numeric"
+                          maxLength={4}
+                          {...inputProps('cigaretteYearStarted')}
+                        />
+                      </Field>
+                      <Field label="Cigarette puffs per day" htmlFor="cigarettePuffsPerDay">
+                        <IconInput icon={Cigarette} placeholder="e.g. 20" {...inputProps('cigarettePuffsPerDay')} />
+                      </Field>
+                    </div>
+                  </div>
+                )}
+
+                {smokesEcig && (
+                  <div
+                    className={`overflow-hidden rounded-lg border border-sky-300/50 bg-sky-50/60 ${
+                      smokesCigarette ? '' : 'sm:col-span-2'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 border-b border-sky-300/40 bg-sky-100/50 px-3.5 py-2">
+                      <Wind size={15} className="text-sky-700" />
+                      <span className="text-xs font-semibold tracking-wide text-sky-800">E-cigarette details</span>
+                    </div>
+                    <div className="flex flex-col gap-4 p-3.5">
+                      <Field label="Pods per month" htmlFor="ecigPodsPerMonth">
+                        <IconInput icon={Wind} placeholder="e.g. 2" {...inputProps('ecigPodsPerMonth')} />
+                      </Field>
+                      <Field label="E-cigarette frequency" htmlFor="ecigFrequency">
+                        <IconInput icon={CalendarDays} placeholder="e.g. Daily" {...inputProps('ecigFrequency')} />
+                      </Field>
+                      <Field label="E-cigarette — year started" htmlFor="ecigYearStarted">
+                        <IconInput
+                          icon={CalendarDays}
+                          placeholder="e.g. 2021"
+                          inputMode="numeric"
+                          maxLength={4}
+                          {...inputProps('ecigYearStarted')}
+                        />
+                      </Field>
+                      <Field label="E-cigarette puffs per day" htmlFor="ecigPuffsPerDay">
+                        <IconInput icon={Wind} placeholder="e.g. 15" {...inputProps('ecigPuffsPerDay')} />
+                      </Field>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </SubPanel>
 
         <SubPanel icon={Dumbbell} title="Exercise" subtitle="Physical activity">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Frequency" htmlFor="exerciseFrequency">
-              <IconSelect
-                icon={CalendarDays}
-                options={EXERCISE_FREQUENCY}
-                {...selectProps('exerciseFrequency')}
-              />
-            </Field>
-            <Field label="Type of exercise" htmlFor="exerciseType">
-              <IconSelect
-                icon={PersonStanding}
-                options={EXERCISE_TYPES}
-                {...selectProps('exerciseType')}
-              />
-            </Field>
+          {/* Column labels shown once above the rows, same convention as
+              Past Medical History's table and Family History's "Others"
+              rows — a per-row visible label would repeat once per entry. */}
+          <div className="mb-1.5 hidden grid-cols-[1fr_1fr_1fr_auto] gap-3 md:grid">
+            <span className="text-xs font-medium tracking-wide text-ink-600">Type of exercise</span>
+            <span className="text-xs font-medium tracking-wide text-ink-600">Frequency</span>
+            <span className="text-xs font-medium tracking-wide text-ink-600">Year started</span>
+            <span className="w-9" aria-hidden />
           </div>
+          <div className="space-y-3">
+            {exerciseFields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                <div>
+                  <label className="text-xs font-medium tracking-wide text-ink-600 md:sr-only" htmlFor={`exerciseType-${index}`}>
+                    {`Type of exercise, row ${index + 1}`}
+                  </label>
+                  <IconInput
+                    icon={Dumbbell}
+                    control={control}
+                    name={`exercise.${index}.exerciseType`}
+                    id={`exerciseType-${index}`}
+                    placeholder="e.g. Jogging"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium tracking-wide text-ink-600 md:sr-only" htmlFor={`exerciseFrequency-${index}`}>
+                    {`Frequency, row ${index + 1}`}
+                  </label>
+                  <IconInput
+                    icon={CalendarDays}
+                    control={control}
+                    name={`exercise.${index}.exerciseFrequency`}
+                    id={`exerciseFrequency-${index}`}
+                    placeholder="e.g. 3x a week"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium tracking-wide text-ink-600 md:sr-only" htmlFor={`exerciseYearStarted-${index}`}>
+                    {`Year started, row ${index + 1}`}
+                  </label>
+                  <IconInput
+                    icon={CalendarDays}
+                    control={control}
+                    name={`exercise.${index}.exerciseYearStarted`}
+                    id={`exerciseYearStarted-${index}`}
+                    placeholder="e.g. 2019"
+                    inputMode="numeric"
+                    maxLength={4}
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Remove row ${index + 1}`}
+                  onClick={() => handleRemoveExercise(index)}
+                  className="flex h-9 w-9 items-center justify-center self-end rounded-lg text-ink-300 transition hover:bg-rose-50 hover:text-rose-600 md:self-center"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendExercise({ ...BLANK_EXERCISE_ROW })}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 py-2 text-xs font-medium text-ink-500 transition-colors hover:border-[#0e7d6b]/40 hover:bg-[#f9fefd] hover:text-[#0e7d6b]"
+          >
+            <Plus size={14} />
+            Add another exercise
+          </button>
         </SubPanel>
 
         <SubPanel icon={Wine} title="Alcohol" subtitle="Alcohol consumption">
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Type" htmlFor="alcoholType">
-                <IconSelect icon={Beer} options={ALCOHOL_TYPES} {...selectProps('alcoholType')} />
-              </Field>
-              <Field label="How often?" htmlFor="drinkFrequency">
-                <IconSelect
-                  icon={CalendarDays}
-                  options={DRINK_FREQUENCY}
-                  {...selectProps('drinkFrequency')}
-                />
-              </Field>
-              <Field label="How much per session?" htmlFor="drinksPerSession">
-                <IconSelect
-                  icon={GlassWater}
-                  options={DRINKS_PER_SESSION}
-                  {...selectProps('drinksPerSession')}
-                />
-              </Field>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 border-t border-line pt-4 sm:grid-cols-2">
-              <YesNoField
-                control={control}
-                name="socialHistory.hasBeenDrunk"
-                label="Have you ever been drunk?"
-                htmlFor="hasBeenDrunk"
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Type" htmlFor="alcoholType">
+              <IconSelect icon={Beer} options={ALCOHOL_TYPES} {...selectProps('alcoholType')} />
+            </Field>
+            <Field label="How often?" htmlFor="drinkFrequency">
+              <IconSelect
+                icon={CalendarDays}
+                options={DRINK_FREQUENCY}
+                {...selectProps('drinkFrequency')}
               />
-
-              {/* The follow-up fades in beside its trigger, so revealing it
-                  reads as an answer rather than the row jumping. */}
-              {hasBeenDrunk === true && (
-                <Field
-                  label="How often have you been drunk?"
-                  htmlFor="drunkFrequency"
-                  className="motion-safe:animate-[fade-in_150ms_ease-out]"
-                >
-                  <IconSelect
-                    icon={GlassWater}
-                    options={DRUNK_FREQUENCY}
-                    {...selectProps('drunkFrequency')}
-                  />
-                </Field>
-              )}
-            </div>
+            </Field>
+            <Field label="How much per session?" htmlFor="drinksPerSession">
+              <IconSelect
+                icon={GlassWater}
+                options={DRINKS_PER_SESSION}
+                {...selectProps('drinksPerSession')}
+              />
+            </Field>
           </div>
         </SubPanel>
       </div>

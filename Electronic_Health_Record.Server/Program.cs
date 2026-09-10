@@ -39,6 +39,7 @@ builder.Services.AddHttpContextAccessor();
 // Services/SeededEmployeeDirectory.cs for what each will be replaced with.
 builder.Services.AddScoped<ICurrentUser, StubCurrentUser>();
 builder.Services.AddScoped<IEmployeeDirectory, SeededEmployeeDirectory>();
+builder.Services.AddSingleton<IPasswordHasher, Sha256PasswordHasher>();
 
 // 1. ADD THIS BACK: Register your Database Context for Entity Framework Core
 builder.Services.AddDbContext<ElectronicHealthRecordDbContext>(options =>

@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
   IdCard, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
   Users, Stethoscope, Activity, ClipboardList, FlaskConical, Pill,
-  Cigarette, Dumbbell, Wine, BadgeCheck, Smile,
+  Cigarette, Dumbbell, Wine, BadgeCheck, Smile, Eye,
 } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
-import { FORM_STATUS, DENTAL_INDICATORS } from '../../lib/constants';
+import { FORM_STATUS, DENTAL_INDICATORS, VISION_INDICATORS } from '../../lib/constants';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -240,6 +240,43 @@ export default function MyRecordDetailPage() {
                 </div>
               </SubPanel>
             ))}
+          </div>
+        ) : (
+          <p className="text-sm text-ink-500">Not yet completed.</p>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        step={6}
+        title="Vision Assessment"
+        subtitle="Station 5 findings and the examining optometrist's remarks."
+        icon={Eye}
+      >
+        {form.visionAssessment ? (
+          <div className="flex flex-col gap-4">
+            {VISION_INDICATORS.map((indicator, index) => {
+              const { name, label, type, hasOther, otherFieldName } = indicator;
+              const value = form.visionAssessment[name];
+              const otherValue = hasOther ? form.visionAssessment[otherFieldName] : null;
+              // SubPanel renders its icon unconditionally with no fallback, and
+              // VISION_INDICATORS carries no per-indicator icon, so every row
+              // reuses the section's own Eye icon rather than passing none.
+              return (
+                <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-semibold text-ink-900">
+                      {value
+                        ? `${value}${hasOther && value === 'Other' && otherValue ? ` — ${otherValue}` : ''}`
+                        : <span className="font-normal text-ink-400 italic">{type === 'text' ? 'Not recorded' : 'Not assessed'}</span>}
+                    </p>
+                    <StaticAnswer
+                      value={form.visionAssessment[`${name}Remarks`]}
+                      placeholder="No remarks."
+                    />
+                  </div>
+                </SubPanel>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-ink-500">Not yet completed.</p>

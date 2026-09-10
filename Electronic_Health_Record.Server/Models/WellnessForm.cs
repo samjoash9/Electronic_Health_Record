@@ -13,7 +13,10 @@
         //                       Note this is a signed-but-not-completed state:
         //                       before Station 4 existed, SignedAt and
         //                       "Completed" were always set together.
-        // "Completed"           Station 4 done and signed by the dentist
+        // "PendingVision"       Station 4 done and signed, waiting for Station 5.
+        //                       Before Station 5 existed, DentalSignedAt and
+        //                       "Completed" were always set together.
+        // "Completed"           Station 5 done and signed by the optometrist
         // "Cancelled"
         public string Status { get; set; } = "PendingAssessment";
         public byte CurrentStation { get; set; } = 1;
@@ -54,6 +57,14 @@
         public string? DentalSignature { get; set; }
         public DateTime? DentalSignedAt { get; set; }
         public DateTime? Station4SubmittedAt { get; set; }
+
+        // Station 5 (Vision). Same pattern as DentistID: the optometrist is a
+        // Physician row, tracked apart from PhysicianID/DentistID so all three
+        // can differ.
+        public int? OptometristID { get; set; }
+        public string? VisionSignature { get; set; }
+        public DateTime? VisionSignedAt { get; set; }
+        public DateTime? Station5SubmittedAt { get; set; }
         public int? CreatedByAdminID { get; set; }
         public int? UpdatedByAdminID { get; set; }
         public DateTime CreatedAt { get; set; }

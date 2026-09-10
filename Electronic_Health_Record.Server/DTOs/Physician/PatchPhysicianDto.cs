@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Electronic_Health_Record.Server.DTOs.Physician
 {
@@ -18,5 +18,9 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
 
         [MaxLength(20)]
         public string? ContactNo { get; set; }
+
+        // Deactivation is how a doctor account is retired: the row is referenced
+        // by every form they signed, so it is never deleted.
+        public bool? IsActive { get; set; }
     }
 }

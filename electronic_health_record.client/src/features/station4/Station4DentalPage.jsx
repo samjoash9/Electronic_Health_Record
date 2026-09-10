@@ -197,7 +197,7 @@ export default function Station4DentalPage() {
           </dl>
         </div>
 
-        <PriorStationsPanel form={form} categories={categories} />
+        <PriorStationsPanel form={form} categories={categories} upToStation={3} />
 
         <DentalAssessmentSection control={control} register={register} />
 

@@ -17,5 +17,10 @@ namespace Electronic_Health_Record.Server.Models
         public string? AgencyOffice { get; set; }
         public string? Position { get; set; }
         public string? ContactNo { get; set; }
+
+        // true for a row an admin typed in on the Onboarding page rather than one
+        // mirrored from HR. Lets a future real HR sync leave locally added people
+        // alone instead of overwriting them as unrecognised.
+        public bool IsLocallyAdded { get; set; }
     }
 }

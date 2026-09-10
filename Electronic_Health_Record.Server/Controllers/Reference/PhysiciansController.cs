@@ -1,6 +1,7 @@
-﻿using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Physician;
 using Electronic_Health_Record.Server.Models;
+using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,14 +12,34 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
     public class PhysiciansController : Controller
     {
         private readonly ElectronicHealthRecordDbContext _context;
+        private readonly IPasswordHasher _passwordHasher;
         private readonly ILogger<PhysiciansController> _logger;
         public PhysiciansController(
             ElectronicHealthRecordDbContext context,
+            IPasswordHasher passwordHasher,
             ILogger<PhysiciansController> logger)
         {
             _context = context;
+            _passwordHasher = passwordHasher;
             _logger = logger;
         }
+
+        // The fields a client may read. Built in one place so no endpoint can
+        // forget to project and hand back PasswordHash with the rest of the row.
+        private static PhysicianResponseDto ToResponse(Physician p) => new()
+        {
+            PhysicianID = p.PhysicianID,
+            Username = p.Username,
+            Surname = p.Surname,
+            FirstName = p.FirstName,
+            MiddleName = p.MiddleName,
+            PRCLicenseNo = p.PRCLicenseNo,
+            ContactNo = p.ContactNo,
+            MustChangePassword = p.MustChangePassword,
+            IsActive = p.IsActive,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt
+        };
 
         //GET    /api/physicians          → list all ph{ysicians(for "assign physician" dropdown)
         [HttpGet("")]
@@ -28,17 +49,8 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             {
                 // projected, never the raw entity: Physician now carries PasswordHash
                 var physicians = await _context.Physicians
-                    .Select(p => new PhysicianResponseDto
-                    {
-                        PhysicianID = p.PhysicianID,
-                        Surname = p.Surname,
-                        FirstName = p.FirstName,
-                        MiddleName = p.MiddleName,
-                        PRCLicenseNo = p.PRCLicenseNo,
-                        ContactNo = p.ContactNo,
-                        CreatedAt = p.CreatedAt,
-                        UpdatedAt = p.UpdatedAt
-                    })
+                    .OrderBy(p => p.Surname).ThenBy(p => p.FirstName)
+                    .Select(p => ToResponse(p))
                     .ToListAsync();
                 return Ok(new { data = physicians });
             }
@@ -77,17 +89,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                     return NotFound($"Physician with ID {PhysicianID} was not found.");
 
                 // projected, never the raw entity: Physician now carries PasswordHash
-                return Ok(new PhysicianResponseDto
-                {
-                    PhysicianID = physician.PhysicianID,
-                    Surname = physician.Surname,
-                    FirstName = physician.FirstName,
-                    MiddleName = physician.MiddleName,
-                    PRCLicenseNo = physician.PRCLicenseNo,
-                    ContactNo = physician.ContactNo,
-                    CreatedAt = physician.CreatedAt,
-                    UpdatedAt = physician.UpdatedAt
-                });
+                return Ok(ToResponse(physician));
             }
             catch (Exception e)
             {
@@ -104,15 +106,34 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var username = dto.Username.Trim();
+
+            // Checked up front for a clear 409 rather than letting the unique
+            // indexes surface as an opaque DbUpdateException.
+            if (await _context.Physicians.AnyAsync(p => p.Username == username))
+                return Conflict($"The username \"{username}\" is already taken.");
+
+            if (await _context.Physicians.AnyAsync(p => p.PRCLicenseNo == dto.PRCLicenseNo))
+                return Conflict($"PRC License No. {dto.PRCLicenseNo} is already registered to another physician.");
+
             try
             {
+                var now = DateTime.UtcNow;
                 var physician = new Physician
                 {
+                    Username = username,
+                    PasswordHash = _passwordHasher.Hash(dto.Password),
+                    // Onboarded on a password an admin handed over: it only
+                    // survives until the doctor's first sign-in.
+                    MustChangePassword = true,
+                    PasswordSetAt = now,
+                    PasswordChangedAt = null,
                     Surname = dto.Surname,
                     FirstName = dto.FirstName,
                     MiddleName = dto.MiddleName,
                     PRCLicenseNo = dto.PRCLicenseNo,
-                    ContactNo = dto.ContactNo
+                    ContactNo = dto.ContactNo,
+                    IsActive = true
                     // the rest are handled by db defaults (CreatedAt and UpdatedAt)
                 };
 
@@ -122,17 +143,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 return CreatedAtAction(
                     nameof(GetPhysician),
                     new { PhysicianID = physician.PhysicianID },
-                    new PhysicianResponseDto
-                    {
-                        PhysicianID = physician.PhysicianID,
-                        Surname = physician.Surname,
-                        FirstName = physician.FirstName,
-                        MiddleName = physician.MiddleName,
-                        PRCLicenseNo = physician.PRCLicenseNo,
-                        ContactNo = physician.ContactNo,
-                        CreatedAt = physician.CreatedAt,
-                        UpdatedAt = physician.UpdatedAt
-                    });
+                    ToResponse(physician));
             }
             catch (Exception e)
             {
@@ -181,19 +192,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 return Conflict("Unable to update physician. The data may violate a database constraint.");
             }
 
-            var response = new PhysicianResponseDto
-            {
-                PhysicianID = physician.PhysicianID,
-                Surname = physician.Surname,
-                FirstName = physician.FirstName,
-                MiddleName = physician.MiddleName,
-                PRCLicenseNo = physician.PRCLicenseNo,
-                ContactNo = physician.ContactNo,
-                CreatedAt = physician.CreatedAt,
-                UpdatedAt = physician.UpdatedAt
-            };
-
-            return Ok(response);
+            return Ok(ToResponse(physician));
         }
 
         //PATCH  /api/physicians/:id      → partial update
@@ -232,6 +231,11 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             if (dto.ContactNo != null)
                 physician.ContactNo = dto.ContactNo;
 
+            // Deactivation retires an account without deleting the row every
+            // form this doctor signed still points at.
+            if (dto.IsActive.HasValue)
+                physician.IsActive = dto.IsActive.Value;
+
             physician.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -248,21 +252,47 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 return Conflict("Unable to update physician. The data may violate a database constraint.");
             }
 
-            var response = new PhysicianResponseDto
-            {
-                PhysicianID = physician.PhysicianID,
-                Surname = physician.Surname,
-                FirstName = physician.FirstName,
-                MiddleName = physician.MiddleName,
-                PRCLicenseNo = physician.PRCLicenseNo,
-                ContactNo = physician.ContactNo,
-                CreatedAt = physician.CreatedAt,
-                UpdatedAt = physician.UpdatedAt
-            };
-
-            return Ok(response);
+            return Ok(ToResponse(physician));
         }
 
+
+        // POST /api/physicians/:id/password → issue a replacement temporary password
+        //
+        // Separate from PATCH so a credential change is never a side effect of a
+        // profile edit, and so the response carries no password material.
+        [HttpPost("{physicianId}/password")]
+        public async Task<IActionResult> SetPhysicianPassword(
+            int physicianId,
+            [FromBody] SetPhysicianPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var physician = await _context.Physicians.FindAsync(physicianId);
+            if (physician == null)
+                return NotFound($"Physician with ID {physicianId} was not found.");
+
+            var now = DateTime.UtcNow;
+            physician.PasswordHash = _passwordHasher.Hash(dto.Password);
+            // Back on an issued password: the doctor has to replace it, and
+            // PasswordChangedAt stays where it was so "never chose their own"
+            // remains distinguishable.
+            physician.MustChangePassword = true;
+            physician.PasswordSetAt = now;
+            physician.UpdatedAt = now;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                _logger.LogError(e, "Failed to reset the password for physician {PhysicianID}", physicianId);
+                return StatusCode(500, "An error occurred while resetting the password.");
+            }
+
+            return Ok(ToResponse(physician));
+        }
 
         //DELETE /api/physicians/:id      → delete/deactivate
         [HttpDelete("{physicianId}")]

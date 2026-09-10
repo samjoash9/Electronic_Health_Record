@@ -82,6 +82,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     station2 = forms.Count(f => f.CurrentStation == 2),
                     station3 = forms.Count(f => f.CurrentStation == 3),
                     station4 = forms.Count(f => f.CurrentStation == 4),
+                    station5 = forms.Count(f => f.CurrentStation == 5),
                 },
                 totalPatients = forms.Select(f => f.PatientID).Distinct().Count(),
                 submittedToday = forms.Count(f => f.FormDate.Date == today),
@@ -520,7 +521,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // Body: { dentistID, dentalAssessment: {...}, dentalSignature, rowVersion }
         // (see submitStation4 in src/api/forms.api.js). Replaces the dental row
         // wholesale, same reasoning as Station 2's answers -- a resubmit must not
-        // accumulate duplicates. This is the station that completes the form.
+        // accumulate duplicates. Hands off to Station 5, which now completes the form.
         [HttpPost("{formID}/station4")]
         public async Task<IActionResult> SubmitStation4(int formID, [FromBody] Station4SubmitDto dto)
         {
@@ -589,7 +590,11 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.DentistID = dentistID;
                 form.DentalSignature = dto.DentalSignature;
                 form.DentalSignedAt = now;
-                form.Status = "Completed";
+                // Station 5 (Vision) owns the transition to Completed now; this
+                // hands the form to the vision queue still carrying the
+                // dentist's signature.
+                form.Status = "PendingVision";
+                form.CurrentStation = 5;
                 form.Station4SubmittedAt = now;
                 form.UpdatedByAdminID = null;
                 form.UpdatedAt = now;
@@ -600,6 +605,117 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     ActorType = "Physician",
                     ActorID = dentistID,
                     Action = "Station4Submitted",
+                    OccurredAt = now,
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(await BuildFormResponseAsync(form));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync();
+                return Conflict(new { message = "This record was changed at another station." });
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        // POST /api/wellnessforms/{formID}/station5
+        // Body: { optometristID, visionAssessment: {...}, visionSignature, rowVersion }
+        // (see submitStation5 in src/api/forms.api.js). Replaces the vision row
+        // wholesale, same reasoning as Station 4's dental row -- a resubmit must
+        // not accumulate duplicates. This is the station that completes the form.
+        [HttpPost("{formID}/station5")]
+        public async Task<IActionResult> SubmitStation5(int formID, [FromBody] Station5SubmitDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // The optometrist is a submitted field, so it is validated here: an
+            // arbitrary id, or a retired account, must not end up on a record.
+            if (dto.OptometristID is not { } optometristID)
+                return BadRequest(new { message = "An examining optometrist is required before submitting." });
+
+            var optometristIsActive = await _context.Physicians
+                .AnyAsync(p => p.PhysicianID == optometristID && p.IsActive);
+            if (!optometristIsActive)
+            {
+                return UnprocessableEntity(new
+                {
+                    message = "That optometrist is no longer registered as active."
+                });
+            }
+
+            var form = await _context.WellnessForms.FindAsync(formID);
+            if (form == null)
+                return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            ApplyRowVersionToken(form, dto.RowVersion);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var now = DateTime.UtcNow;
+
+                _context.VisionAssessments.RemoveRange(
+                    _context.VisionAssessments.Where(v => v.FormID == formID));
+
+                if (dto.VisionAssessment is { } vision)
+                {
+                    _context.VisionAssessments.Add(new VisionAssessment
+                    {
+                        FormID = formID,
+                        HistoryOfEyeProblems = vision.HistoryOfEyeProblems,
+                        HistoryOfEyeProblemsRemarks = vision.HistoryOfEyeProblemsRemarks,
+                        EyePainDiscomfort = vision.EyePainDiscomfort,
+                        EyePainDiscomfortRemarks = vision.EyePainDiscomfortRemarks,
+                        BlurredVision = vision.BlurredVision,
+                        BlurredVisionRemarks = vision.BlurredVisionRemarks,
+                        DifficultySeeingNear = vision.DifficultySeeingNear,
+                        DifficultySeeingNearRemarks = vision.DifficultySeeingNearRemarks,
+                        DifficultySeeingDistant = vision.DifficultySeeingDistant,
+                        DifficultySeeingDistantRemarks = vision.DifficultySeeingDistantRemarks,
+                        HeadacheEyeStrain = vision.HeadacheEyeStrain,
+                        HeadacheEyeStrainRemarks = vision.HeadacheEyeStrainRemarks,
+                        UsesEyeglassesContactLenses = vision.UsesEyeglassesContactLenses,
+                        UsesEyeglassesContactLensesRemarks = vision.UsesEyeglassesContactLensesRemarks,
+                        VisualAcuityRightEye = vision.VisualAcuityRightEye,
+                        VisualAcuityRightEyeRemarks = vision.VisualAcuityRightEyeRemarks,
+                        VisualAcuityLeftEye = vision.VisualAcuityLeftEye,
+                        VisualAcuityLeftEyeRemarks = vision.VisualAcuityLeftEyeRemarks,
+                        EyeConditionIdentified = vision.EyeConditionIdentified,
+                        EyeConditionOther = vision.EyeConditionOther,
+                        EyeConditionIdentifiedRemarks = vision.EyeConditionIdentifiedRemarks,
+                        CorrectiveLensesRecommended = vision.CorrectiveLensesRecommended,
+                        CorrectiveLensesRecommendedRemarks = vision.CorrectiveLensesRecommendedRemarks,
+                        ReferralToEyeSpecialist = vision.ReferralToEyeSpecialist,
+                        ReferralToEyeSpecialistRemarks = vision.ReferralToEyeSpecialistRemarks,
+                        FollowUpConsultationAdvised = vision.FollowUpConsultationAdvised,
+                        FollowUpConsultationAdvisedRemarks = vision.FollowUpConsultationAdvisedRemarks,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    });
+                }
+
+                form.OptometristID = optometristID;
+                form.VisionSignature = dto.VisionSignature;
+                form.VisionSignedAt = now;
+                form.Status = "Completed";
+                form.Station5SubmittedAt = now;
+                form.UpdatedByAdminID = null;
+                form.UpdatedAt = now;
+
+                _context.WellnessFormAuditLogs.Add(new WellnessFormAuditLog
+                {
+                    FormID = formID,
+                    ActorType = "Physician",
+                    ActorID = optometristID,
+                    Action = "Station5Submitted",
                     OccurredAt = now,
                 });
 
@@ -760,6 +876,10 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.ImpressionClinical,
                 form.ManagementTreatment,
                 form.Station3SubmittedAt,
+                form.DentalSignedAt,
+                form.Station4SubmittedAt,
+                form.VisionSignedAt,
+                form.Station5SubmittedAt,
                 form.CreatedAt,
                 form.UpdatedAt,
                 Patient = patient,
@@ -774,6 +894,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     .Where(e => e.FormID == form.FormID).ToListAsync(),
                 DentalAssessment = await _context.DentalAssessments
                     .FirstOrDefaultAsync(d => d.FormID == form.FormID),
+                VisionAssessment = await _context.VisionAssessments
+                    .FirstOrDefaultAsync(v => v.FormID == form.FormID),
                 AssessmentAnswers = await _context.AssessmentAnswers
                     .Where(a => a.FormID == form.FormID).ToListAsync(),
             };

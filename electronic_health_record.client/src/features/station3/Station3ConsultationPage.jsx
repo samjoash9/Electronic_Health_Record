@@ -5,12 +5,13 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { submitStation3 } from '../../api/forms.api';
+import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
-import { isSuperAdmin } from '../../lib/constants';
+import { ROLES } from '../../lib/constants';
 import { ArrowLeft, IdCard, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -23,6 +24,7 @@ import PastMedicalHistorySection from './PastMedicalHistorySection';
 import SocialHistorySection from './SocialHistorySection';
 import AssessmentPlanSection from './AssessmentPlanSection';
 import PhysicianSignature from './PhysicianSignature';
+import { activePhysicianOptions, findPhysician } from './physicianOptions';
 
 const PATIENT_FIELDS = [
   { key: 'externalEmployeeId', label: 'Employee ID', icon: IdCard },
@@ -41,14 +43,22 @@ const BLANK_PMH_ROW = {
 };
 
 const DEFAULT_VALUES = {
-  familyHistory: { none: false, conditions: {}, other: { checked: false, conditionOther: '', conditionType: '' } },
+  familyHistory: {
+    none: false,
+    conditions: {},
+    other: { checked: false, entries: [{ conditionOther: '', conditionType: '' }] },
+  },
   pastMedicalHistory: [{ ...BLANK_PMH_ROW }],
   socialHistory: {
-    smokingSticksPerDay: '', exerciseFrequency: '', exerciseType: '',
-    alcoholType: '', drinkFrequency: '', drinksPerSession: '',
     // null means unanswered, so the Yes/No pair starts with neither selected.
-    hasBeenDrunk: null, drunkFrequency: '',
+    smokes: null,
+    smokesCigarette: false,
+    cigaretteSticksPerDay: '', cigaretteFrequency: '', cigaretteYearStarted: '', cigarettePuffsPerDay: '',
+    smokesEcig: false,
+    ecigPodsPerMonth: '', ecigFrequency: '', ecigYearStarted: '', ecigPuffsPerDay: '',
+    alcoholType: '', drinkFrequency: '', drinksPerSession: '',
   },
+  exercise: [{ exerciseType: '', exerciseFrequency: '', exerciseYearStarted: '' }],
   recommendedDiagnosticTest: '',
   impressionClinical: '',
   managementTreatment: '',
@@ -68,12 +78,15 @@ function buildFamilyHistory(values) {
     });
   }
   if (fh.other?.checked) {
-    rows.push({
-      conditionID: null,
-      conditionOther: fh.other.conditionOther || null,
-      isNone: false,
-      conditionType: fh.other.conditionType || null,
-    });
+    for (const entry of fh.other.entries ?? []) {
+      if (!entry.conditionOther?.trim()) continue;
+      rows.push({
+        conditionID: null,
+        conditionOther: entry.conditionOther.trim(),
+        isNone: false,
+        conditionType: entry.conditionType || null,
+      });
+    }
   }
   return rows;
 }
@@ -91,18 +104,31 @@ function buildPastMedicalHistory(values) {
     }));
 }
 
+function buildExercise(values) {
+  return (values.exercise ?? [])
+    .filter((row) => row.exerciseType?.trim())
+    .map((row) => ({
+      exerciseType: row.exerciseType.trim(),
+      exerciseFrequency: row.exerciseFrequency || null,
+      exerciseYearStarted: row.exerciseYearStarted || null,
+    }));
+}
+
 export default function Station3ConsultationPage() {
   const { formId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  // A superadmin oversees station 3 but is not a physician: the consultation is
-  // signed against a PhysicianID, so they get the record read-only.
-  const viewOnly = isSuperAdmin(user);
   const queryClient = useQueryClient();
   // Read the draft once during the first render so the form and the signature
   // can be seeded from it directly, instead of set from an effect afterwards.
   const [restoredDraft] = useState(() => loadDraft(formId));
   const [signature, setSignature] = useState(restoredDraft?.signature ?? null);
+  // The attending physician is chosen per consultation, so a doctor working
+  // their own queue starts on themselves and anyone else starts empty.
+  const [physicianID, setPhysicianID] = useState(
+    restoredDraft?.physicianID ?? (user?.role === ROLES.DOCTOR ? user.id : null),
+  );
+  const [physicianError, setPhysicianError] = useState(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState(restoredDraft?.savedAt ?? null);
   // Mirrors mutation.isSuccess but updates synchronously, so the blocker
@@ -115,6 +141,13 @@ export default function Station3ConsultationPage() {
     queryFn: getAssessmentTemplate,
     staleTime: Infinity,
   });
+  const { data: physicians } = useQuery({
+    queryKey: ['physicians'],
+    queryFn: listPhysicians,
+  });
+
+  const physicianOptions = activePhysicianOptions(physicians);
+  const selectedPhysician = findPhysician(physicians, physicianID);
 
   const {
     register, control, watch, setValue, handleSubmit, getValues,
@@ -127,7 +160,7 @@ export default function Station3ConsultationPage() {
   }, [restoredDraft]);
 
   const handleSaveDraft = () => {
-    const savedAt = saveDraft(formId, { values: getValues(), signature });
+    const savedAt = saveDraft(formId, { values: getValues(), signature, physicianID });
     if (!savedAt) {
       toast.error('Could not save the draft. Browser storage may be full or disabled.');
       return false;
@@ -140,22 +173,45 @@ export default function Station3ConsultationPage() {
   const mutation = useMutation({
     mutationFn: (values) => submitStation3({
       formID: Number(formId),
-      physicianID: user.id,
+      physicianID,
       rowVersion: form.rowVersion,
       consultation: {
         familyMedicalHistory: buildFamilyHistory(values),
         pastMedicalHistory: buildPastMedicalHistory(values),
+        exercise: buildExercise(values),
         socialHistory: {
           ...values.socialHistory,
-          // The counter yields a string, and "0" is a real answer rather than
-          // the blank that `null` stands for.
-          smokingSticksPerDay: values.socialHistory.smokingSticksPerDay === ''
-            || values.socialHistory.smokingSticksPerDay == null
-            ? null : Number(values.socialHistory.smokingSticksPerDay),
-          // Unanswered stays null; only an explicit Yes carries a frequency.
-          hasBeenDrunk: values.socialHistory.hasBeenDrunk ?? null,
-          drunkFrequency: values.socialHistory.hasBeenDrunk === true
-            ? values.socialHistory.drunkFrequency || null : null,
+          // Unanswered stays null; only an explicit Yes carries the rest.
+          smokes: values.socialHistory.smokes ?? null,
+          smokesCigarette: values.socialHistory.smokes === true
+            ? Boolean(values.socialHistory.smokesCigarette) : false,
+          smokesEcig: values.socialHistory.smokes === true
+            ? Boolean(values.socialHistory.smokesEcig) : false,
+          // Each sub-block's fields are cleared unless its own checkbox is on,
+          // so an unchecked block can't submit stale values left over from
+          // when it was checked.
+          ...(values.socialHistory.smokes === true && values.socialHistory.smokesCigarette
+            ? {
+              cigaretteSticksPerDay: values.socialHistory.cigaretteSticksPerDay || null,
+              cigaretteFrequency: values.socialHistory.cigaretteFrequency || null,
+              cigaretteYearStarted: values.socialHistory.cigaretteYearStarted || null,
+              cigarettePuffsPerDay: values.socialHistory.cigarettePuffsPerDay || null,
+            }
+            : {
+              cigaretteSticksPerDay: null, cigaretteFrequency: null,
+              cigaretteYearStarted: null, cigarettePuffsPerDay: null,
+            }),
+          ...(values.socialHistory.smokes === true && values.socialHistory.smokesEcig
+            ? {
+              ecigPodsPerMonth: values.socialHistory.ecigPodsPerMonth || null,
+              ecigFrequency: values.socialHistory.ecigFrequency || null,
+              ecigYearStarted: values.socialHistory.ecigYearStarted || null,
+              ecigPuffsPerDay: values.socialHistory.ecigPuffsPerDay || null,
+            }
+            : {
+              ecigPodsPerMonth: null, ecigFrequency: null,
+              ecigYearStarted: null, ecigPuffsPerDay: null,
+            }),
         },
         recommendedDiagnosticTest: values.recommendedDiagnosticTest || null,
         impressionClinical: values.impressionClinical || null,
@@ -207,7 +263,15 @@ export default function Station3ConsultationPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit((values) => { if (!viewOnly) mutation.mutate(values); })}>
+    <form onSubmit={handleSubmit((values) => {
+      // The picker is a submitted field, so it is validated here rather than
+      // only leaned on through a disabled button.
+      if (!physicianID) {
+        setPhysicianError('Select the attending physician.');
+        return;
+      }
+      mutation.mutate(values);
+    })}>
       <div className="flex flex-col gap-4 pb-4">
         <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
           <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
@@ -239,13 +303,22 @@ export default function Station3ConsultationPage() {
 
         <PriorStationsPanel form={form} categories={categories} />
 
-        <FamilyHistorySection register={register} watch={watch} setValue={setValue} />
+        <FamilyHistorySection register={register} watch={watch} setValue={setValue} control={control} />
         <PastMedicalHistorySection control={control} register={register} />
         <SocialHistorySection control={control} watch={watch} />
-        <AssessmentPlanSection register={register} />
+        <AssessmentPlanSection register={register} watch={watch} setValue={setValue} />
         <PhysicianSignature
-          physicianName={user?.name}
-          prcLicenseNo={user?.prcLicenseNo}
+          physicianOptions={physicianOptions}
+          physicianID={physicianID}
+          onPhysicianChange={(next) => {
+            setPhysicianID(Number(next));
+            setPhysicianError(null);
+          }}
+          physicianError={physicianError}
+          physicianName={selectedPhysician
+            ? `Dr. ${selectedPhysician.firstName} ${selectedPhysician.surname}`
+            : null}
+          prcLicenseNo={selectedPhysician?.prcLicenseNo}
           value={signature}
           onChange={setSignature}
         />
@@ -262,8 +335,8 @@ export default function Station3ConsultationPage() {
               Draft saved {formatDateTime(draftSavedAt)}
             </span>
           )}
-          {viewOnly ? (
-            <span className="text-xs text-ink-500">View only — only a physician can sign this consultation.</span>
+          {!physicianID ? (
+            <span className="text-xs text-rose-600">Select the attending physician.</span>
           ) : !signature && (
             <span className="text-xs text-rose-600">A signature is required before submitting.</span>
           )}
@@ -271,8 +344,7 @@ export default function Station3ConsultationPage() {
             type="submit"
             variant="teal"
             size="lg"
-            disabled={viewOnly || !signature || mutation.isPending}
-            title={viewOnly ? 'Only a physician can sign this consultation.' : undefined}
+            disabled={!physicianID || !signature || mutation.isPending}
           >
             {mutation.isPending ? 'Submitting…' : 'Sign and Complete'}
           </Button>

@@ -1,9 +1,16 @@
 /**
- * The five stops a patient physically walks through: registration desk,
- * assessment kiosk, consultation room, dental screening, then the physician's
- * signature. `done` is what the patient reads once a stop is behind them;
- * `waiting` is what they read while standing at it — the past-tense copy
- * would contradict itself if it were shown for a stop that hasn't happened.
+ * The six stops a patient physically walks through: registration desk,
+ * assessment kiosk, consultation room, dental screening, vision screening,
+ * then the physician's signature. `done` is what the patient reads once a
+ * stop is behind them; `waiting` is what they read while standing at it —
+ * the past-tense copy would contradict itself if it were shown for a stop
+ * that hasn't happened.
+ *
+ * "Signed" is listed last even though PhysicianSignature captures it during
+ * Station 3, ahead of Dental and Vision -- signedAt is already truthy by the
+ * time those later stations run, so this step reads as done alongside them
+ * rather than gating the ones after it. Station 5 (not this step) is what
+ * now gates form completion.
  */
 export const STEPS = [
   {
@@ -31,9 +38,15 @@ export const STEPS = [
     waiting: 'Waiting for your dental assessment',
   },
   {
+    key: 'station5SubmittedAt',
+    label: 'Vision',
+    done: 'Your record is now available',
+    waiting: 'Waiting for your vision assessment',
+  },
+  {
     key: 'signedAt',
     label: 'Signed',
-    done: 'Your record is now available',
+    done: 'Reviewed and signed by the attending physician',
     waiting: 'Waiting for the physician to sign your record',
   },
 ];

@@ -31,6 +31,7 @@ const STATION_CARDS = [
   { key: STATIONS.TWO, label: 'At Station 2', accent: 'emerald' },
   { key: STATIONS.THREE, label: 'At Station 3', accent: 'violet' },
   { key: STATIONS.FOUR, label: 'At Station 4', accent: 'amber' },
+  { key: STATIONS.FIVE, label: 'At Station 5', accent: 'rose' },
 ];
 
 const RECENT_COLUMNS = [

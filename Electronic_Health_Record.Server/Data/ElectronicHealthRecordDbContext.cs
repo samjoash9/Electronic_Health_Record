@@ -22,6 +22,7 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<PastMedicalHistory> PastMedicalHistories => Set<PastMedicalHistory>();
         public DbSet<Exercise> Exercises => Set<Exercise>();
         public DbSet<DentalAssessment> DentalAssessments => Set<DentalAssessment>();
+        public DbSet<VisionAssessment> VisionAssessments => Set<VisionAssessment>();
         public DbSet<PhysicianSession> PhysicianSessions => Set<PhysicianSession>();
         public DbSet<PatientAccount> PatientAccounts => Set<PatientAccount>();
         public DbSet<PatientSession> PatientSessions => Set<PatientSession>();
@@ -216,9 +217,9 @@ namespace Electronic_Health_Record.Server.Data
                 entity.ToTable("WellnessForm", t =>
                 {
                     t.HasCheckConstraint("CK_WellnessForm_Status",
-                        "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'Completed', 'Cancelled')");
+                        "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'PendingVision', 'Completed', 'Cancelled')");
                     t.HasCheckConstraint("CK_WellnessForm_CurrentStation",
-                        "CurrentStation IN (1, 2, 3, 4)");
+                        "CurrentStation IN (1, 2, 3, 4, 5)");
                     // a completed form must be signed by a named physician
                     t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned",
                         "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
@@ -226,8 +227,18 @@ namespace Electronic_Health_Record.Server.Data
                     // form carries the dentist's signature as well as the
                     // physician's. CK_WellnessForm_CompletedIsSigned above still
                     // holds: Station 3 runs strictly before completion now.
+                    // CurrentStation < 4 exempts forms completed before the
+                    // dental station existed (Station 3 used to complete the
+                    // form directly) -- those rows can never gain dental data.
                     t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned",
-                        "Status <> 'Completed' OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                        "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                    // Station 5 now owns the transition to Completed, so a
+                    // completed form carries the optometrist's signature too.
+                    // CurrentStation < 5 exempts forms completed before the
+                    // vision station existed (Station 4 used to complete the
+                    // form directly) -- those rows can never gain vision data.
+                    t.HasCheckConstraint("CK_WellnessForm_CompletedIsVisionSigned",
+                        "Status <> 'Completed' OR CurrentStation < 5 OR (OptometristID IS NOT NULL AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
                 });
                 entity.HasKey(w => w.FormID);
                 entity.Property(w => w.Status)
@@ -278,6 +289,13 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasOne<Physician>()
                     .WithMany()
                     .HasForeignKey(w => w.DentistID)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // optional: only set once Station 5 submits
+                entity.HasOne<Physician>()
+                    .WithMany()
+                    .HasForeignKey(w => w.OptometristID)
                     .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
@@ -434,6 +452,81 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasOne<WellnessForm>()
                     .WithOne()
                     .HasForeignKey<DentalAssessment>(d => d.FormID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<VisionAssessment>(entity =>
+            {
+                // Option text is duplicated from VISION_INDICATORS in
+                // src/lib/constants.js. The client hardcodes that array rather
+                // than fetching it, so these strings and that file must stay in
+                // lockstep -- a mismatch fails the insert at submit time rather
+                // than at build time.
+                entity.ToTable("VisionAssessment", t =>
+                {
+                    t.HasCheckConstraint("CK_VisionAssessment_HistoryOfEyeProblems",
+                        "HistoryOfEyeProblems IS NULL OR HistoryOfEyeProblems IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_EyePainDiscomfort",
+                        "EyePainDiscomfort IS NULL OR EyePainDiscomfort IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_BlurredVision",
+                        "BlurredVision IS NULL OR BlurredVision IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_DifficultySeeingNear",
+                        "DifficultySeeingNear IS NULL OR DifficultySeeingNear IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_DifficultySeeingDistant",
+                        "DifficultySeeingDistant IS NULL OR DifficultySeeingDistant IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_HeadacheEyeStrain",
+                        "HeadacheEyeStrain IS NULL OR HeadacheEyeStrain IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_UsesEyeglassesContactLenses",
+                        "UsesEyeglassesContactLenses IS NULL OR UsesEyeglassesContactLenses IN ('No', 'Yes')");
+                    // VisualAcuityRightEye / VisualAcuityLeftEye are free text
+                    // (e.g. "20/20"), so no CHECK constraint constrains them.
+                    t.HasCheckConstraint("CK_VisionAssessment_EyeConditionIdentified",
+                        "EyeConditionIdentified IS NULL OR EyeConditionIdentified IN ('None', 'Refractive error', 'Other')");
+                    t.HasCheckConstraint("CK_VisionAssessment_CorrectiveLensesRecommended",
+                        "CorrectiveLensesRecommended IS NULL OR CorrectiveLensesRecommended IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_ReferralToEyeSpecialist",
+                        "ReferralToEyeSpecialist IS NULL OR ReferralToEyeSpecialist IN ('No', 'Yes')");
+                    t.HasCheckConstraint("CK_VisionAssessment_FollowUpConsultationAdvised",
+                        "FollowUpConsultationAdvised IS NULL OR FollowUpConsultationAdvised IN ('No', 'Yes')");
+                });
+                entity.HasKey(v => v.VisionAssessmentID);
+
+                entity.Property(v => v.HistoryOfEyeProblems).HasMaxLength(50);
+                entity.Property(v => v.EyePainDiscomfort).HasMaxLength(50);
+                entity.Property(v => v.BlurredVision).HasMaxLength(50);
+                entity.Property(v => v.DifficultySeeingNear).HasMaxLength(50);
+                entity.Property(v => v.DifficultySeeingDistant).HasMaxLength(50);
+                entity.Property(v => v.HeadacheEyeStrain).HasMaxLength(50);
+                entity.Property(v => v.UsesEyeglassesContactLenses).HasMaxLength(50);
+                entity.Property(v => v.VisualAcuityRightEye).HasMaxLength(50);
+                entity.Property(v => v.VisualAcuityLeftEye).HasMaxLength(50);
+                entity.Property(v => v.EyeConditionIdentified).HasMaxLength(50);
+                entity.Property(v => v.EyeConditionOther).HasMaxLength(100);
+                entity.Property(v => v.CorrectiveLensesRecommended).HasMaxLength(50);
+                entity.Property(v => v.ReferralToEyeSpecialist).HasMaxLength(50);
+                entity.Property(v => v.FollowUpConsultationAdvised).HasMaxLength(50);
+
+                entity.Property(v => v.HistoryOfEyeProblemsRemarks).HasMaxLength(300);
+                entity.Property(v => v.EyePainDiscomfortRemarks).HasMaxLength(300);
+                entity.Property(v => v.BlurredVisionRemarks).HasMaxLength(300);
+                entity.Property(v => v.DifficultySeeingNearRemarks).HasMaxLength(300);
+                entity.Property(v => v.DifficultySeeingDistantRemarks).HasMaxLength(300);
+                entity.Property(v => v.HeadacheEyeStrainRemarks).HasMaxLength(300);
+                entity.Property(v => v.UsesEyeglassesContactLensesRemarks).HasMaxLength(300);
+                entity.Property(v => v.VisualAcuityRightEyeRemarks).HasMaxLength(300);
+                entity.Property(v => v.VisualAcuityLeftEyeRemarks).HasMaxLength(300);
+                entity.Property(v => v.EyeConditionIdentifiedRemarks).HasMaxLength(300);
+                entity.Property(v => v.CorrectiveLensesRecommendedRemarks).HasMaxLength(300);
+                entity.Property(v => v.ReferralToEyeSpecialistRemarks).HasMaxLength(300);
+                entity.Property(v => v.FollowUpConsultationAdvisedRemarks).HasMaxLength(300);
+
+                entity.Property(v => v.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(v => v.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                // one vision screening per form, same shape as SocialHistory / DentalAssessment
+                entity.HasOne<WellnessForm>()
+                    .WithOne()
+                    .HasForeignKey<VisionAssessment>(v => v.FormID)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

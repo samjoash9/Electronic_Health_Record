@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Runtime.CompilerServices;
+using System.ComponentModel.DataAnnotations;
 
 namespace Electronic_Health_Record.Server.DTOs.Physician
 {
@@ -27,6 +26,19 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
         // ContactNo
         [MaxLength(20)]
         public string? ContactNo { get; set; }
+
+        // Sign-in handle the admin issues at onboarding. Unique across the
+        // Physician table (see the DbContext's index).
+        [Required]
+        [MaxLength(30)]
+        public string Username { get; set; } = string.Empty;
+
+        // The password the admin hands over. Stored hashed, and the account is
+        // created with MustChangePassword set, so it only survives one sign-in.
+        [Required]
+        [MinLength(8, ErrorMessage = "Use at least 8 characters.")]
+        [MaxLength(100)]
+        public string Password { get; set; } = string.Empty;
 
         // the rest are handled with db defaults
     }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../api/mock/db';
 import {
-  submitStation1, submitStation2, submitStation3, submitStation4, getQueue, getForm, getPatientForms,
+  submitStation1, submitStation2, submitStation3, submitStation4, submitStation5, getQueue, getForm, getPatientForms,
 } from '../api/forms.api';
 import { getAssessmentTemplate } from '../api/assessment.api';
 import { scoreAllCategories } from '../lib/scoring';
@@ -74,7 +74,7 @@ describe('full station workflow', () => {
     // Station 3 signs but no longer completes: the form walks to dental first.
     expect(signed.status).toBe(FORM_STATUS.PENDING_DENTAL);
 
-    const completed = await submitStation4({
+    const dentalDone = await submitStation4({
       formID: signed.formID,
       dentistID: 1,
       rowVersion: signed.rowVersion,
@@ -91,6 +91,31 @@ describe('full station workflow', () => {
         lastDentalVisit: 'Within 6 months',
         dentalReferral: 'Not needed',
         dentalReferralRemarks: 'No follow-up needed',
+      },
+    });
+
+    // Station 4 signs but no longer completes: the form walks to vision next.
+    expect(dentalDone.status).toBe(FORM_STATUS.PENDING_VISION);
+
+    const completed = await submitStation5({
+      formID: dentalDone.formID,
+      optometristID: 1,
+      rowVersion: dentalDone.rowVersion,
+      visionSignature: 'data:image/png;base64,CCC',
+      visionAssessment: {
+        historyOfEyeProblems: 'No',
+        eyePainDiscomfort: 'No',
+        blurredVision: 'No',
+        difficultySeeingNear: 'No',
+        difficultySeeingDistant: 'No',
+        headacheEyeStrain: 'No',
+        usesEyeglassesContactLenses: 'No',
+        visualAcuityRightEye: '20/20',
+        visualAcuityLeftEye: '20/20',
+        eyeConditionIdentified: 'None',
+        correctiveLensesRecommended: 'No',
+        referralToEyeSpecialist: 'No',
+        followUpConsultationAdvised: 'No',
       },
     });
     expect(completed.status).toBe(FORM_STATUS.COMPLETED);

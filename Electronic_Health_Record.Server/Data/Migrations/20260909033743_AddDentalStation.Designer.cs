@@ -2711,7 +2711,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.ToTable("WellnessForm", null, t =>
                         {
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned", "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
 

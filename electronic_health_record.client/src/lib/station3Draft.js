@@ -19,13 +19,16 @@ function keyFor(formID) {
  * Persist an in-progress consultation.
  * @returns {string|null} ISO timestamp of the save, or null if it failed.
  */
-export function saveDraft(formID, { values, signature }) {
+export function saveDraft(formID, { values, signature, physicianID = null }) {
   if (!formID) return null;
   const savedAt = new Date().toISOString();
   try {
     localStorage.setItem(
       keyFor(formID),
-      JSON.stringify({ version: VERSION, savedAt, values, signature }),
+      // physicianID is optional rather than versioned: a draft written before
+      // the attending physician was selectable still restores, and the picker
+      // falls back to its own default.
+      JSON.stringify({ version: VERSION, savedAt, values, signature, physicianID }),
     );
     return savedAt;
   } catch {
@@ -36,7 +39,8 @@ export function saveDraft(formID, { values, signature }) {
 
 /**
  * Read a previously saved draft.
- * @returns {{savedAt: string, values: object, signature: string|null}|null}
+ * @returns {{savedAt: string, values: object, signature: string|null,
+ *   physicianID: number|null|undefined}|null}
  */
 export function loadDraft(formID) {
   if (!formID) return null;

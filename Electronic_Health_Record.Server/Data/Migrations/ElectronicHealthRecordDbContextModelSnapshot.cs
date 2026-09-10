@@ -2559,6 +2559,166 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.ToTable("SocialHistory", (string)null);
                 });
 
+            modelBuilder.Entity("Electronic_Health_Record.Server.Models.VisionAssessment", b =>
+                {
+                    b.Property<int>("VisionAssessmentID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VisionAssessmentID"));
+
+                    b.Property<string>("BlurredVision")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BlurredVisionRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("CorrectiveLensesRecommended")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CorrectiveLensesRecommendedRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSDATETIME()");
+
+                    b.Property<string>("DifficultySeeingDistant")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DifficultySeeingDistantRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("DifficultySeeingNear")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DifficultySeeingNearRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("EyeConditionIdentified")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EyeConditionIdentifiedRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("EyeConditionOther")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EyePainDiscomfort")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EyePainDiscomfortRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("FollowUpConsultationAdvised")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FollowUpConsultationAdvisedRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("FormID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("HeadacheEyeStrain")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("HeadacheEyeStrainRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("HistoryOfEyeProblems")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("HistoryOfEyeProblemsRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("ReferralToEyeSpecialist")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ReferralToEyeSpecialistRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSDATETIME()");
+
+                    b.Property<string>("UsesEyeglassesContactLenses")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UsesEyeglassesContactLensesRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("VisualAcuityLeftEye")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("VisualAcuityLeftEyeRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("VisualAcuityRightEye")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("VisualAcuityRightEyeRemarks")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.HasKey("VisionAssessmentID");
+
+                    b.HasIndex("FormID")
+                        .IsUnique();
+
+                    b.ToTable("VisionAssessment", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_VisionAssessment_BlurredVision", "BlurredVision IS NULL OR BlurredVision IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_CorrectiveLensesRecommended", "CorrectiveLensesRecommended IS NULL OR CorrectiveLensesRecommended IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_DifficultySeeingDistant", "DifficultySeeingDistant IS NULL OR DifficultySeeingDistant IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_DifficultySeeingNear", "DifficultySeeingNear IS NULL OR DifficultySeeingNear IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_EyeConditionIdentified", "EyeConditionIdentified IS NULL OR EyeConditionIdentified IN ('None', 'Refractive error', 'Other')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_EyePainDiscomfort", "EyePainDiscomfort IS NULL OR EyePainDiscomfort IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_FollowUpConsultationAdvised", "FollowUpConsultationAdvised IS NULL OR FollowUpConsultationAdvised IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_HeadacheEyeStrain", "HeadacheEyeStrain IS NULL OR HeadacheEyeStrain IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_HistoryOfEyeProblems", "HistoryOfEyeProblems IS NULL OR HistoryOfEyeProblems IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_ReferralToEyeSpecialist", "ReferralToEyeSpecialist IS NULL OR ReferralToEyeSpecialist IN ('No', 'Yes')");
+
+                            t.HasCheckConstraint("CK_VisionAssessment_UsesEyeglassesContactLenses", "UsesEyeglassesContactLenses IS NULL OR UsesEyeglassesContactLenses IN ('No', 'Yes')");
+                        });
+                });
+
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.WellnessForm", b =>
                 {
                     b.Property<int>("FormID")
@@ -2621,6 +2781,9 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<string>("ManagementTreatment")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OptometristID")
+                        .HasColumnType("int");
+
                     b.Property<int>("PatientID")
                         .HasColumnType("int");
 
@@ -2662,6 +2825,9 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<DateTime?>("Station4SubmittedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("Station5SubmittedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -2682,6 +2848,12 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<int?>("UpdatedByAdminID")
                         .HasColumnType("int");
 
+                    b.Property<string>("VisionSignature")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("VisionSignedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal?>("WeightKg")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
@@ -2691,6 +2863,8 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.HasIndex("CreatedByAdminID");
 
                     b.HasIndex("DentistID");
+
+                    b.HasIndex("OptometristID");
 
                     b.HasIndex("PhysicianID");
 
@@ -2708,13 +2882,15 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.ToTable("WellnessForm", null, t =>
                         {
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned", "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_WellnessForm_CurrentStation", "CurrentStation IN (1, 2, 3, 4)");
+                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsVisionSigned", "Status <> 'Completed' OR CurrentStation < 5 OR (OptometristID IS NOT NULL AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_WellnessForm_Status", "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'Completed', 'Cancelled')");
+                            t.HasCheckConstraint("CK_WellnessForm_CurrentStation", "CurrentStation IN (1, 2, 3, 4, 5)");
+
+                            t.HasCheckConstraint("CK_WellnessForm_Status", "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'PendingVision', 'Completed', 'Cancelled')");
                         });
                 });
 
@@ -2893,6 +3069,15 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Electronic_Health_Record.Server.Models.VisionAssessment", b =>
+                {
+                    b.HasOne("Electronic_Health_Record.Server.Models.WellnessForm", null)
+                        .WithOne()
+                        .HasForeignKey("Electronic_Health_Record.Server.Models.VisionAssessment", "FormID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.WellnessForm", b =>
                 {
                     b.HasOne("Electronic_Health_Record.Server.Models.Admin", null)
@@ -2903,6 +3088,11 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.HasOne("Electronic_Health_Record.Server.Models.Physician", null)
                         .WithMany()
                         .HasForeignKey("DentistID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Electronic_Health_Record.Server.Models.Physician", null)
+                        .WithMany()
+                        .HasForeignKey("OptometristID")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Electronic_Health_Record.Server.Models.Patient", null)

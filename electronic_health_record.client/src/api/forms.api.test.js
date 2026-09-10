@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from './mock/db';
 import {
-  submitStation1, submitStation2, submitStation3, submitStation4, getQueue, getForm,
+  submitStation1, submitStation2, submitStation3, submitStation4, submitStation5, getQueue, getForm,
 } from './forms.api';
 import { FORM_STATUS } from '../lib/constants';
 
@@ -98,7 +98,7 @@ describe('station submissions', () => {
     expect(full.exercise[0].exerciseFrequency).toBe('Weekly');
   });
 
-  it('station 4 records the dental assessment and completes the form', async () => {
+  it('station 4 records the dental assessment and hands the form to vision', async () => {
     const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
     const assessed = await submitStation2({
       formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
@@ -107,7 +107,7 @@ describe('station submissions', () => {
       formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
       consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
     });
-    const completed = await submitStation4({
+    const dentalDone = await submitStation4({
       formID: created.formID,
       dentistID: 1,
       rowVersion: signed.rowVersion,
@@ -126,11 +126,13 @@ describe('station submissions', () => {
         dentalReferral: 'Routine referral',
       },
     });
-    expect(completed.status).toBe(FORM_STATUS.COMPLETED);
-    expect(completed.currentStation).toBe(4);
-    expect(completed.dentistID).toBe(1);
-    expect(completed.dentalSignedAt).toBeTruthy();
-    expect(completed.station4SubmittedAt).toBeTruthy();
+    // The dentist's signature is captured here, but the form is not complete
+    // until the vision station signs too.
+    expect(dentalDone.status).toBe(FORM_STATUS.PENDING_VISION);
+    expect(dentalDone.currentStation).toBe(5);
+    expect(dentalDone.dentistID).toBe(1);
+    expect(dentalDone.dentalSignedAt).toBeTruthy();
+    expect(dentalDone.station4SubmittedAt).toBeTruthy();
 
     const full = await getForm(created.formID);
     expect(full.dentalAssessment).toBeTruthy();
@@ -151,6 +153,69 @@ describe('station submissions', () => {
     await expect(submitStation4({
       formID: created.formID, dentistID: 1, rowVersion: signed.rowVersion,
       dentalSignature: null, dentalAssessment: {},
+    })).rejects.toThrow(/signature/i);
+  });
+
+  it('station 5 records the vision assessment and completes the form', async () => {
+    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
+    const assessed = await submitStation2({
+      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
+    });
+    const signed = await submitStation3({
+      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
+      consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
+    });
+    const dentalDone = await submitStation4({
+      formID: created.formID, dentistID: 1, rowVersion: signed.rowVersion,
+      dentalSignature: 'data:image/png;base64,BBB', dentalAssessment: { oralHygieneStatus: 'Good' },
+    });
+    const completed = await submitStation5({
+      formID: created.formID,
+      optometristID: 1,
+      rowVersion: dentalDone.rowVersion,
+      visionSignature: 'data:image/png;base64,CCC',
+      visionAssessment: {
+        historyOfEyeProblems: 'Yes',
+        historyOfEyeProblemsRemarks: 'Cataract surgery, left eye, 2019',
+        blurredVision: 'No',
+        visualAcuityRightEye: '20/20',
+        visualAcuityLeftEye: '20/25',
+        eyeConditionIdentified: 'Other',
+        eyeConditionOther: 'Mild astigmatism',
+        correctiveLensesRecommended: 'Yes',
+        referralToEyeSpecialist: 'No',
+        followUpConsultationAdvised: 'Yes',
+      },
+    });
+    expect(completed.status).toBe(FORM_STATUS.COMPLETED);
+    expect(completed.currentStation).toBe(5);
+    expect(completed.optometristID).toBe(1);
+    expect(completed.visionSignedAt).toBeTruthy();
+    expect(completed.station5SubmittedAt).toBeTruthy();
+
+    const full = await getForm(created.formID);
+    expect(full.visionAssessment).toBeTruthy();
+    expect(full.visionAssessment.visualAcuityRightEye).toBe('20/20');
+    expect(full.visionAssessment.visualAcuityLeftEye).toBe('20/25');
+    expect(full.visionAssessment.eyeConditionOther).toBe('Mild astigmatism');
+  });
+
+  it('station 5 refuses to submit without an optometrist signature', async () => {
+    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
+    const assessed = await submitStation2({
+      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
+    });
+    const signed = await submitStation3({
+      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
+      consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
+    });
+    const dentalDone = await submitStation4({
+      formID: created.formID, dentistID: 1, rowVersion: signed.rowVersion,
+      dentalSignature: 'data:image/png;base64,BBB', dentalAssessment: { oralHygieneStatus: 'Good' },
+    });
+    await expect(submitStation5({
+      formID: created.formID, optometristID: 1, rowVersion: dentalDone.rowVersion,
+      visionSignature: null, visionAssessment: {},
     })).rejects.toThrow(/signature/i);
   });
 

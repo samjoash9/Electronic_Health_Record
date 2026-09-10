@@ -40,5 +40,21 @@ namespace Electronic_Health_Record.Server.Services
             return await _context.Employees
                 .FirstOrDefaultAsync(e => e.ExternalEmployeeId == externalEmployeeId);
         }
+
+        // Flagged IsLocallyAdded by the caller, so a future real HR sync can
+        // leave these rows alone rather than treating them as unrecognised.
+        public async Task<Employee> AddAsync(Employee employee)
+        {
+            _context.Employees.Add(employee);
+            await _context.SaveChangesAsync();
+            return employee;
+        }
+
+        public async Task<Employee> UpdateAsync(Employee employee)
+        {
+            _context.Employees.Update(employee);
+            await _context.SaveChangesAsync();
+            return employee;
+        }
     }
 }
