@@ -1,14 +1,20 @@
-using System.Security.Claims;
-
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Auth;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
-
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Numerics;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using static System.Net.Mime.MediaTypeNames;
+using static System.Net.WebRequestMethods;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Electronic_Health_Record.Server.Controllers.Auth;
 
@@ -21,6 +27,7 @@ public class AuthController : ControllerBase
 
     private readonly PasswordHasher<Admin> _adminPasswordHasher = new();
     private readonly PasswordHasher<Physician> _physicianPasswordHasher = new();
+    private readonly PasswordHasher<PatientAccount> _patientPasswordHasher = new();
 
     public AuthController(
         ElectronicHealthRecordDbContext db,
@@ -30,43 +37,46 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
     }
 
+
     // =========================================================
     // LOGIN
     // =========================================================
 
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(
-        LoginRequest request)
+        [FromBody] LoginRequest request)
     {
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
         // Validate request
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
 
-        if (string.IsNullOrWhiteSpace(request.Email) ||
+        if (request == null ||
+            string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
             return BadRequest(new
             {
-                message = "Email and password are required."
+                message = "Username and password are required."
             });
         }
 
-        // Normalize email
-        var email = request.Email.Trim();
+        var username = request.Username.Trim();
 
-        // =====================================================
-        // 1. CHECK ADMIN BY EMAIL
-        // =====================================================
+
+        // =========================================================
+        // 1. ADMIN
+        // =========================================================
 
         var admin = await _db.Admins
-            .FirstOrDefaultAsync(a => a.Email == email);
+            .FirstOrDefaultAsync(a => a.Username == username);
 
         if (admin != null)
         {
-            // -------------------------------------------------
-            // Check account status
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Account status
+            // -----------------------------------------------------
 
             if (!admin.IsActive)
             {
@@ -76,9 +86,21 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Validate role
+            // -----------------------------------------------------
+
+            if (!AdminRoles.IsValid(admin.Role))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid account role."
+                });
+            }
+
+            // -----------------------------------------------------
             // Verify password
-            // -------------------------------------------------
+            // -----------------------------------------------------
 
             var passwordResult =
                 _adminPasswordHasher.VerifyHashedPassword(
@@ -87,100 +109,92 @@ public class AuthController : ControllerBase
                     request.Password
                 );
 
-            if (passwordResult == PasswordVerificationResult.Failed)
+            if (passwordResult ==
+                PasswordVerificationResult.Failed)
             {
                 return Unauthorized(new
                 {
-                    message = "Invalid email or password."
+                    message = "Invalid username or password."
                 });
             }
 
-            // Password is valid, but the hasher wants it rewritten with current
-            // parameters (e.g. iteration count bumped) - rehash and persist now
-            // while we have the plaintext.
-            if (passwordResult == PasswordVerificationResult.SuccessRehashNeeded)
+            // -----------------------------------------------------
+            // Rehash password if required
+            // -----------------------------------------------------
+
+            if (passwordResult ==
+                PasswordVerificationResult.SuccessRehashNeeded)
             {
                 admin.PasswordHash =
-                    _adminPasswordHasher.HashPassword(admin, request.Password);
+                    _adminPasswordHasher.HashPassword(
+                        admin,
+                        request.Password
+                    );
             }
 
-            // -------------------------------------------------
-            // Generate JWT
-            // -------------------------------------------------
-
-            var (token, expiresAt) =
-                _tokenService.GenerateToken(admin);
-
-            // -------------------------------------------------
-            // Update last login
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Update login information
+            // -----------------------------------------------------
 
             admin.LastLoginAt = DateTime.UtcNow;
             admin.UpdatedAt = DateTime.UtcNow;
 
-            // -------------------------------------------------
-            // Create user session
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Generate JWT + AdminSession
+            // -----------------------------------------------------
 
-            var session = new UserSession
-            {
-                AdminID = admin.AdminID,
-                PhysicianID = null,
-
-                TokenHash = HashToken(token),
-
-                ExpiresAt = expiresAt,
-
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _db.UserSessions.Add(session);
+            var (token, expiresAt) =
+                await _tokenService.GenerateTokenAsync(admin);
 
             await _db.SaveChangesAsync();
 
-            // -------------------------------------------------
-            // Return response
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Response
+            // -----------------------------------------------------
 
             return Ok(new LoginResponse
             {
                 Token = token,
                 ExpiresAt = expiresAt,
 
-                AdminID = admin.AdminID,
-
+                AccountId = admin.AdminID,
                 Username = admin.Username,
 
                 FullName = admin.FullName,
+
+                AccountType = "Admin",
 
                 Role = admin.Role
             });
         }
 
-        // =====================================================
-        // 2. CHECK PHYSICIAN BY EMAIL
-        // =====================================================
+
+        // =========================================================
+        // 2. PHYSICIAN
+        // =========================================================
 
         var physician = await _db.Physicians
-            .FirstOrDefaultAsync(p => p.Email == email);
+            .FirstOrDefaultAsync(p => p.Username == username);
 
         if (physician != null)
         {
-            // -------------------------------------------------
-            // Check portal access
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Portal access
+            // -----------------------------------------------------
 
-            if (string.IsNullOrWhiteSpace(physician.PasswordHash))
+            if (string.IsNullOrWhiteSpace(
+                physician.PasswordHash))
             {
                 return Unauthorized(new
                 {
-                    message = "This physician account does not have portal access."
+                    message =
+                        "This physician account does not have portal access."
                 });
             }
 
-            // -------------------------------------------------
-            // Check account status
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Account status
+            // -----------------------------------------------------
 
             if (!physician.IsActive)
             {
@@ -190,9 +204,9 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -------------------------------------------------
+            // -----------------------------------------------------
             // Verify password
-            // -------------------------------------------------
+            // -----------------------------------------------------
 
             var passwordResult =
                 _physicianPasswordHasher.VerifyHashedPassword(
@@ -201,356 +215,1117 @@ public class AuthController : ControllerBase
                     request.Password
                 );
 
-            if (passwordResult == PasswordVerificationResult.Failed)
+            if (passwordResult ==
+                PasswordVerificationResult.Failed)
             {
                 return Unauthorized(new
                 {
-                    message = "Invalid email or password."
+                    message = "Invalid username or password."
                 });
             }
 
-            // Password is valid, but the hasher wants it rewritten with current
-            // parameters (e.g. iteration count bumped) - rehash and persist now
-            // while we have the plaintext.
-            if (passwordResult == PasswordVerificationResult.SuccessRehashNeeded)
+            // -----------------------------------------------------
+            // Rehash password if required
+            // -----------------------------------------------------
+
+            if (passwordResult ==
+                PasswordVerificationResult.SuccessRehashNeeded)
             {
                 physician.PasswordHash =
-                    _physicianPasswordHasher.HashPassword(physician, request.Password);
+                    _physicianPasswordHasher.HashPassword(
+                        physician,
+                        request.Password
+                    );
             }
 
-            // -------------------------------------------------
-            // Generate JWT
-            // -------------------------------------------------
-
-            var (token, expiresAt) =
-                _tokenService.GenerateToken(physician);
-
-            // -------------------------------------------------
-            // Update last login
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Update login information
+            // -----------------------------------------------------
 
             physician.LastLoginAt = DateTime.UtcNow;
             physician.UpdatedAt = DateTime.UtcNow;
 
-            // -------------------------------------------------
-            // Create user session
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Generate JWT + PhysicianSession
+            // -----------------------------------------------------
 
-            var session = new UserSession
-            {
-                AdminID = null,
-
-                PhysicianID = physician.PhysicianID,
-
-                TokenHash = HashToken(token),
-
-                ExpiresAt = expiresAt,
-
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _db.UserSessions.Add(session);
+            var (token, expiresAt) =
+                await _tokenService.GenerateTokenAsync(
+                    physician
+                );
 
             await _db.SaveChangesAsync();
 
-            // -------------------------------------------------
-            // Return response
-            // -------------------------------------------------
+            // -----------------------------------------------------
+            // Response
+            // -----------------------------------------------------
 
             return Ok(new LoginResponse
             {
                 Token = token,
                 ExpiresAt = expiresAt,
 
-                PhysicianID = physician.PhysicianID,
-
+                AccountId = physician.PhysicianID,
                 Username = physician.Username,
 
-                FullName =
-                    $"{physician.FirstName} " +
-                    $"{physician.MiddleName} " +
-                    $"{physician.Surname}",
+                FullName = BuildPhysicianFullName(
+                    physician
+                ),
 
-                Role = Roles.Physician
+                AccountType = "Physician"
             });
         }
 
-        // =====================================================
-        // 3. NO ACCOUNT FOUND
-        // =====================================================
+
+        // =========================================================
+        // 3. PATIENT
+        // =========================================================
+
+        var patientAccount = await _db.PatientAccounts
+            .FirstOrDefaultAsync(a =>
+                a.Username == username);
+
+        if (patientAccount != null)
+        {
+            // -----------------------------------------------------
+            // Account status
+            // -----------------------------------------------------
+
+            if (!string.Equals(
+                patientAccount.Status,
+                "Active",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Patient account is not active."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Password exists
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(
+                patientAccount.PasswordHash))
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Patient account has no password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Load patient
+            // -----------------------------------------------------
+
+            var patient = await _db.Patients
+                .FirstOrDefaultAsync(p =>
+                    p.PatientID ==
+                    patientAccount.PatientID);
+
+            if (patient == null)
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Patient record was not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify password
+            // -----------------------------------------------------
+
+            var passwordResult =
+                _patientPasswordHasher.VerifyHashedPassword(
+                    patientAccount,
+                    patientAccount.PasswordHash,
+                    request.Password
+                );
+
+            if (passwordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Invalid username or password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Rehash password if required
+            // -----------------------------------------------------
+
+            if (passwordResult ==
+                PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                patientAccount.PasswordHash =
+                    _patientPasswordHasher.HashPassword(
+                        patientAccount,
+                        request.Password
+                    );
+            }
+
+            // -----------------------------------------------------
+            // Update account
+            // -----------------------------------------------------
+
+            patientAccount.UpdatedAt = DateTime.UtcNow;
+
+            // -----------------------------------------------------
+            // Generate JWT + PatientSession
+            // -----------------------------------------------------
+
+            var (token, expiresAt) =
+                await _tokenService.GenerateTokenAsync(
+                    patientAccount,
+                    patient
+                );
+
+            await _db.SaveChangesAsync();
+
+            // -----------------------------------------------------
+            // Response
+            // -----------------------------------------------------
+
+            return Ok(new LoginResponse
+            {
+                Token = token,
+                ExpiresAt = expiresAt,
+
+                AccountId =
+                    patientAccount.PatientAccountID,
+
+                Username =
+                    patientAccount.Username,
+
+                FullName =
+                    BuildPatientFullName(patient),
+
+                AccountType = "Patient"
+            });
+        }
+
+
+        // =========================================================
+        // NO ACCOUNT FOUND
+        // =========================================================
 
         return Unauthorized(new
         {
-            message = "Invalid email or password."
+            message = "Invalid username or password."
         });
     }
 
-    // =========================================================
-    // CURRENT USER
-    // =========================================================
 
-    [Authorize]
-    [HttpGet("me")]
-    public async Task<IActionResult> Me()
+
+// =========================================================
+// CHANGE PASSWORD
+// =========================================================
+//
+// POST /api/Auth/change-password
+//
+// Authorization:
+// Bearer <JWT>
+//
+// Supported accounts:
+// Admin
+// Physician
+// Patient
+//
+// Request:
+// {
+//     "currentPassword": "OldPassword123!",
+//     "newPassword": "NewPassword123!",
+//     "confirmPassword": "NewPassword123!"
+// }
+//
+// =========================================================
+
+[Authorize]
+[HttpPost("change-password")]
+public async Task<IActionResult> ChangePassword(
+    [FromBody] ChangePasswordRequest request)
     {
-        var userId =
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        var role =
-            User.FindFirst(ClaimTypes.Role)?.Value;
-
-        var principalType =
-            User.FindFirst("PrincipalType")?.Value;
-
-        if (string.IsNullOrWhiteSpace(userId) ||
-            string.IsNullOrWhiteSpace(role))
-        {
-            return Unauthorized();
-        }
-
-        // =====================================================
-        // ADMIN
-        // =====================================================
-
-        if (principalType == "Admin")
-        {
-            if (!int.TryParse(userId, out var adminId))
-            {
-                return Unauthorized();
-            }
-
-            var admin = await _db.Admins
-                .FirstOrDefaultAsync(a =>
-                    a.AdminID == adminId);
-
-            if (admin == null)
-            {
-                return Unauthorized();
-            }
-
-            return Ok(new
-            {
-                AdminID = admin.AdminID,
-                Username = admin.Username,
-                Email = admin.Email,
-                FullName = admin.FullName,
-                Role = admin.Role,
-                PrincipalType = "Admin"
-            });
-        }
-
-        // =====================================================
-        // PHYSICIAN
-        // =====================================================
-
-        if (principalType == "Physician")
-        {
-            if (!int.TryParse(userId, out var physicianId))
-            {
-                return Unauthorized();
-            }
-
-            var physician = await _db.Physicians
-                .FirstOrDefaultAsync(p =>
-                    p.PhysicianID == physicianId);
-
-            if (physician == null)
-            {
-                return Unauthorized();
-            }
-
-            return Ok(new
-            {
-                PhysicianID = physician.PhysicianID,
-                Username = physician.Username,
-                Email = physician.Email,
-                FullName =
-                    $"{physician.FirstName} " +
-                    $"{physician.MiddleName} " +
-                    $"{physician.Surname}",
-                Role = Roles.Physician,
-                PrincipalType = "Physician",
-                MustChangePassword = physician.MustChangePassword
-            });
-        }
-
-        return Unauthorized();
-    }
-
-    // =========================================================
-    // CHANGE PASSWORD (PHYSICIAN)
-    // =========================================================
-
-    [Authorize]
-    [HttpPost("physician/change-password")]
-    public async Task<IActionResult> ChangePhysicianPassword(
-        ChangePasswordRequest request)
-    {
-        // -----------------------------------------------------
-        // Must be a physician principal
-        // -----------------------------------------------------
-
-        var principalType =
-            User.FindFirst("PrincipalType")?.Value;
-
-        var userId =
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (principalType != "Physician" ||
-            string.IsNullOrWhiteSpace(userId) ||
-            !int.TryParse(userId, out var physicianId))
-        {
-            return Unauthorized();
-        }
-
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
         // Validate request
-        // -----------------------------------------------------
+        // ---------------------------------------------------------
 
-        if (string.IsNullOrWhiteSpace(request.CurrentPassword) ||
-            string.IsNullOrWhiteSpace(request.NewPassword))
+        if (request == null)
         {
             return BadRequest(new
             {
-                message = "Current password and new password are required."
+                message = "Request is required."
             });
         }
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+        {
+            return BadRequest(new
+            {
+                message = "Current password is required."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest(new
+            {
+                message = "New password is required."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ConfirmPassword))
+        {
+            return BadRequest(new
+            {
+                message = "Password confirmation is required."
+            });
+        }
+
+        // ---------------------------------------------------------
+        // Confirm new password
+        // ---------------------------------------------------------
+
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            return BadRequest(new
+            {
+                message =
+                    "New password and confirmation password do not match."
+            });
+        }
+
+        // ---------------------------------------------------------
+        // Basic password validation
+        // ---------------------------------------------------------
 
         if (request.NewPassword.Length < 8)
         {
             return BadRequest(new
             {
-                message = "New password must be at least 8 characters long."
+                message =
+                    "New password must be at least 8 characters long."
             });
         }
 
-        if (request.NewPassword == request.CurrentPassword)
-        {
-            return BadRequest(new
-            {
-                message = "New password must be different from the current password."
-            });
-        }
+        // ---------------------------------------------------------
+        // Get PrincipalType from JWT
+        // ---------------------------------------------------------
 
-        // -----------------------------------------------------
-        // Load the physician
-        // -----------------------------------------------------
+        var principalType =
+            User.FindFirstValue("PrincipalType");
 
-        var physician = await _db.Physicians
-            .FirstOrDefaultAsync(p => p.PhysicianID == physicianId);
-
-        if (physician == null)
-        {
-            return Unauthorized();
-        }
-
-        if (string.IsNullOrWhiteSpace(physician.PasswordHash))
+        if (string.IsNullOrWhiteSpace(principalType))
         {
             return Unauthorized(new
             {
-                message = "This physician account does not have portal access."
+                message = "Invalid token."
             });
         }
 
-        if (!physician.IsActive)
+        // ---------------------------------------------------------
+        // Get Account ID from JWT
+        // ---------------------------------------------------------
+
+        var userIdValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userIdValue) ||
+            !int.TryParse(userIdValue, out var userId))
         {
             return Unauthorized(new
             {
-                message = "Account is inactive."
+                message = "Invalid user token."
             });
         }
 
-        // -----------------------------------------------------
-        // Verify current password
-        // -----------------------------------------------------
+        // =========================================================
+        // ADMIN
+        // =========================================================
 
-        var passwordResult =
-            _physicianPasswordHasher.VerifyHashedPassword(
-                physician,
-                physician.PasswordHash,
-                request.CurrentPassword
-            );
-
-        if (passwordResult == PasswordVerificationResult.Failed)
+        if (string.Equals(
+            principalType,
+            "Admin",
+            StringComparison.OrdinalIgnoreCase))
         {
-            return Unauthorized(new
+            var admin = await _db.Admins
+                .FirstOrDefaultAsync(a =>
+                    a.AdminID == userId);
+
+            if (admin == null)
             {
-                message = "Current password is incorrect."
+                return NotFound(new
+                {
+                    message = "Admin account not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check account status
+            // -----------------------------------------------------
+
+            if (!admin.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Admin account is inactive."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check password exists
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(admin.PasswordHash))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Admin account does not have a password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify current password
+            // -----------------------------------------------------
+
+            var currentPasswordResult =
+                _adminPasswordHasher.VerifyHashedPassword(
+                    admin,
+                    admin.PasswordHash,
+                    request.CurrentPassword);
+
+            if (currentPasswordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Current password is incorrect."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Prevent password reuse
+            // -----------------------------------------------------
+
+            var newPasswordMatchesCurrent =
+                _adminPasswordHasher.VerifyHashedPassword(
+                    admin,
+                    admin.PasswordHash,
+                    request.NewPassword);
+
+            if (newPasswordMatchesCurrent !=
+                PasswordVerificationResult.Failed)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "New password must be different from the current password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Hash new password
+            // -----------------------------------------------------
+
+            admin.PasswordHash =
+                _adminPasswordHasher.HashPassword(
+                    admin,
+                    request.NewPassword);
+
+            // -----------------------------------------------------
+            // Update password information
+            // -----------------------------------------------------
+
+            var now = DateTime.UtcNow;
+
+            admin.UpdatedAt = now;
+
+            // -----------------------------------------------------
+            // Save
+            // -----------------------------------------------------
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password changed successfully.",
+                accountType = "Admin",
+                passwordChangedAt = now
             });
         }
 
-        // -----------------------------------------------------
-        // Set the new password
-        // -----------------------------------------------------
+        // =========================================================
+        // PHYSICIAN
+        // =========================================================
 
-        physician.PasswordHash =
-            _physicianPasswordHasher.HashPassword(physician, request.NewPassword);
-
-        // password has now been chosen by the physician themselves, so the
-        // forced-reset screen no longer applies
-        physician.MustChangePassword = false;
-
-        physician.UpdatedAt = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        return Ok(new
+        if (string.Equals(
+            principalType,
+            "Physician",
+            StringComparison.OrdinalIgnoreCase))
         {
-            message = "Password changed successfully."
+            var physician = await _db.Physicians
+                .FirstOrDefaultAsync(p =>
+                    p.PhysicianID == userId);
+
+            if (physician == null)
+            {
+                return NotFound(new
+                {
+                    message = "Physician account not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check account status
+            // -----------------------------------------------------
+
+            if (!physician.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Physician account is inactive."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check password exists
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(
+                physician.PasswordHash))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Physician account does not have a password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify current password
+            // -----------------------------------------------------
+
+            var currentPasswordResult =
+                _physicianPasswordHasher.VerifyHashedPassword(
+                    physician,
+                    physician.PasswordHash,
+                    request.CurrentPassword);
+
+            if (currentPasswordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Current password is incorrect."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Prevent password reuse
+            // -----------------------------------------------------
+
+            var newPasswordMatchesCurrent =
+                _physicianPasswordHasher.VerifyHashedPassword(
+                    physician,
+                    physician.PasswordHash,
+                    request.NewPassword);
+
+            if (newPasswordMatchesCurrent !=
+                PasswordVerificationResult.Failed)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "New password must be different from the current password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Hash new password
+            // -----------------------------------------------------
+
+            physician.PasswordHash =
+                _physicianPasswordHasher.HashPassword(
+                    physician,
+                    request.NewPassword);
+
+            // -----------------------------------------------------
+            // Update password information
+            // -----------------------------------------------------
+
+            var now = DateTime.UtcNow;
+
+            physician.UpdatedAt = now;
+
+            // -----------------------------------------------------
+            // Save
+            // -----------------------------------------------------
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password changed successfully.",
+                accountType = "Physician",
+                passwordChangedAt = now
+            });
+        }
+
+        // =========================================================
+        // PATIENT
+        // =========================================================
+
+        if (string.Equals(
+            principalType,
+            "Patient",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            var patientAccount =
+                await _db.PatientAccounts
+                    .FirstOrDefaultAsync(a =>
+                        a.PatientAccountID == userId);
+
+            if (patientAccount == null)
+            {
+                return NotFound(new
+                {
+                    message = "Patient account not found."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check account status
+            // -----------------------------------------------------
+
+            if (!string.Equals(
+                patientAccount.Status,
+                "Active",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Patient account is not active."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Check password exists
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(
+                patientAccount.PasswordHash))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Patient account does not have a password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Verify current password
+            // -----------------------------------------------------
+
+            var currentPasswordResult =
+                _patientPasswordHasher.VerifyHashedPassword(
+                    patientAccount,
+                    patientAccount.PasswordHash,
+                    request.CurrentPassword);
+
+            if (currentPasswordResult ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    message = "Current password is incorrect."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Prevent password reuse
+            // -----------------------------------------------------
+
+            var newPasswordMatchesCurrent =
+                _patientPasswordHasher.VerifyHashedPassword(
+                    patientAccount,
+                    patientAccount.PasswordHash,
+                    request.NewPassword);
+
+            if (newPasswordMatchesCurrent !=
+                PasswordVerificationResult.Failed)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "New password must be different from the current password."
+                });
+            }
+
+            // -----------------------------------------------------
+            // Hash new password
+            // -----------------------------------------------------
+
+            patientAccount.PasswordHash =
+                _patientPasswordHasher.HashPassword(
+                    patientAccount,
+                    request.NewPassword);
+
+            // -----------------------------------------------------
+            // Update password information
+            // -----------------------------------------------------
+
+            var now = DateTime.UtcNow;
+
+            patientAccount.MustChangePassword = false;
+            patientAccount.PasswordChangedAt = now;
+            patientAccount.UpdatedAt = now;
+
+            // -----------------------------------------------------
+            // Save
+            // -----------------------------------------------------
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Password changed successfully.",
+                accountType = "Patient",
+                passwordChangedAt = now
+            });
+        }
+
+        // =========================================================
+        // UNKNOWN ACCOUNT TYPE
+        // =========================================================
+
+        return Unauthorized(new
+        {
+            message = "Unrecognized account type."
         });
     }
 
+
+
+
+
+    // =========================================================
+    // GET USER
+    // =========================================================
+    //
+    // GET /api/Auth/user
+    //
+    // Returns the authenticated user's account information.
+    //
+    // Admin     -> Admins
+    // Physician -> Physicians
+    // Patient   -> PatientAccounts + Patients
+    // =========================================================
+
+    [Authorize]
+[HttpGet("user")]
+public async Task<IActionResult> GetUser()
+    {
+        // ---------------------------------------------------------
+        // Get PrincipalType from JWT
+        // ---------------------------------------------------------
+
+        var principalType =
+            User.FindFirstValue("PrincipalType");
+
+        // ---------------------------------------------------------
+        // Get User ID from JWT
+        // ---------------------------------------------------------
+
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(principalType) ||
+            string.IsNullOrWhiteSpace(userIdValue) ||
+            !int.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid token."
+            });
+        }
+
+
+        // =========================================================
+        // ADMIN
+        // =========================================================
+
+        if (principalType == "Admin")
+        {
+            var admin = await _db.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a =>
+                    a.AdminID == userId);
+
+            if (admin == null)
+            {
+                return NotFound(new
+                {
+                    message = "Admin account not found."
+                });
+            }
+
+            if (!admin.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Account is inactive."
+                });
+            }
+
+            return Ok(new
+            {
+                accountId = admin.AdminID,
+                username = admin.Username,
+                fullName = admin.FullName,
+                accountType = "Admin",
+                role = admin.Role
+            });
+        }
+
+
+        // =========================================================
+        // PHYSICIAN
+        // =========================================================
+
+        if (principalType == "Physician")
+        {
+            var physician = await _db.Physicians
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p =>
+                    p.PhysicianID == userId);
+
+            if (physician == null)
+            {
+                return NotFound(new
+                {
+                    message = "Physician account not found."
+                });
+            }
+
+            if (!physician.IsActive)
+            {
+                return Unauthorized(new
+                {
+                    message = "Account is inactive."
+                });
+            }
+
+            return Ok(new
+            {
+                accountId = physician.PhysicianID,
+                username = physician.Username,
+
+                fullName =
+                    BuildPhysicianFullName(physician),
+
+                firstName = physician.FirstName,
+                middleName = physician.MiddleName,
+                surname = physician.Surname,
+
+                accountType = "Physician"
+            });
+        }
+
+
+        // =========================================================
+        // PATIENT
+        // =========================================================
+
+        if (principalType == "Patient")
+        {
+            var patientAccount =
+                await _db.PatientAccounts
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(a =>
+                        a.PatientAccountID == userId);
+
+            if (patientAccount == null)
+            {
+                return NotFound(new
+                {
+                    message =
+                        "Patient account not found."
+                });
+            }
+
+            if (!string.Equals(
+                patientAccount.Status,
+                "Active",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Patient account is not active."
+                });
+            }
+
+            var patient =
+                await _db.Patients
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p =>
+                        p.PatientID ==
+                        patientAccount.PatientID);
+
+            if (patient == null)
+            {
+                return NotFound(new
+                {
+                    message =
+                        "Patient record was not found."
+                });
+            }
+
+            return Ok(new
+            {
+                accountId =
+                    patientAccount.PatientAccountID,
+
+                patientId =
+                    patient.PatientID,
+
+                username =
+                    patientAccount.Username,
+
+                fullName =
+                    BuildPatientFullName(patient),
+
+                firstName =
+                    patient.FirstName,
+
+                middleName =
+                    patient.MiddleName,
+
+                surname =
+                    patient.Surname,
+
+                accountType = "Patient",
+
+                employee =
+                    patient.ExternalEmployeeId
+            });
+        }
+
+
+        // =========================================================
+        // UNKNOWN PRINCIPAL TYPE
+        // =========================================================
+
+        return Unauthorized(new
+        {
+            message =
+                "Unrecognized account type."
+        });
+    }
+
+
+
+
     // =========================================================
     // LOGOUT
+    // =========================================================
+    //
+    // POST /api/Auth/logout
+    //
+    // Authorization:
+    // Bearer <JWT>
+    //
+    // The JWT is hashed and matched against the session table.
+    //
+    // Admin      -> AdminSessions
+    // Physician  -> PhysicianSessions
+    // Patient    -> PatientSessions
+    //
+    // RevokedAt is set to the current UTC time.
     // =========================================================
 
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        var userId =
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        // ---------------------------------------------------------
+        // Get PrincipalType
+        // ---------------------------------------------------------
 
-        if (string.IsNullOrWhiteSpace(userId))
+        var principalType =
+            User.FindFirstValue("PrincipalType");
+
+        if (string.IsNullOrWhiteSpace(principalType))
         {
-            return Unauthorized();
+            return Unauthorized(new
+            {
+                message = "Invalid token."
+            });
         }
 
-        // -----------------------------------------------------
-        // Extract the bearer token so we can find its session
-        // -----------------------------------------------------
 
-        var authHeader = Request.Headers.Authorization.ToString();
+        // ---------------------------------------------------------
+        // Get Authorization header
+        // ---------------------------------------------------------
 
-        if (string.IsNullOrWhiteSpace(authHeader) ||
-            !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        var authorizationHeader =
+            Request.Headers.Authorization.ToString();
+
+        if (string.IsNullOrWhiteSpace(authorizationHeader) ||
+            !authorizationHeader.StartsWith(
+                "Bearer ",
+                StringComparison.OrdinalIgnoreCase))
         {
-            return Unauthorized();
+            return Unauthorized(new
+            {
+                message = "Bearer token is required."
+            });
         }
 
-        var token = authHeader["Bearer ".Length..].Trim();
+
+        // ---------------------------------------------------------
+        // Extract JWT
+        // ---------------------------------------------------------
+
+        var token =
+            authorizationHeader["Bearer ".Length..].Trim();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid token."
+            });
+        }
+
+
+        // ---------------------------------------------------------
+        // Hash JWT
+        // ---------------------------------------------------------
+
         var tokenHash = HashToken(token);
 
-        // -----------------------------------------------------
-        // Revoke the matching, still-live session
-        // -----------------------------------------------------
+        var now = DateTime.UtcNow;
 
-        var session = await _db.UserSessions
-            .FirstOrDefaultAsync(s =>
-                s.TokenHash == tokenHash &&
-                s.RevokedAt == null);
 
-        if (session != null)
+        // =========================================================
+        // ADMIN
+        // =========================================================
+
+        if (principalType == "Admin")
         {
-            session.RevokedAt = DateTime.UtcNow;
+            var session =
+                await _db.AdminSessions
+                    .FirstOrDefaultAsync(s =>
+                        s.TokenHash == tokenHash &&
+                        s.RevokedAt == null);
+
+            if (session == null)
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Session not found or already revoked."
+                });
+            }
+
+            session.RevokedAt = now;
+
             await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Logged out successfully.",
+                revokedAt = session.RevokedAt
+            });
         }
 
-        return Ok(new
+
+        // =========================================================
+        // PHYSICIAN
+        // =========================================================
+
+        if (principalType == "Physician")
         {
-            message = "Logged out successfully."
+            var session =
+                await _db.PhysicianSessions
+                    .FirstOrDefaultAsync(s =>
+                        s.TokenHash == tokenHash &&
+                        s.RevokedAt == null);
+
+            if (session == null)
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Session not found or already revoked."
+                });
+            }
+
+            session.RevokedAt = now;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Logged out successfully.",
+                revokedAt = session.RevokedAt
+            });
+        }
+
+
+        // =========================================================
+        // PATIENT
+        // =========================================================
+
+        if (principalType == "Patient")
+        {
+            var session =
+                await _db.PatientSessions
+                    .FirstOrDefaultAsync(s =>
+                        s.TokenHash == tokenHash &&
+                        s.RevokedAt == null);
+
+            if (session == null)
+            {
+                return Unauthorized(new
+                {
+                    message =
+                        "Session not found or already revoked."
+                });
+            }
+
+            session.RevokedAt = now;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Logged out successfully.",
+                revokedAt = session.RevokedAt
+            });
+        }
+
+
+        // =========================================================
+        // UNKNOWN PRINCIPAL TYPE
+        // =========================================================
+
+        return Unauthorized(new
+        {
+            message =
+                "Unrecognized account type."
         });
     }
+
 
     // =========================================================
     // TOKEN HASH
@@ -558,15 +1333,56 @@ public class AuthController : ControllerBase
 
     private static string HashToken(string token)
     {
-        using var sha256 =
-            System.Security.Cryptography.SHA256.Create();
-
         var bytes =
-            sha256.ComputeHash(
-                System.Text.Encoding.UTF8.GetBytes(token)
+            SHA256.HashData(
+                Encoding.UTF8.GetBytes(token)
             );
 
         return Convert.ToHexString(bytes)
             .ToLowerInvariant();
+    }
+
+
+    // =========================================================
+    // PHYSICIAN FULL NAME
+    // =========================================================
+
+    private static string BuildPhysicianFullName(
+        Physician physician)
+    {
+        var parts = new[]
+        {
+            physician.FirstName,
+            physician.MiddleName,
+            physician.Surname
+        };
+
+        return string.Join(
+            " ",
+            parts.Where(x =>
+                !string.IsNullOrWhiteSpace(x))
+        );
+    }
+
+
+    // =========================================================
+    // PATIENT FULL NAME
+    // =========================================================
+
+    private static string BuildPatientFullName(
+        Patient patient)
+    {
+        var parts = new[]
+        {
+            patient.FirstName,
+            patient.MiddleName,
+            patient.Surname
+        };
+
+        return string.Join(
+            " ",
+            parts.Where(x =>
+                !string.IsNullOrWhiteSpace(x))
+        );
     }
 }

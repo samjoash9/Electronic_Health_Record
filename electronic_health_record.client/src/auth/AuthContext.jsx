@@ -1,5 +1,5 @@
 import { createContext, useCallback, useMemo, useState } from 'react';
-import { login as apiLogin, logout as apiLogout, getSession } from '../api/auth.api';
+import { login as apiLogin, logout as apiLogout, getSession } from '../services/authService';
 
 // eslint-disable-next-line react-refresh/only-export-components -- co-located with its provider by design
 export const AuthContext = createContext(null);

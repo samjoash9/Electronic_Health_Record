@@ -8,6 +8,12 @@ export const ROLES = {
   PATIENT: 'patient',
 };
 
+export const ROLE_HOME_PATH = {
+    [ROLES.ADMIN]: '/dashboard',
+    [ROLES.DOCTOR]: '/station3',
+    [ROLES.PATIENT]: '/my-record',
+};
+
 /**
  * Permission tier *within* the Admin table, mirroring Admin.Role on the server.
  * Deliberately separate from ROLES: an admin and a superadmin both sign in as

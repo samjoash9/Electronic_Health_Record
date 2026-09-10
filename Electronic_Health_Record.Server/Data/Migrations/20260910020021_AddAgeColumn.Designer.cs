@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910020021_AddAgeColumn")]
+    partial class AddAgeColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -194,45 +197,27 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.HasData(
                         new
                         {
-                            CategoryID = 3,
-                            DisplayOrder = (byte)1,
-                            Name = "Spiritual"
-                        },
-                        new
-                        {
-                            CategoryID = 5,
-                            DisplayOrder = (byte)2,
-                            Name = "Psychological"
-                        },
-                        new
-                        {
                             CategoryID = 1,
-                            DisplayOrder = (byte)3,
-                            Name = "Mental"
-                        },
-                        new
-                        {
-                            CategoryID = 6,
-                            DisplayOrder = (byte)4,
-                            Name = "Emotional"
+                            DisplayOrder = (byte)1,
+                            Name = "Mental Health"
                         },
                         new
                         {
                             CategoryID = 2,
-                            DisplayOrder = (byte)5,
-                            Name = "Physical"
+                            DisplayOrder = (byte)2,
+                            Name = "Physical Health"
                         },
                         new
                         {
-                            CategoryID = 7,
-                            DisplayOrder = (byte)6,
-                            Name = "Financial"
+                            CategoryID = 3,
+                            DisplayOrder = (byte)3,
+                            Name = "Spiritual Health"
                         },
                         new
                         {
                             CategoryID = 4,
-                            DisplayOrder = (byte)7,
-                            Name = "Social"
+                            DisplayOrder = (byte)4,
+                            Name = "Social Health"
                         });
                 });
 
@@ -779,614 +764,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                             OptionText = "Never",
                             QuestionID = 16,
                             Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 65,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Always",
-                            QuestionID = 17,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 66,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Often",
-                            QuestionID = 17,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 67,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Rarely",
-                            QuestionID = 17,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 68,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Never",
-                            QuestionID = 17,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 69,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Strongly Agree",
-                            QuestionID = 18,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 70,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Agree",
-                            QuestionID = 18,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 71,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Disagree",
-                            QuestionID = 18,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 72,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Strongly Disagree",
-                            QuestionID = 18,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 73,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Never",
-                            QuestionID = 19,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 74,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Rarely",
-                            QuestionID = 19,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 75,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Sometimes",
-                            QuestionID = 19,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 76,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Often",
-                            QuestionID = 19,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 77,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Often",
-                            QuestionID = 20,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 78,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Sometimes",
-                            QuestionID = 20,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 79,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Rarely",
-                            QuestionID = 20,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 80,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Never",
-                            QuestionID = 20,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 81,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Good",
-                            QuestionID = 21,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 82,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Good",
-                            QuestionID = 21,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 83,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Fair",
-                            QuestionID = 21,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 84,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Poor",
-                            QuestionID = 21,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 85,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Well",
-                            QuestionID = 22,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 86,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Well",
-                            QuestionID = 22,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 87,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Poorly",
-                            QuestionID = 22,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 88,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Very Poorly",
-                            QuestionID = 22,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 89,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Confident",
-                            QuestionID = 23,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 90,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Confident",
-                            QuestionID = 23,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 91,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Unsure",
-                            QuestionID = 23,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 92,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Very Unsure",
-                            QuestionID = 23,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 93,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Always",
-                            QuestionID = 24,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 94,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Often",
-                            QuestionID = 24,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 95,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Rarely",
-                            QuestionID = 24,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 96,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Never",
-                            QuestionID = 24,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 97,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Positive",
-                            QuestionID = 25,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 98,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Positive",
-                            QuestionID = 25,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 99,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Negative",
-                            QuestionID = 25,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 100,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Very Negative",
-                            QuestionID = 25,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 101,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Comfortable",
-                            QuestionID = 26,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 102,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Comfortable",
-                            QuestionID = 26,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 103,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Uncomfortable",
-                            QuestionID = 26,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 104,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Very Uncomfortable",
-                            QuestionID = 26,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 105,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Never",
-                            QuestionID = 27,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 106,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Rarely",
-                            QuestionID = 27,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 107,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Sometimes",
-                            QuestionID = 27,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 108,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Often",
-                            QuestionID = 27,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 109,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Always",
-                            QuestionID = 28,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 110,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Most of the time",
-                            QuestionID = 28,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 111,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Rarely",
-                            QuestionID = 28,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 112,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Never",
-                            QuestionID = 28,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 113,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Never",
-                            QuestionID = 29,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 114,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Rarely",
-                            QuestionID = 29,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 115,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Sometimes",
-                            QuestionID = 29,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 116,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Often",
-                            QuestionID = 29,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 117,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Often",
-                            QuestionID = 30,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 118,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Sometimes",
-                            QuestionID = 30,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 119,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Rarely",
-                            QuestionID = 30,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 120,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Never",
-                            QuestionID = 30,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 121,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Never",
-                            QuestionID = 31,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 122,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Rarely",
-                            QuestionID = 31,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 123,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Sometimes",
-                            QuestionID = 31,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 124,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Often",
-                            QuestionID = 31,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 125,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Well",
-                            QuestionID = 32,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 126,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Well",
-                            QuestionID = 32,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 127,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Poorly",
-                            QuestionID = 32,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 128,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Very Poorly",
-                            QuestionID = 32,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 129,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Always",
-                            QuestionID = 33,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 130,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Often",
-                            QuestionID = 33,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 131,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Rarely",
-                            QuestionID = 33,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 132,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Never",
-                            QuestionID = 33,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 133,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Never",
-                            QuestionID = 34,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 134,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Rarely",
-                            QuestionID = 34,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 135,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Sometimes",
-                            QuestionID = 34,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 136,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Often",
-                            QuestionID = 34,
-                            Score = (byte)1
-                        },
-                        new
-                        {
-                            OptionID = 137,
-                            DisplayOrder = (byte)1,
-                            OptionText = "Very Confident",
-                            QuestionID = 35,
-                            Score = (byte)4
-                        },
-                        new
-                        {
-                            OptionID = 138,
-                            DisplayOrder = (byte)2,
-                            OptionText = "Confident",
-                            QuestionID = 35,
-                            Score = (byte)3
-                        },
-                        new
-                        {
-                            OptionID = 139,
-                            DisplayOrder = (byte)3,
-                            OptionText = "Unsure",
-                            QuestionID = 35,
-                            Score = (byte)2
-                        },
-                        new
-                        {
-                            OptionID = 140,
-                            DisplayOrder = (byte)4,
-                            OptionText = "Very Unsure",
-                            QuestionID = 35,
-                            Score = (byte)1
                         });
                 });
 
@@ -1569,307 +946,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                             DisplayOrder = (byte)3,
                             IsActive = true,
                             QuestionText = "Do you have people you can rely on for support?"
-                        },
-                        new
-                        {
-                            QuestionID = 17,
-                            CategoryID = 3,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)4,
-                            IsActive = true,
-                            QuestionText = "Do you find comfort in your faith or personal beliefs?"
-                        },
-                        new
-                        {
-                            QuestionID = 18,
-                            CategoryID = 3,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)5,
-                            IsActive = true,
-                            QuestionText = "Do you feel connected to something greater than yourself?"
-                        },
-                        new
-                        {
-                            QuestionID = 19,
-                            CategoryID = 4,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)4,
-                            IsActive = true,
-                            QuestionText = "How often do you feel isolated or left out?"
-                        },
-                        new
-                        {
-                            QuestionID = 20,
-                            CategoryID = 4,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)5,
-                            IsActive = true,
-                            QuestionText = "How often do you take part in social or community activities?"
-                        },
-                        new
-                        {
-                            QuestionID = 21,
-                            CategoryID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)1,
-                            IsActive = true,
-                            QuestionText = "How would you rate your overall sense of self-worth?"
-                        },
-                        new
-                        {
-                            QuestionID = 22,
-                            CategoryID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)2,
-                            IsActive = true,
-                            QuestionText = "How well do you bounce back after a setback?"
-                        },
-                        new
-                        {
-                            QuestionID = 23,
-                            CategoryID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)3,
-                            IsActive = true,
-                            QuestionText = "How confident are you in making everyday decisions?"
-                        },
-                        new
-                        {
-                            QuestionID = 24,
-                            CategoryID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)4,
-                            IsActive = true,
-                            QuestionText = "Do you feel in control of your thoughts and reactions?"
-                        },
-                        new
-                        {
-                            QuestionID = 25,
-                            CategoryID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)5,
-                            IsActive = true,
-                            QuestionText = "How would you describe your outlook on the future?"
-                        },
-                        new
-                        {
-                            QuestionID = 26,
-                            CategoryID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)1,
-                            IsActive = true,
-                            QuestionText = "How comfortable are you expressing your feelings to others?"
-                        },
-                        new
-                        {
-                            QuestionID = 27,
-                            CategoryID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)2,
-                            IsActive = true,
-                            QuestionText = "How often do you experience sudden mood swings?"
-                        },
-                        new
-                        {
-                            QuestionID = 28,
-                            CategoryID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)3,
-                            IsActive = true,
-                            QuestionText = "Do you have someone you can turn to when you feel emotionally overwhelmed?"
-                        },
-                        new
-                        {
-                            QuestionID = 29,
-                            CategoryID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)4,
-                            IsActive = true,
-                            QuestionText = "How often do you feel overwhelmed by your emotions?"
-                        },
-                        new
-                        {
-                            QuestionID = 30,
-                            CategoryID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)5,
-                            IsActive = true,
-                            QuestionText = "How often do you feel joy or contentment in daily life?"
-                        },
-                        new
-                        {
-                            QuestionID = 31,
-                            CategoryID = 7,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)1,
-                            IsActive = true,
-                            QuestionText = "How often do you feel stressed about money?"
-                        },
-                        new
-                        {
-                            QuestionID = 32,
-                            CategoryID = 7,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)2,
-                            IsActive = true,
-                            QuestionText = "How well can you meet your monthly expenses?"
-                        },
-                        new
-                        {
-                            QuestionID = 33,
-                            CategoryID = 7,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)3,
-                            IsActive = true,
-                            QuestionText = "Do you have savings set aside for emergencies?"
-                        },
-                        new
-                        {
-                            QuestionID = 34,
-                            CategoryID = 7,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)4,
-                            IsActive = true,
-                            QuestionText = "How often do you worry about outstanding debts?"
-                        },
-                        new
-                        {
-                            QuestionID = 35,
-                            CategoryID = 7,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            DisplayOrder = (byte)5,
-                            IsActive = true,
-                            QuestionText = "How confident are you in your financial future?"
-                        });
-                });
-
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.DentalAssessment", b =>
-                {
-                    b.Property<int>("DentalAssessmentID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DentalAssessmentID"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.Property<string>("DentalCaries")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DentalCariesRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("DentalReferral")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DentalReferralRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("DentalTreatmentNeed")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DentalTreatmentNeedRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("DentureUse")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DentureUseRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("FormID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("GumCondition")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("GumConditionRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("LastDentalVisit")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("LastDentalVisitRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("OralHygieneStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("OralHygieneStatusRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("OralLesions")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("OralLesionsRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("ToothStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ToothStatusRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("ToothachePain")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ToothachePainRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.HasKey("DentalAssessmentID");
-
-                    b.HasIndex("FormID")
-                        .IsUnique();
-
-                    b.ToTable("DentalAssessment", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_DentalAssessment_DentalCaries", "DentalCaries IS NULL OR DentalCaries IN ('None', 'Present')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_DentalReferral", "DentalReferral IS NULL OR DentalReferral IN ('Not needed', 'Routine referral', 'Urgent referral')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_DentalTreatmentNeed", "DentalTreatmentNeed IS NULL OR DentalTreatmentNeed IN ('None', 'Preventive Care', 'Restorative Treatment', 'Extraction', 'Other')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_DentureUse", "DentureUse IS NULL OR DentureUse IN ('None', 'Yes – satisfactory', 'Yes – needs assessment')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_GumCondition", "GumCondition IS NULL OR GumCondition IN ('Healthy', 'Gingivitis', 'Suspected Periodontal Problem')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_LastDentalVisit", "LastDentalVisit IS NULL OR LastDentalVisit IN ('Within 6 months', '6–12 months', 'More than 1 year', 'Never')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_OralHygieneStatus", "OralHygieneStatus IS NULL OR OralHygieneStatus IN ('Good', 'Fair', 'Poor')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_OralLesions", "OralLesions IS NULL OR OralLesions IN ('None', 'Present – refer for evaluation')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_ToothStatus", "ToothStatus IS NULL OR ToothStatus IN ('Complete/Functional', 'Missing Teeth', 'Needs Dental Treatment')");
-
-                            t.HasCheckConstraint("CK_DentalAssessment_ToothachePain", "ToothachePain IS NULL OR ToothachePain IN ('No', 'Yes')");
                         });
                 });
 
@@ -1916,11 +992,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<bool>("IsLocallyAdded")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<string>("MiddleName")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -1951,47 +1022,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.ToTable("Employee", (string)null);
                 });
 
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.Exercise", b =>
-                {
-                    b.Property<int>("ExerciseID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExerciseID"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.Property<string>("ExerciseFrequency")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ExerciseType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("ExerciseYearStarted")
-                        .HasMaxLength(4)
-                        .HasColumnType("nvarchar(4)");
-
-                    b.Property<int>("FormID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.HasKey("ExerciseID");
-
-                    b.HasIndex("FormID");
-
-                    b.ToTable("Exercise", (string)null);
-                });
-
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.FamilyMedicalHistory", b =>
                 {
                     b.Property<int>("FMHID")
@@ -2007,14 +1037,14 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("ConditionType")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("SYSDATETIME()");
+
+                    b.Property<string>("FamilyMembers")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<int>("FormID")
                         .HasColumnType("int");
@@ -2076,7 +1106,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         new
                         {
                             ConditionID = 3,
-                            ConditionName = "MENTAL HEALTH CONDITION"
+                            ConditionName = "STROKE"
                         },
                         new
                         {
@@ -2091,27 +1121,12 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         new
                         {
                             ConditionID = 6,
-                            ConditionName = "RESPIRATORY ILLNESS"
+                            ConditionName = "TUBERCULOSIS"
                         },
                         new
                         {
-                            ConditionID = 8,
-                            ConditionName = "KIDNEY DISEASE"
-                        },
-                        new
-                        {
-                            ConditionID = 9,
-                            ConditionName = "LIVER DISEASE"
-                        },
-                        new
-                        {
-                            ConditionID = 10,
-                            ConditionName = "ARTHRITIS"
-                        },
-                        new
-                        {
-                            ConditionID = 11,
-                            ConditionName = "REPRODUCTIVE HEALTH PROBLEM"
+                            ConditionID = 7,
+                            ConditionName = "BRONCHIAL ASTHMA"
                         });
                 });
 
@@ -2384,10 +1399,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("SYSDATETIME()");
 
-                    b.Property<string>("Email")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -2442,11 +1453,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("PhysicianID");
-
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasDatabaseName("UQ_Physician_Email")
-                        .HasFilter("[Email] IS NOT NULL");
 
                     b.HasIndex("PRCLicenseNo")
                         .IsUnique();
@@ -2505,22 +1511,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("CigaretteFrequency")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("CigarettePuffsPerDay")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("CigaretteSticksPerDay")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("CigaretteYearStarted")
-                        .HasMaxLength(4)
-                        .HasColumnType("nvarchar(4)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -2534,33 +1524,26 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<string>("EcigFrequency")
+                    b.Property<string>("DrunkFrequency")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("EcigPodsPerMonth")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<string>("ExerciseFrequency")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("EcigPuffsPerDay")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("EcigYearStarted")
-                        .HasMaxLength(4)
-                        .HasColumnType("nvarchar(4)");
+                    b.Property<string>("ExerciseType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("FormID")
                         .HasColumnType("int");
 
-                    b.Property<bool?>("Smokes")
+                    b.Property<bool?>("HasBeenDrunk")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("SmokesCigarette")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("SmokesEcig")
-                        .HasColumnType("bit");
+                    b.Property<short?>("SmokingSticksPerDay")
+                        .HasColumnType("smallint");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -2575,166 +1558,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.ToTable("SocialHistory", (string)null);
                 });
 
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.VisionAssessment", b =>
-                {
-                    b.Property<int>("VisionAssessmentID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VisionAssessmentID"));
-
-                    b.Property<string>("BlurredVision")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("BlurredVisionRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("CorrectiveLensesRecommended")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("CorrectiveLensesRecommendedRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.Property<string>("DifficultySeeingDistant")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DifficultySeeingDistantRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("DifficultySeeingNear")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DifficultySeeingNearRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("EyeConditionIdentified")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("EyeConditionIdentifiedRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("EyeConditionOther")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("EyePainDiscomfort")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("EyePainDiscomfortRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("FollowUpConsultationAdvised")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("FollowUpConsultationAdvisedRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("FormID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("HeadacheEyeStrain")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("HeadacheEyeStrainRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("HistoryOfEyeProblems")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("HistoryOfEyeProblemsRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("ReferralToEyeSpecialist")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ReferralToEyeSpecialistRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSDATETIME()");
-
-                    b.Property<string>("UsesEyeglassesContactLenses")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("UsesEyeglassesContactLensesRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("VisualAcuityLeftEye")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("VisualAcuityLeftEyeRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("VisualAcuityRightEye")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("VisualAcuityRightEyeRemarks")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.HasKey("VisionAssessmentID");
-
-                    b.HasIndex("FormID")
-                        .IsUnique();
-
-                    b.ToTable("VisionAssessment", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_VisionAssessment_BlurredVision", "BlurredVision IS NULL OR BlurredVision IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_CorrectiveLensesRecommended", "CorrectiveLensesRecommended IS NULL OR CorrectiveLensesRecommended IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_DifficultySeeingDistant", "DifficultySeeingDistant IS NULL OR DifficultySeeingDistant IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_DifficultySeeingNear", "DifficultySeeingNear IS NULL OR DifficultySeeingNear IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_EyeConditionIdentified", "EyeConditionIdentified IS NULL OR EyeConditionIdentified IN ('None', 'Refractive error', 'Other')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_EyePainDiscomfort", "EyePainDiscomfort IS NULL OR EyePainDiscomfort IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_FollowUpConsultationAdvised", "FollowUpConsultationAdvised IS NULL OR FollowUpConsultationAdvised IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_HeadacheEyeStrain", "HeadacheEyeStrain IS NULL OR HeadacheEyeStrain IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_HistoryOfEyeProblems", "HistoryOfEyeProblems IS NULL OR HistoryOfEyeProblems IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_ReferralToEyeSpecialist", "ReferralToEyeSpecialist IS NULL OR ReferralToEyeSpecialist IN ('No', 'Yes')");
-
-                            t.HasCheckConstraint("CK_VisionAssessment_UsesEyeglassesContactLenses", "UsesEyeglassesContactLenses IS NULL OR UsesEyeglassesContactLenses IN ('No', 'Yes')");
-                        });
-                });
-
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.WellnessForm", b =>
                 {
                     b.Property<int>("FormID")
@@ -2742,9 +1565,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FormID"));
-
-                    b.Property<int?>("AssignedPhysicianID")
-                        .HasColumnType("int");
 
                     b.Property<decimal?>("BMI")
                         .HasPrecision(5, 2)
@@ -2769,15 +1589,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .HasColumnType("tinyint")
                         .HasDefaultValue((byte)1);
 
-                    b.Property<string>("DentalSignature")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DentalSignedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("DentistID")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("FormDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("date")
@@ -2800,10 +1611,7 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<string>("ManagementTreatment")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("OptometristID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("OptometristID")
+                    b.Property<int>("PatientID")
                         .HasColumnType("int");
 
                     b.Property<int?>("PhysicianID")
@@ -2841,12 +1649,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<DateTime?>("Station3SubmittedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("Station4SubmittedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("Station5SubmittedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -2867,25 +1669,13 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<int?>("UpdatedByAdminID")
                         .HasColumnType("int");
 
-                    b.Property<string>("VisionSignature")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("VisionSignedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<decimal?>("WeightKg")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
                     b.HasKey("FormID");
 
-                    b.HasIndex("AssignedPhysicianID");
-
                     b.HasIndex("CreatedByAdminID");
-
-                    b.HasIndex("DentistID");
-
-                    b.HasIndex("OptometristID");
 
                     b.HasIndex("PhysicianID");
 
@@ -2903,15 +1693,11 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.ToTable("WellnessForm", null, t =>
                         {
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
-
                             t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned", "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsVisionSigned", "Status <> 'Completed' OR CurrentStation < 5 OR (OptometristID IS NOT NULL AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_WellnessForm_CurrentStation", "CurrentStation IN (1, 2, 3)");
 
-                            t.HasCheckConstraint("CK_WellnessForm_CurrentStation", "CurrentStation IN (1, 2, 3, 4, 5)");
-
-                            t.HasCheckConstraint("CK_WellnessForm_Status", "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'PendingVision', 'Completed', 'Cancelled')");
+                            t.HasCheckConstraint("CK_WellnessForm_Status", "Status IN ('PendingAssessment', 'PendingConsultation', 'Completed', 'Cancelled')");
                         });
                 });
 
@@ -3008,24 +1794,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.DentalAssessment", b =>
-                {
-                    b.HasOne("Electronic_Health_Record.Server.Models.WellnessForm", null)
-                        .WithOne()
-                        .HasForeignKey("Electronic_Health_Record.Server.Models.DentalAssessment", "FormID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.Exercise", b =>
-                {
-                    b.HasOne("Electronic_Health_Record.Server.Models.WellnessForm", null)
-                        .WithMany()
-                        .HasForeignKey("FormID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.FamilyMedicalHistory", b =>
                 {
                     b.HasOne("Electronic_Health_Record.Server.Models.MedicalCondition", null)
@@ -3090,36 +1858,12 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Electronic_Health_Record.Server.Models.VisionAssessment", b =>
-                {
-                    b.HasOne("Electronic_Health_Record.Server.Models.WellnessForm", null)
-                        .WithOne()
-                        .HasForeignKey("Electronic_Health_Record.Server.Models.VisionAssessment", "FormID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Electronic_Health_Record.Server.Models.WellnessForm", b =>
                 {
-                    b.HasOne("Electronic_Health_Record.Server.Models.Physician", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedPhysicianID")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("Electronic_Health_Record.Server.Models.Admin", null)
                         .WithMany()
                         .HasForeignKey("CreatedByAdminID")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Electronic_Health_Record.Server.Models.Physician", null)
-                        .WithMany()
-                        .HasForeignKey("DentistID")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Electronic_Health_Record.Server.Models.Physician", null)
-                        .WithMany()
-                        .HasForeignKey("OptometristID")
-                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Electronic_Health_Record.Server.Models.Patient", null)
                         .WithMany()
