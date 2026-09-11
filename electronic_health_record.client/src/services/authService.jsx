@@ -62,6 +62,52 @@ export async function login({ identifier, password }) {
     return session;
 }
 
+// Re-validates the session against the server rather than trusting whatever is
+// sitting in localStorage. This is what makes the station guard an actual
+// security boundary instead of a client-side illusion: the server's Physician
+// row is the source of truth, so a hand-edited `session.user.station` cannot
+// survive a page load.
+export async function fetchCurrentUser() {
+    const response = await api.get('/Auth/user');
+
+    const {
+        accountId,
+        username,
+        fullName,
+        accountType,
+        role,
+        station,
+    } = response.data;
+
+    const tableRole =
+        ACCOUNT_TYPE_TO_ROLE[accountType?.toLowerCase()];
+
+    const user = {
+        accountId,
+        username,
+        fullName,
+        role: tableRole,
+        adminRole:
+            tableRole === ROLES.ADMIN
+                ? role?.toLowerCase()
+                : null,
+        // Which desk this doctor staffs, assigned by an admin at onboarding.
+        // Null for admins and patients: only doctors are pinned to a station
+        // by their account.
+        station:
+            tableRole === ROLES.DOCTOR
+                ? station ?? null
+                : null,
+    };
+
+    // Preserve the token -- /Auth/user only answers "who is this", so refresh
+    // just the user half of the stored session and keep the rest intact.
+    const existingSession = getSession();
+    setSession({ ...existingSession, user });
+
+    return user;
+}
+
 export async function changePassword({
     currentPassword,
     newPassword,
