@@ -27,6 +27,7 @@ export async function login({ identifier, password }) {
         fullName,
         accountType,
         role,
+        station,
     } = response.data;
 
     const tableRole =
@@ -40,6 +41,13 @@ export async function login({ identifier, password }) {
         adminRole:
             tableRole === ROLES.ADMIN
                 ? role?.toLowerCase()
+                : null,
+        // Which desk this doctor staffs, assigned by an admin at onboarding.
+        // Null for admins and patients: only doctors are pinned to a station
+        // by their account.
+        station:
+            tableRole === ROLES.DOCTOR
+                ? station ?? null
                 : null,
     };
 

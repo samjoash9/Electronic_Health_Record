@@ -36,4 +36,16 @@ describe('stationStorage', () => {
     expect(readStation(ROLES.DOCTOR)).toBeNull();
     expect(localStorage.getItem('ehr-station')).toBeNull();
   });
+
+  // A doctor's station is on their account, not the device, so there is no
+  // doctor key to clear -- only the admin's choice is device state.
+  it('clears the admin station but leaves an unrelated key alone', () => {
+    writeStation(ROLES.ADMIN, 1);
+    localStorage.setItem('unrelated', 'keep me');
+
+    clearStations();
+
+    expect(readStation(ROLES.ADMIN)).toBeNull();
+    expect(localStorage.getItem('unrelated')).toBe('keep me');
+  });
 });
