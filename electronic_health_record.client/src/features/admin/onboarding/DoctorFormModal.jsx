@@ -99,6 +99,7 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
             <Select
               id="doctor-station"
               error={Boolean(errors.station)}
+              defaultValue={doctor?.station ?? ''}
               options={DOCTOR_STATIONS.map((s) => ({ value: s.value, label: s.label }))}
               {...register('station', {
                 required: 'A station is required.',
