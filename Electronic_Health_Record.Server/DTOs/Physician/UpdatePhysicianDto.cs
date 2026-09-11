@@ -21,5 +21,10 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
 
         [MaxLength(20)]
         public string? ContactNo { get; set; }
+
+        // An admin may move a doctor to another desk.
+        [Required]
+        [Range(3, 5, ErrorMessage = "Station must be 3, 4 or 5.")]
+        public int Station { get; set; }
     }
 }

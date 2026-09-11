@@ -46,6 +46,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             MiddleName = p.MiddleName,
             PRCLicenseNo = p.PRCLicenseNo,
             ContactNo = p.ContactNo,
+            Station = p.Station,
             MustChangePassword = p.MustChangePassword,
             IsActive = p.IsActive,
             CreatedAt = p.CreatedAt,
@@ -151,6 +152,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                     MiddleName = dto.MiddleName,
                     PRCLicenseNo = dto.PRCLicenseNo,
                     ContactNo = dto.ContactNo,
+                    Station = dto.Station,
                     IsActive = true
                     // the rest are handled by db defaults (CreatedAt and UpdatedAt)
                 };
@@ -198,6 +200,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             physician.MiddleName = dto.MiddleName;
             physician.PRCLicenseNo = dto.PRCLicenseNo;
             physician.ContactNo = dto.ContactNo;
+            physician.Station = dto.Station;
             physician.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -253,6 +256,9 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
             if (dto.ContactNo != null)
                 physician.ContactNo = dto.ContactNo;
+
+            if (dto.Station.HasValue)
+                physician.Station = dto.Station.Value;
 
             // Deactivation retires an account without deleting the row every
             // form this doctor signed still points at.

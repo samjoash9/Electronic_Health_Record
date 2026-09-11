@@ -13,6 +13,8 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
         public string? MiddleName { get; set; } = string.Empty;
         public string PRCLicenseNo { get; set; } = string.Empty;
         public string? ContactNo { get; set; }
+        // Which desk this doctor staffs: 3 Consultation, 4 Dental, 5 Vision.
+        public int Station { get; set; }
         // Still on the password an admin issued: surfaced so Onboarding can show
         // which accounts have never been claimed.
         public bool MustChangePassword { get; set; }
@@ -30,6 +32,7 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
             FirstName = p.FirstName,
             MiddleName = p.MiddleName,
             PRCLicenseNo = p.PRCLicenseNo,
+            Station = p.Station,
             Username = p.Username,
             IsActive = p.IsActive,
             CanSign = !string.IsNullOrEmpty(p.Username) && p.IsActive,
