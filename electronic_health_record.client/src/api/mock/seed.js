@@ -347,6 +347,8 @@ export function buildSeed() {
     medicalConditions: buildMedicalConditions(),
     wellnessFormAuditLogs: [],
     nextIds: {
+      // 4: the three seeded admins above take 1-3.
+      adminID: 4,
       patientID: 2,
       patientAccountID: 2,
       physicianID: 3,

@@ -54,6 +54,9 @@ export default function ChangePasswordModal({ open, onClose }) {
   } = useForm({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: BLANK_VALUES,
+    // Submit-only validation, matching LoginPage -- see the note there.
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
   });
 
   const handleClose = () => {

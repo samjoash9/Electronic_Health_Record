@@ -29,6 +29,40 @@ namespace Electronic_Health_Record.Server.Data
         private static readonly PasswordHasher<Physician> PhysicianHasher = new();
         private static readonly PasswordHasher<PatientAccount> PatientHasher = new();
 
+        /// <summary>
+        /// Creates the single superadmin account a fresh database needs to be
+        /// reachable at all. Admin creation is an authorized endpoint, so an
+        /// empty Admins table locks everyone out permanently.
+        ///
+        /// The account lands with MustChangePassword set, so the default
+        /// credential below cannot survive the first login.
+        /// </summary>
+        private static async Task SeedBootstrapAdminAsync(
+            ElectronicHealthRecordDbContext context,
+            DateTime now)
+        {
+            if (await context.Admins.AnyAsync())
+            {
+                return;
+            }
+
+            context.Admins.Add(new Admin
+            {
+                Username = "superadmin",
+                Role = AdminRoles.SuperAdmin,
+                PasswordHash = AdminHasher.HashPassword(new Admin(), "password123"),
+                MustChangePassword = true,
+                PasswordSetAt = now,
+                PasswordChangedAt = null,
+                FullName = "System Developer",
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+
+            await context.SaveChangesAsync();
+        }
+
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             var context = serviceProvider.GetRequiredService<ElectronicHealthRecordDbContext>();
@@ -40,6 +74,26 @@ namespace Electronic_Health_Record.Server.Data
             }
 
             var now = DateTime.UtcNow;
+
+            // -----------------------------------------------------------------
+            // Development fixtures (patients, physicians, wellness forms, patient
+            // accounts) are opt-in. Set Seed:DevFixtures to true in appsettings
+            // when you want a database populated with sample data to click around
+            // in; leave it false/absent to start from an empty record set.
+            //
+            // The schema migration above and the bootstrap admin below always run
+            // regardless of this flag: without a schema there is no database, and
+            // without an admin row nobody can log in to create one, since account
+            // creation itself sits behind an authorized endpoint.
+            // -----------------------------------------------------------------
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var seedDevFixtures = configuration.GetValue<bool>("Seed:DevFixtures");
+
+            if (!seedDevFixtures)
+            {
+                await SeedBootstrapAdminAsync(context, now);
+                return;
+            }
 
             // Seed Admins
             if (!await context.Admins.AnyAsync())

@@ -1,34 +1,70 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ClipboardList, Stethoscope } from 'lucide-react';
+import { ShieldCheck, ClipboardList, Stethoscope, Smile, Eye } from 'lucide-react';
 import { useStationChoice } from '../../hooks/useStationChoice';
+import { useAuth } from '../../auth/useAuth';
+import { ROLES } from '../../lib/constants';
 
-const STATIONS = [
-  {
-    number: 1,
-    title: 'Station 1',
-    subtitle: 'Registration & Vital Signs',
-    description: 'Register the employee and record their vital signs.',
-    path: '/station1',
-    Icon: ClipboardList,
-  },
-  {
-    number: 2,
-    title: 'Station 2',
-    subtitle: 'Assessment',
-    description: 'Hand the tablet to the patient for the health assessment.',
-    path: '/station2',
-    Icon: Stethoscope,
-  },
-];
+// Admins staff the front of the line, doctors the clinical desks behind it.
+// Each role only ever picks from its own set -- the icons match the sidebar's
+// so a station reads the same in both places.
+const STATIONS_BY_ROLE = {
+  [ROLES.ADMIN]: [
+    {
+      number: 1,
+      title: 'Station 1',
+      subtitle: 'Registration & Vital Signs',
+      description: 'Register the employee and record their vital signs.',
+      path: '/station1',
+      Icon: ClipboardList,
+    },
+    {
+      number: 2,
+      title: 'Station 2',
+      subtitle: 'Assessment',
+      description: 'Hand the tablet to the patient for the health assessment.',
+      path: '/station2',
+      Icon: Stethoscope,
+    },
+  ],
+  [ROLES.DOCTOR]: [
+    {
+      number: 3,
+      title: 'Station 3',
+      subtitle: 'Consultation',
+      description: 'Review the assessment and sign off on the consultation.',
+      path: '/station3',
+      Icon: Stethoscope,
+    },
+    {
+      number: 4,
+      title: 'Station 4',
+      subtitle: 'Dental',
+      description: 'Record the dental screening for the patient.',
+      path: '/station4',
+      Icon: Smile,
+    },
+    {
+      number: 5,
+      title: 'Station 5',
+      subtitle: 'Vision',
+      description: 'Record the vision screening for the patient.',
+      path: '/station5',
+      Icon: Eye,
+    },
+  ],
+};
 
 export default function StationPickerPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { station, setStation } = useStationChoice();
-  const [selected, setSelected] = useState(station ?? STATIONS[0].number);
+
+  const stations = STATIONS_BY_ROLE[user?.role] ?? [];
+  const [selected, setSelected] = useState(station ?? stations[0]?.number);
 
   const continueToStation = () => {
-    const target = STATIONS.find((s) => s.number === selected);
+    const target = stations.find((s) => s.number === selected);
     if (!target) return;
     setStation(target.number);
     navigate(target.path);
@@ -56,7 +92,7 @@ export default function StationPickerPage() {
           <p className="mt-1 text-center text-sm text-ink-500">Choose where you want to continue.</p>
 
           <div className="mt-6 flex flex-col gap-4">
-            {STATIONS.map((s) => {
+            {stations.map((s) => {
               const isSelected = selected === s.number;
               return (
                 <button

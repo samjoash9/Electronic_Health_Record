@@ -1,11 +1,17 @@
 using Electronic_Health_Record.Server.DTOs.Employee;
+using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Electronic_Health_Record.Server.Controllers.Reference
 {
+    // The employee directory is personal data (names, birthdates, addresses),
+    // so reads require a signed-in account and writes an admin. It previously
+    // served and accepted anonymous requests.
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeService _employeeService;
@@ -96,6 +102,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // POST /api/employees
         // Adds someone the HR feed has not synced yet, from the Onboarding page.
         // Not a sign-in account: a patient account is provisioned at Station 1.
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPost("")]
         public async Task<IActionResult> Create([FromBody] UpsertEmployeeDto dto)
         {
@@ -125,6 +132,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // PUT /api/employees/{externalEmployeeId}
         // Keyed on the HR id rather than the local EmployeeID: that is the handle
         // the Onboarding page and Station 1 both hold.
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPut("{externalEmployeeId}")]
         public async Task<IActionResult> Update(
             string externalEmployeeId,

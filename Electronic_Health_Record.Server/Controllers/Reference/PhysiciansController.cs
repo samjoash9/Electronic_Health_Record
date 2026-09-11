@@ -1,26 +1,37 @@
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Physician;
 using Electronic_Health_Record.Server.Models;
-using Electronic_Health_Record.Server.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Electronic_Health_Record.Server.Controllers.Reference
 {
+    // Reads are open to any signed-in account: Station 1 and Station 3 both need
+    // the physician list, and a doctor's JWT carries no Role claim (only Admin
+    // has permission tiers), so a role-based rule would lock doctors out of it.
+    //
+    // Every write is gated to admin/superadmin below. Without that, these
+    // endpoints -- including the password reset -- accepted anonymous requests.
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PhysiciansController : Controller
     {
         private readonly ElectronicHealthRecordDbContext _context;
-        private readonly IPasswordHasher _passwordHasher;
         private readonly ILogger<PhysiciansController> _logger;
+
+        // Same PBKDF2 hasher AuthController verifies against. An account
+        // onboarded here has to be signable-in there, so the algorithm is not a
+        // local choice.
+        private readonly PasswordHasher<Physician> _passwordHasher = new();
+
         public PhysiciansController(
             ElectronicHealthRecordDbContext context,
-            IPasswordHasher passwordHasher,
             ILogger<PhysiciansController> logger)
         {
             _context = context;
-            _passwordHasher = passwordHasher;
             _logger = logger;
         }
 
@@ -99,6 +110,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         //POST   /api/physicians          → register new physician
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPost("")]
         public async Task<IActionResult> CreatePhysician([FromBody] CreatePhysicianDto dto)
         {
@@ -108,9 +120,15 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
             var username = dto.Username.Trim();
 
+            // CK_Physician_CredentialSet takes Username, Email and PasswordHash
+            // together or not at all, so a login account needs an address even
+            // though onboarding does not collect one. Derived the same way
+            // UserManagementController does.
+            var email = $"{username}@hospital.com";
+
             // Checked up front for a clear 409 rather than letting the unique
             // indexes surface as an opaque DbUpdateException.
-            if (await _context.Physicians.AnyAsync(p => p.Username == username))
+            if (await _context.Physicians.AnyAsync(p => p.Username == username || p.Email == email))
                 return Conflict($"The username \"{username}\" is already taken.");
 
             if (await _context.Physicians.AnyAsync(p => p.PRCLicenseNo == dto.PRCLicenseNo))
@@ -122,7 +140,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 var physician = new Physician
                 {
                     Username = username,
-                    PasswordHash = _passwordHasher.Hash(dto.Password),
+                    Email = email,
                     // Onboarded on a password an admin handed over: it only
                     // survives until the doctor's first sign-in.
                     MustChangePassword = true,
@@ -136,6 +154,9 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                     IsActive = true
                     // the rest are handled by db defaults (CreatedAt and UpdatedAt)
                 };
+
+                // Needs the entity itself, so it runs after construction.
+                physician.PasswordHash = _passwordHasher.HashPassword(physician, dto.Password);
 
                 _context.Physicians.Add(physician);
                 await _context.SaveChangesAsync();
@@ -153,6 +174,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         //PUT    /api/physicians/:id      → full update
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPut("{physicianId}")]
         public async Task<IActionResult> UpdatePhysician(
             int physicianId,
@@ -196,6 +218,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         //PATCH  /api/physicians/:id      → partial update
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPatch("{physicianId}")]
         public async Task<IActionResult> PatchPhysician(
             int physicianId,
@@ -260,6 +283,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         //
         // Separate from PATCH so a credential change is never a side effect of a
         // profile edit, and so the response carries no password material.
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPost("{physicianId}/password")]
         public async Task<IActionResult> SetPhysicianPassword(
             int physicianId,
@@ -273,7 +297,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 return NotFound($"Physician with ID {physicianId} was not found.");
 
             var now = DateTime.UtcNow;
-            physician.PasswordHash = _passwordHasher.Hash(dto.Password);
+            physician.PasswordHash = _passwordHasher.HashPassword(physician, dto.Password);
             // Back on an issued password: the doctor has to replace it, and
             // PasswordChangedAt stays where it was so "never chose their own"
             // remains distinguishable.
@@ -295,6 +319,10 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         //DELETE /api/physicians/:id      → delete/deactivate
+        // Superadmin only: deleting a physician is the one action here that can
+        // destroy a row referenced by signed medical records, so it sits a tier
+        // above the rest of the writes.
+        [Authorize(Roles = AdminRoles.SuperAdmin)]
         [HttpDelete("{physicianId}")]
         public async Task<IActionResult> DeletePhysician(int physicianId)
         {

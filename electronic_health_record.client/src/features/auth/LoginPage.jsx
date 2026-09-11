@@ -7,10 +7,11 @@ import { Mail, Lock, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import { homeRouteFor } from '../../auth/RequireAuth';
 import { loginSchema } from '../../lib/schemas';
+import { readStation } from '../../lib/stationStorage';
 import ForgotPasswordModal from './ForgotPasswordModal';
 
 export default function LoginPage() {
-  const { isAuthenticated, user, loading, signIn } = useAuth();
+  const { isAuthenticated, user, signIn } = useAuth();
   const navigate = useNavigate();
 
   const [loginError, setLoginError] = useState('');
@@ -21,10 +22,17 @@ export default function LoginPage() {
   } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: { identifier: '', password: '' },
+    // Validate on submit only. reValidateMode matters as much as mode here:
+    // it defaults to 'onChange', so after one failed submit every keystroke
+    // re-runs the schema, and each failure is a thrown ZodError that the
+    // resolver catches. Harmless at runtime, but it trips "pause on caught
+    // exceptions" in the debugger on every edit of a blank field.
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
   });
 
   if (isAuthenticated) {
-    return <Navigate to={homeRouteFor(user)} replace />;
+    return <Navigate to={homeRouteFor(user, readStation(user?.role))} replace />;
   }
 
   const onSubmit = async (values) => {
@@ -37,7 +45,11 @@ export default function LoginPage() {
       });
 
       toast.success('Login successful.');
-      navigate(homeRouteFor(authenticatedUser), { replace: true });
+      // Station is read against the role that just signed in, not the one in
+      // context: setUser hasn't landed yet at this point.
+      navigate(homeRouteFor(authenticatedUser, readStation(authenticatedUser?.role)), {
+        replace: true,
+      });
     } catch (error) {
       const message =
         error.response?.data?.message ||

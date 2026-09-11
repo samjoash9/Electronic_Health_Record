@@ -19,6 +19,9 @@ export default function ForgotPasswordModal({ open, onClose }) {
   } = useForm({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { identifier: '' },
+    // Submit-only validation, matching LoginPage -- see the note there.
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
   });
 
   useEffect(() => {

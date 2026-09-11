@@ -1,19 +1,40 @@
 import { useState } from 'react';
-import { Stethoscope, Users } from 'lucide-react';
+import { Stethoscope, Users, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../../../auth/useAuth';
+import { isSuperAdmin } from '../../../lib/constants';
+import AdminsPanel from './AdminsPanel';
 import DoctorsPanel from './DoctorsPanel';
 import EmployeesPanel from './EmployeesPanel';
+
+const ADMINS_TAB = { id: 'admins', label: 'Admins', icon: ShieldCheck };
 
 const TABS = [
   { id: 'doctors', label: 'Doctors', icon: Stethoscope },
   { id: 'employees', label: 'Employees', icon: Users },
 ];
 
+const PANELS = {
+  admins: AdminsPanel,
+  doctors: DoctorsPanel,
+  employees: EmployeesPanel,
+};
+
 /**
- * Where accounts and records enter the system: doctor sign-ins (which drive the
- * Station 3 physician list) and the employee directory Station 1 searches.
+ * Where accounts and records enter the system: staff sign-ins, doctor sign-ins
+ * (which drive the Station 3 physician list) and the employee directory
+ * Station 1 searches.
+ *
+ * The Admins tab is superadmin-only, matching the server: creating an admin is
+ * the one provisioning endpoint a plain admin cannot call.
  */
 export default function OnboardingPage() {
-  const [tab, setTab] = useState('doctors');
+  const { user } = useAuth();
+  const superAdmin = isSuperAdmin(user);
+
+  const tabs = superAdmin ? [ADMINS_TAB, ...TABS] : TABS;
+  const [tab, setTab] = useState(tabs[0].id);
+
+  const Panel = PANELS[tab] ?? DoctorsPanel;
 
   return (
     <div className="flex flex-col gap-4 p-5">
@@ -29,7 +50,7 @@ export default function OnboardingPage() {
         aria-label="Onboarding sections"
         className="flex w-fit rounded-xl border border-line bg-surface p-1 shadow-sm"
       >
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -48,7 +69,7 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {tab === 'doctors' ? <DoctorsPanel /> : <EmployeesPanel />}
+      <Panel />
     </div>
   );
 }

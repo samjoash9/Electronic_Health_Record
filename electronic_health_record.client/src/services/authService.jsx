@@ -1,5 +1,6 @@
 import api from '../config/axios';
 import { getSession, setSession, clearSession } from '../lib/session';
+import { clearStations } from '../lib/stationStorage';
 import { ROLES } from '../lib/constants';
 
 export { getSession };
@@ -74,5 +75,9 @@ export async function logout() {
         console.error('Logout request failed:', error);
     } finally {
         clearSession();
+        // The station choice is per device, not per account, so it has to go
+        // with the session -- otherwise the next person to sign in here
+        // inherits the last user's desk and never sees the picker.
+        clearStations();
     }
 }

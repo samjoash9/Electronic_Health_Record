@@ -8,9 +8,11 @@ export const ROLES = {
   PATIENT: 'patient',
 };
 
+// Doctors are deliberately absent: they are assigned to one of stations 3-5,
+// so homeRouteFor() derives their landing route from the device's station
+// choice instead of a fixed path.
 export const ROLE_HOME_PATH = {
     [ROLES.ADMIN]: '/dashboard',
-    [ROLES.DOCTOR]: '/station3',
     [ROLES.PATIENT]: '/my-record',
 };
 

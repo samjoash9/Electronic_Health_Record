@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../config/axios';
 import { Loader2, Search, ArchiveRestore, ShieldAlert, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import Toast from '../../components/common/Toast';
 
@@ -26,7 +26,7 @@ export default function ArchivedTabs() {
         setIsLoading(true);
         try {
             // Adjust this endpoint to your C# backend's archived route
-            const res = await axios.get('http://localhost:5084/api/WellnessForms/archived');
+            const res = await api.get('/WellnessForms/archived');
             setArchivedRecords(Array.isArray(res.data) ? res.data : (res.data.items || res.data.data || []));
         } catch (error) {
             console.error("Failed to fetch archived records:", error);
@@ -45,7 +45,7 @@ export default function ArchivedTabs() {
 
         try {
             // Adjust this endpoint to match your C# restore logic
-            await axios.put(`http://localhost:5084/api/WellnessForms/${id}/restore`);
+            await api.put(`/WellnessForms/${id}/restore`);
             setToast({ message: 'Record successfully restored!', type: 'success' });
             fetchArchivedRecords();
         } catch (error) {

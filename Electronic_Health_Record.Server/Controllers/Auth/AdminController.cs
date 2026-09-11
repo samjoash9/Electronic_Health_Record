@@ -23,6 +23,12 @@ namespace Electronic_Health_Record.Server.Controllers.Auth
         }
 
         // get all admin
+        //
+        // Superadmin only: the roster of staff accounts and their permission
+        // tiers is exactly the shape of an attacker's target list, and managing
+        // other admins is a superadmin capability anyway. This was previously
+        // open to anonymous callers.
+        [Authorize(Roles = AdminRoles.SuperAdmin)]
         [HttpGet("")]
         public async Task<IActionResult> GetAdmins()
         {

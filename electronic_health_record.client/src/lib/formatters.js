@@ -1,7 +1,11 @@
 export function fullName(person) {
   if (!person) return '';
   const middle = person.middleName ? ` ${person.middleName}.` : '';
-  return `${person.surname}, ${person.firstName}${middle}`;
+  const given = `${person.firstName ?? ''}${middle}`.trim();
+  const surname = person.surname ?? '';
+  if (!given) return surname;
+  if (!surname) return given;
+  return `${surname}, ${given}`;
 }
 
 export function formatDate(iso) {

@@ -40,7 +40,9 @@ export default function PatientPreviewModal({ patient, onClose, onConfirm, confi
             </div>
             <div>
               <p className="text-lg font-semibold text-ink-900">{fullName(patient)}</p>
-              <p className="text-sm text-ink-500">{patient.position} • {patient.agencyOffice}</p>
+              <p className="text-sm text-ink-500">
+                {[patient.position, patient.agencyOffice].filter(Boolean).join(' • ')}
+              </p>
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from '../lib/session';
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -7,35 +8,18 @@ export const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Reads the token through lib/session so this instance and config/axios.jsx
+// stay on one storage key. They previously disagreed -- this one looked for an
+// 'ehr-token' that nothing writes, so every request through it went out
+// unauthenticated. The X-Stub-* identity headers that used to be set here are
+// gone with the stub they fed: CurrentUser resolves the account from the JWT's
+// own claims (PrincipalType + NameIdentifier), so the token is all that is
+// needed to identify the caller.
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ehr-token');
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
-
-  // Login stays mock (auth.api.js) even when USE_MOCK is false for everything
-  // else, so the server has no session of its own to read identity from yet.
-  // Bridge the mock session's id onto the headers ICurrentUser's stub reads
-  // (see StubCurrentUser on the server) until real auth replaces both sides.
-  const session = readSession();
-  if (session?.user) {
-    const { role, id } = session.user;
-    // superadmin is still role 'admin' (adminRole is a permission tier, not a
-    // separate identity) -- same header either way
-    if (role === 'admin') config.headers['X-Stub-AdminID'] = id;
-    if (role === 'doctor') config.headers['X-Stub-PhysicianID'] = id;
-    if (role === 'patient') config.headers['X-Stub-PatientAccountID'] = id;
-  }
-
   return config;
 });
-
-function readSession() {
-  try {
-    const raw = localStorage.getItem('ehr-session');
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
 
 /** Normalises axios errors so callers only ever read `.status` and `.message`. */
 export function toApiError(error) {

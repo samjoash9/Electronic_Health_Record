@@ -1,7 +1,7 @@
 import { Route, Navigate, createRoutesFromElements } from 'react-router-dom';
-import { RequireAuth } from './auth/RequireAuth';
+import { RequireAuth, RequireStation } from './auth/RequireAuth';
 import HomeRedirect from './auth/HomeRedirect';
-import { ROLES } from './lib/constants';
+import { ROLES, STATIONS } from './lib/constants';
 
 import LoginPage from './features/auth/LoginPage';
 import StationPickerPage from './features/auth/StationPickerPage';
@@ -35,6 +35,10 @@ export const routeElements = createRoutesFromElements(
     {/* Kiosk and station picker are deliberately OUTSIDE AppShell: no sidebar, no nav. */}
     <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
       <Route path="/station2/:formId/kiosk" element={<KioskPage />} />
+    </Route>
+
+    {/* Doctors pick a desk here too: stations 3-5 are staffed by different people. */}
+    <Route element={<RequireAuth allow={[ROLES.ADMIN, ROLES.DOCTOR]} />}>
       <Route path="/stations" element={<StationPickerPage />} />
     </Route>
 
@@ -54,13 +58,22 @@ export const routeElements = createRoutesFromElements(
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
       </Route>
 
+      {/* RequireStation pins each desk to the station this device picked, so a
+          doctor can't reach another station's queue by typing its URL. A
+          superadmin passes through all three. */}
       <Route element={<RequireAuth allow={[ROLES.DOCTOR]} allowSuperAdmin />}>
-        <Route path="/station3" element={<Station3QueuePage />} />
-        <Route path="/station3/:formId" element={<Station3ConsultationPage />} />
-        <Route path="/station4" element={<Station4QueuePage />} />
-        <Route path="/station4/:formId" element={<Station4DentalPage />} />
-        <Route path="/station5" element={<Station5QueuePage />} />
-        <Route path="/station5/:formId" element={<Station5VisionPage />} />
+        <Route element={<RequireStation station={STATIONS.THREE} />}>
+          <Route path="/station3" element={<Station3QueuePage />} />
+          <Route path="/station3/:formId" element={<Station3ConsultationPage />} />
+        </Route>
+        <Route element={<RequireStation station={STATIONS.FOUR} />}>
+          <Route path="/station4" element={<Station4QueuePage />} />
+          <Route path="/station4/:formId" element={<Station4DentalPage />} />
+        </Route>
+        <Route element={<RequireStation station={STATIONS.FIVE} />}>
+          <Route path="/station5" element={<Station5QueuePage />} />
+          <Route path="/station5/:formId" element={<Station5VisionPage />} />
+        </Route>
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.PATIENT]} />}>

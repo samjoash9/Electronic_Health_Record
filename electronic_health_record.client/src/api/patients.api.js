@@ -2,6 +2,35 @@ import { USE_MOCK, client, toApiError } from './client';
 import { db } from './mock/db';
 import { delay } from './mock/delay';
 
+// The server serves employees in the shape of the external HR feed (eid,
+// firstname, office, ...). Map it onto the field names the app uses everywhere
+// else so components don't have to know which source a row came from.
+// A row the HR feed never supplied a birthdate for is stored as DateTime.MinValue
+// rather than NULL, which would otherwise format as "Jan 1, 1".
+function usableDate(value) {
+  if (!value) return '';
+  return String(value).startsWith('0001-01-01') ? '' : value;
+}
+
+function normalizeEmployee(row) {
+  return {
+    // eid is 0 when the local ExternalEmployeeId wasn't numeric; that's absence,
+    // not an id of zero.
+    externalEmployeeId: row.eid ? String(row.eid) : '',
+    surname: row.surname ?? '',
+    firstName: row.firstname ?? '',
+    middleName: row.middlename ?? '',
+    birthdate: usableDate(row.birthDate),
+    age: row.age || null,
+    sex: row.sex ?? '',
+    civilStatus: row.civilStatus ?? '',
+    address: row.address ?? '',
+    agencyOffice: row.office ?? '',
+    position: row.position ?? '',
+    contactNo: row.contactNumber ?? '',
+  };
+}
+
 export async function searchEmployees(query) {
   if (USE_MOCK) {
     await delay(150);
@@ -16,7 +45,16 @@ export async function searchEmployees(query) {
 
   try {
     const { data } = await client.get('/employees', { params: { q: query } });
-    return data;
+    const employees = (Array.isArray(data) ? data : []).map(normalizeEmployee);
+
+    // GET /api/employees returns the whole local table and ignores `q`, so the
+    // match has to happen here to mirror the mock path's behaviour.
+    const q = (query ?? '').trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter((e) =>
+      `${e.firstName} ${e.middleName} ${e.surname}`.toLowerCase().includes(q)
+      || e.externalEmployeeId.toLowerCase().includes(q),
+    );
   } catch (error) {
     throw toApiError(error);
   }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../config/axios';
 import {
     X,
     Loader2,
@@ -98,7 +98,7 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave, userRole
         }
 
         setIsLoading(true);
-        axios.get(`https://localhost:5084/api/WellnessForms/${patientId}`)
+        api.get(`/WellnessForms/${patientId}`)
             .then(response => {
                 const resData = response.data || {};
                 setClinicalData({
@@ -216,13 +216,13 @@ export default function WellnessRecordForm({ phoData, onCancel, onSave, userRole
 
         try {
             if (isManualEntry || isNewForm || !patientId) {
-                const response = await axios.post(`https://localhost:5084/api/WellnessForms`, payload);
+                const response = await api.post('/WellnessForms', payload);
                 if (response.data && response.data.form) {
                     setClinicalData(prev => ({ ...prev, form: response.data.form }));
                 }
                 if (onSave) onSave(successMsg, 'success');
             } else {
-                await axios.put(`https://localhost:5084/api/WellnessForms/${formId}`, payload);
+                await api.put(`/WellnessForms/${formId}`, payload);
                 if (onSave) onSave(successMsg, 'success');
             }
             onCancel();

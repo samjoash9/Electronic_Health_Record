@@ -1,18 +1,22 @@
 import { useCallback, useState } from 'react';
+import { useAuth } from '../auth/useAuth';
+import { readStation, writeStation } from '../lib/stationStorage';
 
-const KEY = 'ehr-station';
+// Re-exported so callers that only need to read a station (RequireAuth,
+// LoginPage) keep importing from one place.
+export { readStation, stationKeyFor, clearStations } from '../lib/stationStorage';
 
-/** Which station this device is serving. Persisted so a tablet remembers. */
+/** Which station this device is serving, for the signed-in role. Persisted so a tablet remembers. */
 export function useStationChoice() {
-  const [station, setStationState] = useState(() => {
-    const raw = localStorage.getItem(KEY);
-    return raw ? Number(raw) : null;
-  });
+  const { user } = useAuth();
+  const role = user?.role;
+
+  const [station, setStationState] = useState(() => readStation(role));
 
   const setStation = useCallback((value) => {
-    localStorage.setItem(KEY, String(value));
+    writeStation(role, value);
     setStationState(value);
-  }, []);
+  }, [role]);
 
   return { station, setStation };
 }

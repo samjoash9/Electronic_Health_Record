@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
-import { ROLE_HOME_PATH, isSuperAdmin } from '../lib/constants';
+import { ROLES, ROLE_HOME_PATH, isSuperAdmin } from '../lib/constants';
+import { readStation } from '../lib/stationStorage';
 
 function normalizedRole(user) {
     return typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role;
@@ -8,10 +9,33 @@ function normalizedRole(user) {
 
 // Accepts a user, not a bare role: a superadmin is not tied to one station, so
 // they skip the station picker and land on the dashboard instead.
-export function homeRouteFor(user) {
-  const role = typeof user === 'string' ? user : user?.user;
+//
+// `station` is passed in rather than read here so this stays a pure function --
+// callers that know the device's station (HomeRedirect, LoginPage) supply it.
+//
+// Admins and doctors both work one desk at a time, so a device with no station
+// chosen yet is sent to pick one before it shows any work. They differ in where
+// they go once it is known: a doctor opens their station's queue, while an admin
+// gets the dashboard, their overview across stations 1-2.
+// eslint-disable-next-line react-refresh/only-export-components -- route helper, co-located with the guards that use it
+export function homeRouteFor(user, station) {
   if (isSuperAdmin(user)) return '/dashboard';
-    return ROLE_HOME_PATH[normalizedRole(user)] ?? '/login';
+
+  const role = normalizedRole(user);
+
+  if (!station && (role === ROLES.ADMIN || role === ROLES.DOCTOR)) {
+    return '/stations';
+  }
+
+  if (role === ROLES.DOCTOR) return `/station${station}`;
+
+  return ROLE_HOME_PATH[role] ?? '/login';
+}
+
+// Where to send someone who is signed in but on the wrong route. Reads the
+// stored station so redirects land on the desk this device is actually set to.
+function fallbackRouteFor(user) {
+  return homeRouteFor(user, readStation(normalizedRole(user)));
 }
 
 // allowSuperAdmin: let a superadmin through a route whose `allow` list is for
@@ -36,12 +60,33 @@ export function RequireAuth({ allow, requireSuperAdmin, allowSuperAdmin, childre
   }
 
   if (allow && !allow.includes(user.role) && !(allowSuperAdmin && isSuperAdmin(user))) {
-    return <Navigate to={homeRouteFor(user)} replace />;
+    return <Navigate to={fallbackRouteFor(user)} replace />;
   }
 
   if (requireSuperAdmin && !isSuperAdmin(user)) {
-    return <Navigate to={homeRouteFor(user)} replace />;
+    return <Navigate to={fallbackRouteFor(user)} replace />;
   }
 
-  return <Outlet />;
+  return children ?? <Outlet />;
+}
+
+// Pins a route to one station. Doctors across stations 3-5 are different
+// people, so a doctor set to one desk must not reach another by typing its
+// URL -- the sidebar hiding the link is not enough on its own.
+//
+// A superadmin supervises every desk at once and so is exempt. This is a UX
+// guard, not an authorization boundary: the API still accepts any station's
+// submission from any authenticated doctor.
+export function RequireStation({ station, children }) {
+  const { user } = useAuth();
+
+  if (isSuperAdmin(user)) return children ?? <Outlet />;
+
+  const chosen = readStation(normalizedRole(user));
+
+  if (chosen !== station) {
+    return <Navigate to={homeRouteFor(user, chosen)} replace />;
+  }
+
+  return children ?? <Outlet />;
 }

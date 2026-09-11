@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../../config/axios';
 import { Filter, Plus, MoreVertical, ShieldAlert, Loader2, Search, Check, AlertTriangle, X, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import WellnessRecordForm from '../../components/forms/WellnessRecordForm';
 import Toast from '../../components/common/Toast';
@@ -125,7 +125,7 @@ export default function PatientRecord({ userRole: propUserRole }) {
         setIsLoading(true);
         setError(null); // Clear previous errors
 
-        axios.get('https://localhost:5084/api/WellnessForms')
+        api.get('/WellnessForms')
             .then(res => {
                 setPatients(Array.isArray(res.data) ? res.data : (res.data.data || []));
                 setIsLoading(false);
@@ -283,7 +283,7 @@ export default function PatientRecord({ userRole: propUserRole }) {
     const handleSelectPatientForNewForm = async (patient) => {
         setIsSelectingPatient(false);
         try {
-            const res = await axios.get(`https://localhost:5084/api/WellnessForms/${patient.patientID}`);
+            const res = await api.get(`/WellnessForms/${patient.patientID}`);
 
             if (res.data && res.data.form) {
                 setPendingPatient(patient);

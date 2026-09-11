@@ -4,14 +4,17 @@ import { LayoutGrid, LayoutDashboard, Table, ClipboardList, ListChecks, Stethosc
 import phoLogo from '../../assets/images/PHO_logo.jpg';
 import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
-import { isSuperAdmin } from '../../lib/constants';
+import { ROLES, isSuperAdmin } from '../../lib/constants';
 import ChangePasswordModal from '../ui/ChangePasswordModal';
 
 const CHANGE_STATION_LINK = { to: '/stations', label: 'Change Station', icon: LayoutGrid };
 const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon: ShieldCheck };
-const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope };
-const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile };
-const STATION5_LINK = { to: '/station5', label: 'Station 5: Vision', icon: Eye };
+// `station` gates each link to the desk this device picked -- stations 3-5 are
+// staffed by different doctors, so only the chosen one belongs in the sidebar.
+// A superadmin is pushed all three below, bypassing that filter.
+const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope, station: 3 };
+const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile, station: 4 };
+const STATION5_LINK = { to: '/station5', label: 'Station 5: Vision', icon: Eye, station: 5 };
 const ONBOARDING_LINK = { to: '/onboarding', label: 'Onboarding', icon: UserPlus };
 
 const LINKS = {
@@ -76,7 +79,7 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       <div className="border-t border-white/15 pt-3">
-        {user?.role === 'admin' && !superAdmin && (
+        {(user?.role === ROLES.ADMIN || user?.role === ROLES.DOCTOR) && !superAdmin && (
           <NavLink to={CHANGE_STATION_LINK.to} title={CHANGE_STATION_LINK.label} className={linkClass}>
             <CHANGE_STATION_LINK.icon size={18} className="shrink-0" />
             {!collapsed && CHANGE_STATION_LINK.label}
