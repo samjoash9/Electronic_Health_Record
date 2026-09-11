@@ -7,6 +7,18 @@ function normalizedRole(user) {
     return typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role;
 }
 
+// A doctor's station arrives from the server (or, worst case, a hand-edited
+// localStorage session) and is not guaranteed to be a clean integer -- a
+// serializer could hand back "4" as a string, or a tampered session could hold
+// garbage. Coercing once, here, means homeRouteFor and RequireStation always
+// compare the same normalized value, so a mismatched type can never make
+// homeRouteFor and RequireStation disagree on where a doctor belongs -- which
+// is exactly what produced the infinite redirect loop this guards against.
+function assignedStation(user) {
+  const s = Number(user?.station);
+  return Number.isInteger(s) && s >= 3 && s <= 5 ? s : null;
+}
+
 // Accepts a user, not a bare role: a superadmin is not tied to one station, so
 // they skip the station picker and land on the dashboard instead.
 //
@@ -24,7 +36,8 @@ export function homeRouteFor(user, station) {
   const role = normalizedRole(user);
 
   if (role === ROLES.DOCTOR) {
-    return user?.station ? `/station${user.station}` : '/no-station';
+    const doctorStation = assignedStation(user);
+    return doctorStation ? `/station${doctorStation}` : '/no-station';
   }
 
   if (!station && role === ROLES.ADMIN) {
@@ -88,7 +101,7 @@ export function RequireStation({ station, children }) {
   if (isSuperAdmin(user)) return children ?? <Outlet />;
 
   const role = normalizedRole(user);
-  const assigned = role === ROLES.DOCTOR ? user?.station : readStation(role);
+  const assigned = role === ROLES.DOCTOR ? assignedStation(user) : readStation(role);
 
   if (assigned !== station) {
     return <Navigate to={homeRouteFor(user, assigned)} replace />;

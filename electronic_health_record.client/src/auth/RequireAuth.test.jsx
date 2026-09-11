@@ -180,4 +180,30 @@ describe('RequireStation', () => {
     renderAt('/station5');
     expect(await screen.findByText('Station 5 Queue')).toBeInTheDocument();
   });
+
+  // A string station (e.g. a session written by an older build, or a
+  // serializer that doesn't preserve number types) must not desync
+  // homeRouteFor's route string from RequireStation's strict comparison --
+  // that mismatch is what produced the infinite redirect loop this guards
+  // against.
+  it('lands a doctor with a string station on their station, not a loop', async () => {
+    signInAs(ROLES.DOCTOR, { station: '4' });
+    renderAt('/station4');
+    expect(await screen.findByText('Station 4 Queue')).toBeInTheDocument();
+  });
+
+  // A hand-edited or garbage station (out of range, non-numeric) must land
+  // safely on /no-station rather than bouncing between homeRouteFor and
+  // RequireStation forever.
+  it('sends a doctor with an out-of-range station to the no-station page', async () => {
+    signInAs(ROLES.DOCTOR, { station: 99 });
+    renderAt('/station3');
+    expect(await screen.findByText('No Station')).toBeInTheDocument();
+  });
+
+  it('sends a doctor with a garbage station to the no-station page', async () => {
+    signInAs(ROLES.DOCTOR, { station: 'not-a-number' });
+    renderAt('/station3');
+    expect(await screen.findByText('No Station')).toBeInTheDocument();
+  });
 });
