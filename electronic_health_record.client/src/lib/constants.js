@@ -8,13 +8,24 @@ export const ROLES = {
   PATIENT: 'patient',
 };
 
-// Doctors are deliberately absent: they are assigned to one of stations 3-5,
-// so homeRouteFor() derives their landing route from the device's station
-// choice instead of a fixed path.
+// Doctors are deliberately absent: each doctor is assigned one of stations 3-5
+// by an admin at onboarding, so homeRouteFor() derives their landing route from
+// the station on their account instead of a fixed path.
 export const ROLE_HOME_PATH = {
     [ROLES.ADMIN]: '/dashboard',
     [ROLES.PATIENT]: '/my-record',
 };
+
+/**
+ * The desks a doctor can be assigned to. One list, used by the onboarding form,
+ * the doctors table and the station filter, so a new station is added once.
+ * Stations 1-2 are admin desks and are never assignable to a doctor.
+ */
+export const DOCTOR_STATIONS = [
+  { value: 3, label: 'Station 3 — Consultation', subtitle: 'Consultation' },
+  { value: 4, label: 'Station 4 — Dental', subtitle: 'Dental' },
+  { value: 5, label: 'Station 5 — Vision', subtitle: 'Vision' },
+];
 
 /**
  * Permission tier *within* the Admin table, mirroring Admin.Role on the server.
