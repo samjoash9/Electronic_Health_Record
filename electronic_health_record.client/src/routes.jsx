@@ -5,6 +5,7 @@ import { ROLES, STATIONS } from './lib/constants';
 
 import LoginPage from './features/auth/LoginPage';
 import StationPickerPage from './features/auth/StationPickerPage';
+import NoStationPage from './features/auth/NoStationPage';
 import DashboardPage from './features/admin/DashboardPage';
 import FormsPage from './features/admin/FormsPage';
 import FormDetailPage from './features/admin/FormDetailPage';
@@ -37,9 +38,16 @@ export const routeElements = createRoutesFromElements(
       <Route path="/station2/:formId/kiosk" element={<KioskPage />} />
     </Route>
 
-    {/* Doctors pick a desk here too: stations 3-5 are staffed by different people. */}
-    <Route element={<RequireAuth allow={[ROLES.ADMIN, ROLES.DOCTOR]} />}>
+    {/* Stations 1-2 are a property of the device, so an admin picks which desk
+        this tablet is serving. Doctors are assigned a station on their account
+        and never see this page. */}
+    <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
       <Route path="/stations" element={<StationPickerPage />} />
+    </Route>
+
+    {/* Safety net for a doctor whose account carries no station. */}
+    <Route element={<RequireAuth allow={[ROLES.DOCTOR]} />}>
+      <Route path="/no-station" element={<NoStationPage />} />
     </Route>
 
     <Route element={<AppShell />}>
@@ -58,9 +66,9 @@ export const routeElements = createRoutesFromElements(
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
       </Route>
 
-      {/* RequireStation pins each desk to the station this device picked, so a
-          doctor can't reach another station's queue by typing its URL. A
-          superadmin passes through all three. */}
+      {/* RequireStation pins each desk to the station assigned to this doctor's
+          account, so a doctor can't reach another station's queue by typing its
+          URL. A superadmin passes through all three. */}
       <Route element={<RequireAuth allow={[ROLES.DOCTOR]} allowSuperAdmin />}>
         <Route element={<RequireStation station={STATIONS.THREE} />}>
           <Route path="/station3" element={<Station3QueuePage />} />

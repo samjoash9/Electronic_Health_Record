@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ClipboardList, Stethoscope, Smile, Eye } from 'lucide-react';
+import { ShieldCheck, ClipboardList, Stethoscope } from 'lucide-react';
 import { useStationChoice } from '../../hooks/useStationChoice';
 import { useAuth } from '../../auth/useAuth';
 import { ROLES } from '../../lib/constants';
 
-// Admins staff the front of the line, doctors the clinical desks behind it.
-// Each role only ever picks from its own set -- the icons match the sidebar's
-// so a station reads the same in both places.
+// Admins staff the front of the line: stations 1-2 are a property of the
+// device, so the admin picks which desk this tablet is serving. Doctors never
+// reach this page -- their station is assigned by an admin and read off their
+// account.
 const STATIONS_BY_ROLE = {
   [ROLES.ADMIN]: [
     {
@@ -25,32 +26,6 @@ const STATIONS_BY_ROLE = {
       description: 'Hand the tablet to the patient for the health assessment.',
       path: '/station2',
       Icon: Stethoscope,
-    },
-  ],
-  [ROLES.DOCTOR]: [
-    {
-      number: 3,
-      title: 'Station 3',
-      subtitle: 'Consultation',
-      description: 'Review the assessment and sign off on the consultation.',
-      path: '/station3',
-      Icon: Stethoscope,
-    },
-    {
-      number: 4,
-      title: 'Station 4',
-      subtitle: 'Dental',
-      description: 'Record the dental screening for the patient.',
-      path: '/station4',
-      Icon: Smile,
-    },
-    {
-      number: 5,
-      title: 'Station 5',
-      subtitle: 'Vision',
-      description: 'Record the vision screening for the patient.',
-      path: '/station5',
-      Icon: Eye,
     },
   ],
 };
