@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
+import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
+import { saveDraft, loadDraft, clearDraft } from '../../lib/station2Draft';
 import { scoreCategory, totalAnswered, totalQuestions } from '../../lib/scoring';
 import { fullName } from '../../lib/formatters';
 import KioskShell from '../../components/layout/KioskShell';
@@ -17,10 +20,18 @@ import CategoryCard from './CategoryCard';
 export default function KioskPage() {
   const { formId } = useParams();
   const navigate = useNavigate();
-  const [answers, setAnswers] = useState({});
-  const [step, setStep] = useState(0);
+  // Read the draft once during the first render so state can be seeded
+  // from it directly, instead of set from an effect afterwards (matches
+  // station3/4/5's restoredDraft pattern).
+  const [restoredDraft] = useState(() => loadDraft(formId));
+  const [answers, setAnswers] = useState(restoredDraft?.answers ?? {});
+  const [step, setStep] = useState(restoredDraft?.step ?? 0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  // Stops autosave from resurrecting a just-cleared draft once the
+  // assessment is handed off (confirmDone navigates away, but the
+  // debounced save could otherwise still fire in the interim).
+  const doneRef = useRef(false);
 
   const { data: form, isLoading: formLoading, error: formError, refetch: refetchForm } = useWellnessForm(formId);
   const {
@@ -30,6 +41,22 @@ export default function KioskPage() {
     queryFn: getAssessmentTemplate,
     staleTime: Infinity,
   });
+
+  // Notify only; the state itself was seeded above during the first render.
+  useEffect(() => {
+    if (restoredDraft) toast.info('Restored the saved answers for this assessment.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosaves a short idle period after any answer or step changes, so a
+  // patient's answers survive a reload or the tablet being put down
+  // mid-assessment. Silent on success -- there is no "Draft saved ..."
+  // label on the kiosk screen to update.
+  useAutosaveDraft(
+    () => saveDraft(formId, { answers, step }),
+    { answers, step },
+    { stoppedRef: doneRef },
+  );
 
   if (formLoading || templateLoading) return <Skeleton rows={10} />;
   if (formError) return <ErrorState error={formError} onRetry={refetchForm} />;
@@ -60,6 +87,7 @@ export default function KioskPage() {
   };
 
   const handleReset = () => {
+    clearDraft(formId);
     setAnswers({});
     setStep(0);
   };
@@ -77,6 +105,10 @@ export default function KioskPage() {
   };
 
   const confirmDone = () => {
+    // The draft is not cleared here: the review screen still requires an
+    // explicit submit, so a patient who backs out there without
+    // submitting should find these answers waiting on next handoff.
+    doneRef.current = true;
     navigate(`/station2/${formId}`, { state: { answers, justCompleted: true } });
   };
 

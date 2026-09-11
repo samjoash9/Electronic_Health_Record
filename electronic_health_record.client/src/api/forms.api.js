@@ -109,11 +109,13 @@ export async function submitStation2({
  * Station 3:
  * Submit physician consultation.
  *
- * The authenticated Physician identity is resolved
- * by the backend from the JWT.
+ * The attending physician is chosen from the registered-doctor list
+ * on the form (not taken from whoever is signed in), so physicianID
+ * is sent explicitly alongside the consultation fields.
  */
 export async function submitStation3({
     formID,
+    physicianID,
     consultation,
     rowVersion,
 }) {
@@ -121,6 +123,7 @@ export async function submitStation3({
         const { data } = await api.post(
             `/wellnessforms/${formID}/station3`,
             {
+                physicianID,
                 ...consultation,
                 rowVersion,
             }

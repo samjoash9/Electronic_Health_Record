@@ -9,6 +9,7 @@ import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
+import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
 import { ROLES } from '../../lib/constants';
@@ -169,6 +170,18 @@ export default function Station3ConsultationPage() {
     toast.success('Draft saved on this device.');
     return true;
   };
+
+  // Autosaves a short idle period after any field, the signature, or the
+  // physician selection changes -- so a reload or crash never loses more
+  // than a few seconds of work, without needing the leave-flow's own
+  // manual "Save as draft" button. Silent on success (no toast) since it
+  // runs continuously in the background; draftSavedAt still updates so the
+  // existing "Draft saved ..." label reflects it.
+  useAutosaveDraft(
+    () => saveDraft(formId, { values: getValues(), signature, physicianID }),
+    { values: watch(), signature, physicianID },
+    { stoppedRef: submittedRef, onSaved: setDraftSavedAt },
+  );
 
   const mutation = useMutation({
     mutationFn: (values) => submitStation3({

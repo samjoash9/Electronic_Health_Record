@@ -6,6 +6,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { submitStation2 } from '../../api/forms.api';
+import { clearDraft } from '../../lib/station2Draft';
 import { useAuth } from '../../auth/useAuth';
 import Card from '../../components/ui/Card';
 import Skeleton from '../../components/ui/Skeleton';
@@ -47,6 +48,7 @@ export default function Station2AssessmentPage() {
       rowVersion: form.rowVersion,
     }),
     onSuccess: () => {
+      clearDraft(formId);
       toast.success('Submitted to Station 3.');
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       queryClient.invalidateQueries({ queryKey: ['form', Number(formId)] });
@@ -121,7 +123,10 @@ export default function Station2AssessmentPage() {
               type="button"
               variant="danger"
               size="lg"
-              onClick={() => navigate(`/station2/${formId}/kiosk`)}
+              onClick={() => {
+                clearDraft(formId);
+                navigate(`/station2/${formId}/kiosk`);
+              }}
             >
               Redo assessment
             </Button>

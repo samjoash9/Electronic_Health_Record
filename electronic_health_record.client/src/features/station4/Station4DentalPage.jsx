@@ -9,6 +9,7 @@ import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
+import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station4Draft';
 import { ROLES, DENTAL_INDICATORS } from '../../lib/constants';
@@ -88,7 +89,7 @@ export default function Station4DentalPage() {
   const selectedDentist = findPhysician(physicians, dentistID);
 
   const {
-    register, control, handleSubmit, getValues,
+    register, control, watch, handleSubmit, getValues,
     formState: { isDirty },
   } = useForm({ defaultValues: restoredDraft?.values ?? DEFAULT_VALUES });
 
@@ -107,6 +108,18 @@ export default function Station4DentalPage() {
     toast.success('Draft saved on this device.');
     return true;
   };
+
+  // Autosaves a short idle period after any field, the signature, or the
+  // dentist selection changes -- so a reload or crash never loses more
+  // than a few seconds of work, without needing the leave-flow's own
+  // manual "Save as draft" button. Silent on success (no toast) since it
+  // runs continuously in the background; draftSavedAt still updates so the
+  // existing "Draft saved ..." label reflects it.
+  useAutosaveDraft(
+    () => saveDraft(formId, { values: getValues(), signature, dentistID }),
+    { values: watch(), signature, dentistID },
+    { stoppedRef: submittedRef, onSaved: setDraftSavedAt },
+  );
 
   const mutation = useMutation({
     mutationFn: (values) => submitStation4({

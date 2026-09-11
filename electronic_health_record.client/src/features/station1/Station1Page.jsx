@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,8 @@ import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
 import { station1Schema } from '../../lib/schemas';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
+import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
+import { saveDraft, loadDraft, clearDraft } from '../../lib/station1Draft';
 import EmployeeSearch from './EmployeeSearch';
 import IdentityFields from './IdentityFields';
 import VitalsFields from './VitalsFields';
@@ -35,6 +37,10 @@ export default function Station1Page() {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  // Mirrors mutation.isSuccess but updates synchronously, matching the
+  // pattern in the later stations' submittedRef -- autosave must stop the
+  // instant a submit succeeds so it can't resurrect a just-cleared draft.
+  const submittedRef = useRef(false);
 
   const debugResolver = async (values, context, options) => {
     console.log('[DEBUG] resolver values', values);
@@ -61,20 +67,43 @@ export default function Station1Page() {
 
   const mutation = useMutation({
     mutationFn: submitStation1,
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      submittedRef.current = true;
+      clearDraft(variables.patient.externalEmployeeId);
       toast.success('Submitted to Station 2.');
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       reset(BLANK_VALUES);
       setStep(1);
+      submittedRef.current = false;
     },
     onError: (error) => {
       toast.error(error.message);
     },
   });
 
+  // Autosaves a short idle period after any field or step changes, once an
+  // employee is selected (nothing worth persisting exists before then).
+  // Silent on success -- there is no "Draft saved ..." label on this page
+  // to update, unlike station3/4/5.
+  useAutosaveDraft(
+    () => saveDraft(hasSelectedEmployee ? watch('externalEmployeeId') : null, { values: watch(), step }),
+    { values: watch(), step },
+    { stoppedRef: submittedRef },
+  );
+
   const onSelectEmployee = (employee) => {
-    reset({ ...employee, ...BLANK_VITALS });
-    setStep(2);
+    // A draft from an earlier visit to this same employee (crash, reload,
+    // or just navigating away) takes over instead of starting blank, the
+    // same "restore on selection" shape station3/4/5 use at page load.
+    const restoredDraft = loadDraft(employee.externalEmployeeId);
+    if (restoredDraft) {
+      reset(restoredDraft.values);
+      setStep(restoredDraft.step ?? 2);
+      toast.info('Restored your saved draft.');
+    } else {
+      reset({ ...employee, ...BLANK_VITALS });
+      setStep(2);
+    }
   };
 
   const onSubmit = (values) => {
@@ -186,6 +215,7 @@ export default function Station1Page() {
               variant="danger"
               size="lg"
               onClick={() => {
+                if (hasSelectedEmployee) clearDraft(watch('externalEmployeeId'));
                 reset(BLANK_VALUES);
                 setStep(1);
                 setResetModalOpen(false);
