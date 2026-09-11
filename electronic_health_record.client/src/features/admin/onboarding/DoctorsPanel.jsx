@@ -19,6 +19,7 @@ import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
 import DoctorFormModal from './DoctorFormModal';
 import ResetPasswordModal from './ResetPasswordModal';
+import { DOCTOR_STATIONS } from '../../../lib/constants';
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All Doctors' },
@@ -26,9 +27,14 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'inactive', label: 'Deactivated' },
 ];
 
+const STATION_LABEL = Object.fromEntries(
+  DOCTOR_STATIONS.map((s) => [s.value, `Station ${s.value} — ${s.subtitle}`]),
+);
+
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (d) => `Dr. ${d.firstName} ${d.middleName ? `${d.middleName} ` : ''}${d.surname}` },
   { key: 'prcLicenseNo', header: 'PRC License No.' },
+  { key: 'station', header: 'Station', render: (d) => STATION_LABEL[d.station] ?? '—' },
   { key: 'username', header: 'Username' },
   { key: 'contactNo', header: 'Contact No.', render: (d) => d.contactNo || '—' },
   {
@@ -99,7 +105,15 @@ export default function DoctorsPanel() {
     onError: (err) => toast.error(err.message),
   });
 
-  const table = useTableControls(doctors, { searchFields, filterField });
+  // Station is filtered here rather than through useTableControls: the hook
+  // drives a single filter field, and status already owns it.
+  const [stationFilter, setStationFilter] = useState('all');
+
+  const visibleDoctors = stationFilter === 'all'
+    ? doctors
+    : doctors?.filter((d) => d.station === Number(stationFilter));
+
+  const table = useTableControls(visibleDoctors, { searchFields, filterField });
 
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -118,6 +132,15 @@ export default function DoctorsPanel() {
             onChange={table.onSearch}
             placeholder="Search by name, licence, or username"
             className="w-72"
+          />
+          <Select
+            value={stationFilter}
+            onChange={(e) => setStationFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'All Stations' },
+              ...DOCTOR_STATIONS.map((s) => ({ value: s.value, label: s.label })),
+            ]}
+            className="w-52"
           />
           <Select
             value={table.filter}

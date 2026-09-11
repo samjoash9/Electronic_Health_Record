@@ -4,11 +4,14 @@ import Modal from '../../../components/ui/Modal';
 import Button from '../../../components/ui/Button';
 import Field from '../../../components/ui/Field';
 import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
+import { DOCTOR_STATIONS } from '../../../lib/constants';
 
 /**
- * Register or edit a doctor. On registration the admin also sets the username
- * and the password they will hand over; editing leaves credentials alone, so
- * the account keeps working and a password change goes through Reset password.
+ * Register or edit a doctor. On registration the admin also sets the username,
+ * the password they will hand over, and the station the doctor reports to;
+ * editing leaves credentials alone but may reassign the station, so the account
+ * keeps working and a password change goes through Reset password.
  */
 export default function DoctorFormModal({ doctor, isPending, error, onSubmit, onClose }) {
   const editing = Boolean(doctor);
@@ -22,6 +25,7 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
       middleName: doctor?.middleName ?? '',
       prcLicenseNo: doctor?.prcLicenseNo ?? '',
       contactNo: doctor?.contactNo ?? '',
+      station: doctor?.station ?? '',
       username: doctor?.username ?? '',
       password: '',
     },
@@ -82,8 +86,27 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
               {...register('prcLicenseNo', { required: 'PRC License No. is required.' })}
             />
           </Field>
-          <Field label="Contact No." htmlFor="doctor-contact" className="sm:col-span-2">
+          <Field label="Contact No." htmlFor="doctor-contact">
             <Input id="doctor-contact" {...register('contactNo')} />
+          </Field>
+          <Field
+            label="Station"
+            htmlFor="doctor-station"
+            required
+            hint="The desk this doctor reports to. They go straight here at sign-in."
+            error={errors.station?.message}
+          >
+            <Select
+              id="doctor-station"
+              error={Boolean(errors.station)}
+              options={DOCTOR_STATIONS.map((s) => ({ value: s.value, label: s.label }))}
+              {...register('station', {
+                required: 'A station is required.',
+                // Select values arrive as strings; the API and the route guard
+                // both compare numbers.
+                setValueAs: (v) => (v === '' ? undefined : Number(v)),
+              })}
+            />
           </Field>
         </div>
 
