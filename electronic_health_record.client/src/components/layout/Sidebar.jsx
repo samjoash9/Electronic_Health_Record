@@ -9,8 +9,10 @@ import ChangePasswordModal from '../ui/ChangePasswordModal';
 
 const CHANGE_STATION_LINK = { to: '/stations', label: 'Change Station', icon: LayoutGrid };
 const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon: ShieldCheck };
-// `station` gates each link to the desk this device picked -- stations 3-5 are
-// staffed by different doctors, so only the chosen one belongs in the sidebar.
+// `station` gates each link to a desk -- stations 3-5 are staffed by doctors,
+// each assigned exactly one station by an admin (`user.station`), so only
+// that assigned station belongs in the sidebar. Stations 1-2 are still a
+// per-device admin choice, gated on the device `station` from useStationChoice().
 // A superadmin is pushed all three below, bypassing that filter.
 const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope, station: 3 };
 const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile, station: 4 };
@@ -38,9 +40,12 @@ export default function Sidebar({ collapsed }) {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const superAdmin = isSuperAdmin(user);
+  // Doctors' station links are gated on their admin-assigned `user.station`;
+  // admins' station links are still gated on the device choice from useStationChoice().
+  const gateStation = user?.role === ROLES.DOCTOR ? user?.station : station;
   const links = (LINKS[user?.role] ?? []).filter((link) => {
     if (superAdmin) return link !== ONBOARDING_LINK;
-    return !link.station || link.station === station;
+    return !link.station || link.station === gateStation;
   });
   if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, STATION5_LINK, ONBOARDING_LINK, ACTIVITY_LOGS_LINK);
 
@@ -79,7 +84,7 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       <div className="border-t border-white/15 pt-3">
-        {(user?.role === ROLES.ADMIN || user?.role === ROLES.DOCTOR) && !superAdmin && (
+        {user?.role === ROLES.ADMIN && !superAdmin && (
           <NavLink to={CHANGE_STATION_LINK.to} title={CHANGE_STATION_LINK.label} className={linkClass}>
             <CHANGE_STATION_LINK.icon size={18} className="shrink-0" />
             {!collapsed && CHANGE_STATION_LINK.label}
