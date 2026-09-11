@@ -10,24 +10,26 @@ function normalizedRole(user) {
 // Accepts a user, not a bare role: a superadmin is not tied to one station, so
 // they skip the station picker and land on the dashboard instead.
 //
-// `station` is passed in rather than read here so this stays a pure function --
-// callers that know the device's station (HomeRedirect, LoginPage) supply it.
+// `station` is the device's stored choice, and it applies to admins only --
+// stations 1-2 are a property of the tablet. A doctor's desk is a property of
+// their account, assigned by an admin at onboarding, so it is read off the user
+// and the device's choice is ignored for them.
 //
-// Admins and doctors both work one desk at a time, so a device with no station
-// chosen yet is sent to pick one before it shows any work. They differ in where
-// they go once it is known: a doctor opens their station's queue, while an admin
-// gets the dashboard, their overview across stations 1-2.
+// A doctor with no station is a row that should not exist (the column is
+// required), so this is a safety net rather than a supported state.
 // eslint-disable-next-line react-refresh/only-export-components -- route helper, co-located with the guards that use it
 export function homeRouteFor(user, station) {
   if (isSuperAdmin(user)) return '/dashboard';
 
   const role = normalizedRole(user);
 
-  if (!station && (role === ROLES.ADMIN || role === ROLES.DOCTOR)) {
-    return '/stations';
+  if (role === ROLES.DOCTOR) {
+    return user?.station ? `/station${user.station}` : '/no-station';
   }
 
-  if (role === ROLES.DOCTOR) return `/station${station}`;
+  if (!station && role === ROLES.ADMIN) {
+    return '/stations';
+  }
 
   return ROLE_HOME_PATH[role] ?? '/login';
 }
@@ -71,21 +73,25 @@ export function RequireAuth({ allow, requireSuperAdmin, allowSuperAdmin, childre
 }
 
 // Pins a route to one station. Doctors across stations 3-5 are different
-// people, so a doctor set to one desk must not reach another by typing its
+// people, so a doctor assigned to one desk must not reach another by typing its
 // URL -- the sidebar hiding the link is not enough on its own.
 //
-// A superadmin supervises every desk at once and so is exempt. This is a UX
-// guard, not an authorization boundary: the API still accepts any station's
+// The comparison is against the station on the doctor's account, so unlike the
+// old device-storage check it cannot be defeated by editing localStorage.
+//
+// A superadmin supervises every desk at once and so is exempt. This is still a
+// UX guard, not an authorization boundary: the API accepts any station's
 // submission from any authenticated doctor.
 export function RequireStation({ station, children }) {
   const { user } = useAuth();
 
   if (isSuperAdmin(user)) return children ?? <Outlet />;
 
-  const chosen = readStation(normalizedRole(user));
+  const role = normalizedRole(user);
+  const assigned = role === ROLES.DOCTOR ? user?.station : readStation(role);
 
-  if (chosen !== station) {
-    return <Navigate to={homeRouteFor(user, chosen)} replace />;
+  if (assigned !== station) {
+    return <Navigate to={homeRouteFor(user, assigned)} replace />;
   }
 
   return children ?? <Outlet />;

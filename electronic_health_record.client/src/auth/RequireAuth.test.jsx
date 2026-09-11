@@ -8,9 +8,14 @@ import { ROLES } from '../lib/constants';
 // Mirrors lib/session.js's SESSION_KEY. AuthProvider reads the session through
 // getSession() on mount, so the key has to match exactly or every render comes
 // back anonymous.
-function signInAs(role, { id = 1, adminRole } = {}) {
+function signInAs(role, { id = 1, adminRole, station } = {}) {
   localStorage.setItem('session', JSON.stringify({
-    token: 't', user: { id, name: 'Test User', role, ...(adminRole ? { adminRole } : {}) },
+    token: 't',
+    user: {
+      id, name: 'Test User', role,
+      ...(adminRole ? { adminRole } : {}),
+      ...(station ? { station } : {}),
+    },
   }));
 }
 
@@ -25,7 +30,8 @@ function renderAt(path) {
         <Routes>
           <Route path="/login" element={<div>Login Screen</div>} />
           <Route path="/dashboard" element={<div>Dashboard</div>} />
-          <Route element={<RequireAuth allow={[ROLES.ADMIN, ROLES.DOCTOR]} />}>
+          <Route path="/no-station" element={<div>No Station</div>} />
+          <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
             <Route path="/stations" element={<div>Station Picker</div>} />
           </Route>
           <Route element={<RequireAuth allow={[ROLES.DOCTOR]} allowSuperAdmin />}>
@@ -75,15 +81,19 @@ describe('homeRouteFor', () => {
     expect(homeRouteFor({ role: ROLES.ADMIN, adminRole: 'superadmin' })).toBe('/dashboard');
   });
 
-  // A doctor is assigned to one desk at a time, so where they land depends on
-  // whether this device has already been pointed at a station.
-  it('sends a doctor with no chosen station to the picker', () => {
-    expect(homeRouteFor({ role: ROLES.DOCTOR })).toBe('/stations');
+  // A doctor's desk is assigned by an admin and lives on their account, so the
+  // device's station choice must not affect where they land.
+  it('sends a doctor to the station assigned to their account', () => {
+    expect(homeRouteFor({ role: ROLES.DOCTOR, station: 4 })).toBe('/station4');
+    expect(homeRouteFor({ role: ROLES.DOCTOR, station: 5 })).toBe('/station5');
   });
 
-  it('sends a doctor to whichever station this device is set to', () => {
-    expect(homeRouteFor({ role: ROLES.DOCTOR }, 4)).toBe('/station4');
-    expect(homeRouteFor({ role: ROLES.DOCTOR }, 5)).toBe('/station5');
+  it('ignores the device station for a doctor', () => {
+    expect(homeRouteFor({ role: ROLES.DOCTOR, station: 3 }, 5)).toBe('/station3');
+  });
+
+  it('sends a doctor with no assigned station to the no-station page', () => {
+    expect(homeRouteFor({ role: ROLES.DOCTOR })).toBe('/no-station');
   });
 
   // A superadmin oversees every desk, so a station choice must not pin them
@@ -105,10 +115,10 @@ describe('RequireAuth', () => {
     expect(await screen.findByText('Station Picker')).toBeInTheDocument();
   });
 
-  it('lets a doctor into the station picker', async () => {
-    signInAs(ROLES.DOCTOR);
+  it('keeps a doctor out of the station picker', async () => {
+    signInAs(ROLES.DOCTOR, { station: 3 });
     renderAt('/stations');
-    expect(await screen.findByText('Station Picker')).toBeInTheDocument();
+    expect(await screen.findByText('Station 3 Queue')).toBeInTheDocument();
   });
 
   it('redirects a patient away from the doctor queue', async () => {
@@ -134,9 +144,8 @@ describe('RequireAuth', () => {
 });
 
 describe('RequireStation', () => {
-  it('lets a doctor into the station they picked', async () => {
-    signInAs(ROLES.DOCTOR);
-    chooseStation(ROLES.DOCTOR, 4);
+  it('lets a doctor into the station assigned to their account', async () => {
+    signInAs(ROLES.DOCTOR, { station: 4 });
     renderAt('/station4');
     expect(await screen.findByText('Station 4 Queue')).toBeInTheDocument();
   });
@@ -144,32 +153,30 @@ describe('RequireStation', () => {
   // The whole point of the feature: a doctor assigned to one desk must not be
   // able to reach another desk by typing its URL.
   it('bounces a doctor from a station they are not assigned to', async () => {
-    signInAs(ROLES.DOCTOR);
-    chooseStation(ROLES.DOCTOR, 3);
+    signInAs(ROLES.DOCTOR, { station: 3 });
     renderAt('/station5');
     expect(await screen.findByText('Station 3 Queue')).toBeInTheDocument();
   });
 
-  it('sends a doctor with no chosen station to the picker', async () => {
+  // Station now lives on the account, so editing the device's stored choice
+  // must not move a doctor off their assigned desk.
+  it('ignores a device station choice for a doctor', async () => {
+    signInAs(ROLES.DOCTOR, { station: 3 });
+    chooseStation(ROLES.DOCTOR, 5);
+    renderAt('/station5');
+    expect(await screen.findByText('Station 3 Queue')).toBeInTheDocument();
+  });
+
+  it('sends a doctor with no assigned station to the no-station page', async () => {
     signInAs(ROLES.DOCTOR);
     renderAt('/station3');
-    expect(await screen.findByText('Station Picker')).toBeInTheDocument();
+    expect(await screen.findByText('No Station')).toBeInTheDocument();
   });
 
   // A superadmin supervises all the desks at once, so the per-station gate
   // must not apply to them.
-  it('lets a superadmin into any station regardless of choice', async () => {
+  it('lets a superadmin into any station regardless of assignment', async () => {
     signInAs(ROLES.ADMIN, { adminRole: 'superadmin' });
-    renderAt('/station5');
-    expect(await screen.findByText('Station 5 Queue')).toBeInTheDocument();
-  });
-
-  // Admin and doctor both store a station on the same device; if they shared
-  // one key, an admin on station 1 would drag the doctor to a bad route.
-  it('keeps the admin and doctor station choices separate', async () => {
-    signInAs(ROLES.DOCTOR);
-    chooseStation(ROLES.ADMIN, 1);
-    chooseStation(ROLES.DOCTOR, 5);
     renderAt('/station5');
     expect(await screen.findByText('Station 5 Queue')).toBeInTheDocument();
   });
