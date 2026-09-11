@@ -96,6 +96,10 @@ namespace Electronic_Health_Record.Server.Data
                         "CK_Physician_CredentialSet",
                         "([Username] IS NULL AND [Email] IS NULL AND [PasswordHash] IS NULL)" +
                         " OR ([Username] IS NOT NULL AND [Email] IS NOT NULL AND [PasswordHash] IS NOT NULL)");
+                    // Stations 1-2 are admin desks; a doctor only ever staffs 3-5.
+                    t.HasCheckConstraint(
+                        "CK_Physician_Station",
+                        "[Station] IN (3, 4, 5)");
                 });
                 entity.HasKey(p => p.PhysicianID);
                 entity.Property(p => p.Username).HasMaxLength(30).IsRequired();
@@ -112,6 +116,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.PRCLicenseNo).HasMaxLength(20).IsRequired();
                 entity.HasIndex(p => p.PRCLicenseNo).IsUnique();
                 entity.Property(p => p.ContactNo).HasMaxLength(20).IsUnicode(false);
+                entity.Property(p => p.Station).IsRequired();
                 entity.Property(p => p.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");

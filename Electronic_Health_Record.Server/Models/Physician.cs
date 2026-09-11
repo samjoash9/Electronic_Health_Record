@@ -27,6 +27,13 @@ namespace Electronic_Health_Record.Server.Models
         public string PRCLicenseNo { get; set; } = string.Empty;
         public string? ContactNo { get; set; }
 
+        /// <summary>
+        /// Which clinical desk this doctor staffs: 3 Consultation, 4 Dental, 5 Vision.
+        /// Assigned by an admin at onboarding, not chosen at sign-in -- a doctor's station
+        /// is part of who they are, so it travels with the account, not the device.
+        /// </summary>
+        public int Station { get; set; }
+
         public bool IsActive { get; set; } = true;
         public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }

@@ -380,6 +380,7 @@ namespace Electronic_Health_Record.Server.Data
                         MiddleName = "H.",
                         PRCLicenseNo = "PRC-12345",
                         ContactNo = "09171234567",
+                        Station = 3,
                         IsActive = true,
                         CreatedAt = now,
                         UpdatedAt = now
@@ -398,6 +399,26 @@ namespace Electronic_Health_Record.Server.Data
                         MiddleName = "E.",
                         PRCLicenseNo = "PRC-67890",
                         ContactNo = "09176789012",
+                        Station = 4,
+                        IsActive = true,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    },
+                    new Physician
+                    {
+                        Username = "jtan",
+                        Email = "jtan@pgas.ph",
+                        PasswordHash = PhysicianHasher.HashPassword(new Physician(), "password123"),
+                        MustChangePassword = true,
+                        PasswordSetAt = now,
+                        PasswordChangedAt = null,
+                        Surname = "Tan",
+                        FirstName = "Jonas",
+                        MiddleName = "R.",
+                        PRCLicenseNo = "PRC-24680",
+                        ContactNo = "09173456789",
+                        // Station 5 so every desk has a doctor in development.
+                        Station = 5,
                         IsActive = true,
                         CreatedAt = now,
                         UpdatedAt = now
@@ -633,13 +654,13 @@ namespace Electronic_Health_Record.Server.Data
             {
                 var portalPatients = await context.Patients.OrderBy(p => p.PatientID).Take(3).ToListAsync();
 
-                // Usernames are derived from the employee id at provisioning time so
-                // Station 1 can hand the patient a predictable handle; the id itself is
-                // no longer a login identifier.
+                // Usernames are whatever the patient asked the admin for at Station 1
+                // -- there is no auto-derived fallback, so seed data just picks
+                // something plausible for each fixture.
                 context.PatientAccounts.Add(new PatientAccount
                 {
                     PatientID = portalPatients[0].PatientID,
-                    Username = UsernameFor(portalPatients[0].ExternalEmployeeId),
+                    Username = "johndoe",
                     PasswordHash = PatientHasher.HashPassword(new PatientAccount(), "patient123"),
                     // settled account: chose their own password after activating
                     MustChangePassword = false,
@@ -656,7 +677,7 @@ namespace Electronic_Health_Record.Server.Data
                 context.PatientAccounts.Add(new PatientAccount
                 {
                     PatientID = portalPatients[1].PatientID,
-                    Username = UsernameFor(portalPatients[1].ExternalEmployeeId),
+                    Username = "janeroe",
                     MustChangePassword = false,
                     Status = "Provisioned",
                     ProvisionedAt = now,
@@ -669,7 +690,7 @@ namespace Electronic_Health_Record.Server.Data
                 context.PatientAccounts.Add(new PatientAccount
                 {
                     PatientID = portalPatients[2].PatientID,
-                    Username = UsernameFor(portalPatients[2].ExternalEmployeeId),
+                    Username = "johnsmith",
                     PasswordHash = PatientHasher.HashPassword(new PatientAccount(), "patient123"),
                     MustChangePassword = true,
                     PasswordSetAt = now,
@@ -683,17 +704,6 @@ namespace Electronic_Health_Record.Server.Data
 
                 await context.SaveChangesAsync();
             }
-        }
-
-        // "EMP-0001" -> "emp0001". Keeps the handle easy to dictate at the counter
-        // while staying inside the 30-char unique column.
-        private static string UsernameFor(string externalEmployeeId)
-        {
-            var cleaned = new string(externalEmployeeId
-                .Where(char.IsLetterOrDigit)
-                .ToArray())
-                .ToLowerInvariant();
-            return cleaned.Length > 30 ? cleaned[..30] : cleaned;
         }
 
         // -----------------------------------------------------------------
