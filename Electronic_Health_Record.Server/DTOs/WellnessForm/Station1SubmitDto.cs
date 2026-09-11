@@ -50,6 +50,13 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
 
         [MaxLength(20)]
         public string? ContactNo { get; set; }
+
+        // Only required when this employee has no PatientAccount yet -- the
+        // admin asks the patient what they want their login handle to be.
+        // Required-ness is enforced in the controller (existing-account
+        // submissions never populate this), not here via [Required].
+        [MaxLength(30)]
+        public string? Username { get; set; }
     }
 
     // Matches the range checks in vitalsSchema (src/lib/schemas.js).

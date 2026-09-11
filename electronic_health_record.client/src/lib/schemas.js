@@ -55,6 +55,10 @@ export const identitySchema = z.object({
   agencyOffice: z.string().optional().or(z.literal('')),
   position: z.string().optional().or(z.literal('')),
   contactNo: z.string().optional().or(z.literal('')),
+  // Only rendered/required when this employee has no PatientAccount yet --
+  // see hasAccount handling in Station1Page. Left optional here so the schema
+  // still validates for returning patients, where the field never appears.
+  username: z.string().optional().or(z.literal('')),
 });
 
 export const station1Schema = identitySchema.merge(vitalsObjectSchema)
@@ -62,3 +66,10 @@ export const station1Schema = identitySchema.merge(vitalsObjectSchema)
     message: 'Diastolic must be lower than systolic',
     path: ['bpDiastolic'],
   });
+
+// Applied on top of station1Schema only when the selected employee needs a
+// new account -- requires username, since the base schema leaves it optional
+// for the (more common) returning-patient case.
+export const newAccountUsernameSchema = z.object({
+  username: z.string().min(1, 'Ask the patient what username they want').max(30, 'Too long'),
+});

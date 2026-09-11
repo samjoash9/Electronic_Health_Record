@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { submitStation1 } from '../../api/forms.api';
+import { hasPatientAccount } from '../../api/patients.api';
 import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
-import { station1Schema } from '../../lib/schemas';
+import { station1Schema, newAccountUsernameSchema } from '../../lib/schemas';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
@@ -26,7 +27,7 @@ const BLANK_VITALS = {
 const BLANK_VALUES = {
   externalEmployeeId: '', surname: '', firstName: '', middleName: '',
   birthdate: '', sex: '', civilStatus: '', address: '',
-  agencyOffice: '', position: '', contactNo: '',
+  agencyOffice: '', position: '', contactNo: '', username: '',
   ...BLANK_VITALS,
 };
 
@@ -42,10 +43,18 @@ export default function Station1Page() {
   // instant a submit succeeds so it can't resurrect a just-cleared draft.
   const submittedRef = useRef(false);
 
+  // needsUsername is read from a ref, not the outer closure variable, because
+  // this resolver is captured once by useForm and never recreated -- see
+  // needsUsernameRef below.
+  const needsUsernameRef = useRef(false);
+
   const debugResolver = async (values, context, options) => {
     console.log('[DEBUG] resolver values', values);
     try {
-      const base = zodResolver(station1Schema);
+      const schema = needsUsernameRef.current
+        ? station1Schema.and(newAccountUsernameSchema)
+        : station1Schema;
+      const base = zodResolver(schema);
       const result = await base(values, context, options);
       console.log('[DEBUG] resolver result', result);
       return result;
@@ -64,6 +73,19 @@ export default function Station1Page() {
 
   const hasSelectedEmployee = Boolean(watch('externalEmployeeId'));
   const unlockedUpTo = hasSelectedEmployee ? STEPS.length : 1;
+
+  // Once an employee is picked, find out whether they already have a patient
+  // portal account. If not, the admin must ask them for a desired username
+  // (IdentityFields renders that field only in this case) -- there is no
+  // auto-derived fallback any more.
+  const externalEmployeeId = watch('externalEmployeeId');
+  const { data: hasAccount } = useQuery({
+    queryKey: ['patientHasAccount', externalEmployeeId],
+    queryFn: () => hasPatientAccount(externalEmployeeId),
+    enabled: hasSelectedEmployee,
+  });
+  const needsUsername = hasSelectedEmployee && hasAccount === false;
+  needsUsernameRef.current = needsUsername;
 
   const mutation = useMutation({
     mutationFn: submitStation1,
@@ -101,7 +123,7 @@ export default function Station1Page() {
       setStep(restoredDraft.step ?? 2);
       toast.info('Restored your saved draft.');
     } else {
-      reset({ ...employee, ...BLANK_VITALS });
+      reset({ ...employee, username: '', ...BLANK_VITALS });
       setStep(2);
     }
   };
@@ -109,7 +131,7 @@ export default function Station1Page() {
   const onSubmit = (values) => {
     const {
       externalEmployeeId, surname, firstName, middleName, birthdate,
-      sex, civilStatus, address, agencyOffice, position, contactNo,
+      sex, civilStatus, address, agencyOffice, position, contactNo, username,
       weightKg, heightCm, bpSystolic, bpDiastolic, tempCelsius, heartRate, respRate,
     } = values;
 
@@ -118,6 +140,10 @@ export default function Station1Page() {
       patient: {
         externalEmployeeId, surname, firstName, middleName, birthdate,
         sex, civilStatus, address, agencyOffice, position, contactNo,
+        // Only meaningful (and only validated as required) when needsUsername
+        // was true -- omitted as '' otherwise, which the server ignores since
+        // it only reads Username on the no-account-yet branch.
+        username: needsUsername ? username : undefined,
       },
       vitals: {
         weightKg, heightCm, bpSystolic, bpDiastolic, tempCelsius, heartRate, respRate,
@@ -145,7 +171,15 @@ export default function Station1Page() {
       </Card>
 
       {step === 1 && <EmployeeSearch onSelect={onSelectEmployee} />}
-      {step === 2 && <IdentityFields register={register} watch={watch} control={control} />}
+      {step === 2 && (
+        <IdentityFields
+          register={register}
+          watch={watch}
+          control={control}
+          errors={errors}
+          needsUsername={needsUsername}
+        />
+      )}
       {step === 3 && <VitalsFields register={register} watch={watch} errors={errors} />}
 
       <div className="flex justify-between gap-2 rounded-lg bg-surface px-4 py-3">

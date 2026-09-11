@@ -7,11 +7,32 @@ import Field from '../../components/ui/Field';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 
-export default function IdentityFields({ register, watch, control }) {
+export default function IdentityFields({ register, watch, control, errors, needsUsername }) {
   const age = ageFrom(watch('birthdate'));
 
   return (
     <Card title="Personal Information">
+      {needsUsername && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <Field
+            label="Desired Username (ask the patient)"
+            htmlFor="username"
+            required
+            error={errors?.username?.message}
+          >
+            <Input
+              id="username"
+              placeholder="e.g. juandelacruz"
+              {...register('username')}
+            />
+          </Field>
+          <p className="mt-1 text-xs text-ink-500">
+            This employee has no patient portal account yet. Default password will be{' '}
+            <code>password123</code>; the patient must change it on first login.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-3">
         <Field label="Surname" htmlFor="surname">
           <Input id="surname" disabled {...register('surname')} />

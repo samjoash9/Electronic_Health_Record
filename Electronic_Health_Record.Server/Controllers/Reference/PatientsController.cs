@@ -106,6 +106,33 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             }
         }
 
+        // GET /api/patients/has-account/{externalEmployeeId}
+        // Lets Station 1 know, once an employee is picked, whether a
+        // PatientAccount already exists for them -- if not, the admin must
+        // ask the patient for a desired username before submitting.
+        [Authorize]
+        [HttpGet("has-account/{externalEmployeeId}")]
+        public async Task<IActionResult> HasAccount(string externalEmployeeId)
+        {
+            try
+            {
+                var patientID = await _context.Patients
+                    .Where(p => p.ExternalEmployeeId == externalEmployeeId)
+                    .Select(p => (int?)p.PatientID)
+                    .FirstOrDefaultAsync();
+
+                var hasAccount = patientID.HasValue
+                    && await _context.PatientAccounts.AnyAsync(a => a.PatientID == patientID.Value);
+
+                return Ok(new { hasAccount });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to check account status for employee {ExternalEmployeeId}.", externalEmployeeId);
+                return StatusCode(500, "An error occurred while checking account status.");
+            }
+        }
+
         // PUT    /api/patients/:id → full update (edit patient profile)
 
 

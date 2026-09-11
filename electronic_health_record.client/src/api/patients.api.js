@@ -73,3 +73,23 @@ export async function getPatient(patientID) {
     throw toApiError(error);
   }
 }
+
+// Station 1: once an employee is picked, checks whether they already have a
+// PatientAccount. If not, the admin must ask the patient for a username
+// before the registration can be submitted.
+export async function hasPatientAccount(externalEmployeeId) {
+  if (USE_MOCK) {
+    await delay(100);
+    const { patients, patientAccounts } = db.read();
+    const patient = patients.find((p) => p.externalEmployeeId === externalEmployeeId);
+    if (!patient) return false;
+    return patientAccounts.some((a) => a.patientID === patient.patientID);
+  }
+
+  try {
+    const { data } = await client.get(`/patients/has-account/${externalEmployeeId}`);
+    return Boolean(data?.hasAccount);
+  } catch (error) {
+    throw toApiError(error);
+  }
+}

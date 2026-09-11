@@ -289,6 +289,30 @@ export default function FormDetailPage() {
                 </div>
               </SubPanel>
             ))}
+
+            <div className="mt-1 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
+                >
+                  <BadgeCheck size={16} strokeWidth={1.9} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Dentist</p>
+                  <p className="text-sm font-semibold text-ink-900">
+                    {form.dentist ? `Dr. ${form.dentist.firstName} ${form.dentist.surname}` : '—'}
+                  </p>
+                  <p className="text-xs text-ink-500">PRC License No. {form.dentist?.prcLicenseNo ?? '—'}</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-start sm:items-end">
+                {form.dentalSignature && (
+                  <img src={form.dentalSignature} alt="Dentist signature" className="h-16 rounded border border-line bg-surface" />
+                )}
+                <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.dentalSignedAt)}</p>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-ink-500">Not yet completed.</p>
@@ -326,6 +350,30 @@ export default function FormDetailPage() {
                 </SubPanel>
               );
             })}
+
+            <div className="mt-1 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
+                >
+                  <BadgeCheck size={16} strokeWidth={1.9} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Optometrist</p>
+                  <p className="text-sm font-semibold text-ink-900">
+                    {form.optometrist ? `Dr. ${form.optometrist.firstName} ${form.optometrist.surname}` : '—'}
+                  </p>
+                  <p className="text-xs text-ink-500">PRC License No. {form.optometrist?.prcLicenseNo ?? '—'}</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-start sm:items-end">
+                {form.visionSignature && (
+                  <img src={form.visionSignature} alt="Optometrist signature" className="h-16 rounded border border-line bg-surface" />
+                )}
+                <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.visionSignedAt)}</p>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-ink-500">Not yet completed.</p>

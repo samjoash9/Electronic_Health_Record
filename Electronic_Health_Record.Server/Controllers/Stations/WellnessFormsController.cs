@@ -3,6 +3,7 @@ using Electronic_Health_Record.Server.DTOs.WellnessForm;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,13 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         private readonly ElectronicHealthRecordDbContext _context;
         private readonly ICurrentUser _currentUser;
         private readonly ILogger<WellnessFormsController> _logger;
+        private readonly PasswordHasher<PatientAccount> _patientPasswordHasher = new();
+
+        // Every patient account provisioned at Station 1 starts on this
+        // password; the patient is forced to replace it on first login
+        // (MustChangePassword below). Same default Admin/Physician get from
+        // UserManagementController.DefaultPassword.
+        private const string DefaultPatientPassword = "password123";
 
         public WellnessFormsController(
             ElectronicHealthRecordDbContext context,
@@ -174,15 +182,37 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 var hasAccount = await _context.PatientAccounts.AnyAsync(a => a.PatientID == patient.PatientID);
                 if (!hasAccount)
                 {
-                    _context.PatientAccounts.Add(new PatientAccount
+                    // First registration: the admin must have asked the patient what
+                    // username they want. No auto-derived fallback -- Username on the
+                    // DTO is required exactly in this branch.
+                    if (string.IsNullOrWhiteSpace(dto.Patient.Username))
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = "Username is required when registering a new patient account." });
+                    }
+
+                    var usernameTaken = await _context.PatientAccounts
+                        .AnyAsync(a => a.Username == dto.Patient.Username);
+                    if (usernameTaken)
+                    {
+                        await transaction.RollbackAsync();
+                        return Conflict(new { message = "That username is already taken." });
+                    }
+
+                    var account = new PatientAccount
                     {
                         PatientID = patient.PatientID,
-                        Username = UsernameFor(patient.ExternalEmployeeId),
-                        Status = "Provisioned",
+                        Username = dto.Patient.Username,
+                        Status = "Active",
+                        MustChangePassword = true,
+                        PasswordSetAt = now,
                         ProvisionedAt = now,
+                        ActivatedAt = now,
                         CreatedAt = now,
                         UpdatedAt = now,
-                    });
+                    };
+                    account.PasswordHash = _patientPasswordHasher.HashPassword(account, DefaultPatientPassword);
+                    _context.PatientAccounts.Add(account);
                 }
 
                 var form = new WellnessForm
@@ -850,6 +880,44 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     .FirstOrDefaultAsync()
                 : null;
 
+            // Station 4's examining dentist -- a Physician row, tracked apart from
+            // PhysicianID (see DentistID on WellnessForm).
+            var dentist = form.DentistID.HasValue
+                ? await _context.Physicians
+                    .Where(p => p.PhysicianID == form.DentistID.Value)
+                    .Select(p => new DTOs.Physician.PhysicianResponseDto
+                    {
+                        PhysicianID = p.PhysicianID,
+                        Surname = p.Surname,
+                        FirstName = p.FirstName,
+                        MiddleName = p.MiddleName,
+                        PRCLicenseNo = p.PRCLicenseNo,
+                        ContactNo = p.ContactNo,
+                        CreatedAt = p.CreatedAt,
+                        UpdatedAt = p.UpdatedAt,
+                    })
+                    .FirstOrDefaultAsync()
+                : null;
+
+            // Station 5's examining optometrist -- a Physician row, tracked apart
+            // from PhysicianID/DentistID (see OptometristID on WellnessForm).
+            var optometrist = form.OptometristID.HasValue
+                ? await _context.Physicians
+                    .Where(p => p.PhysicianID == form.OptometristID.Value)
+                    .Select(p => new DTOs.Physician.PhysicianResponseDto
+                    {
+                        PhysicianID = p.PhysicianID,
+                        Surname = p.Surname,
+                        FirstName = p.FirstName,
+                        MiddleName = p.MiddleName,
+                        PRCLicenseNo = p.PRCLicenseNo,
+                        ContactNo = p.ContactNo,
+                        CreatedAt = p.CreatedAt,
+                        UpdatedAt = p.UpdatedAt,
+                    })
+                    .FirstOrDefaultAsync()
+                : null;
+
             return new
             {
                 form.FormID,
@@ -878,14 +946,20 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.ImpressionClinical,
                 form.ManagementTreatment,
                 form.Station3SubmittedAt,
+                form.DentistID,
+                form.DentalSignature,
                 form.DentalSignedAt,
                 form.Station4SubmittedAt,
+                form.OptometristID,
+                form.VisionSignature,
                 form.VisionSignedAt,
                 form.Station5SubmittedAt,
                 form.CreatedAt,
                 form.UpdatedAt,
                 Patient = patient,
                 Physician = physician,
+                Dentist = dentist,
+                Optometrist = optometrist,
                 FamilyMedicalHistory = await _context.FamilyMedicalHistories
                     .Where(f => f.FormID == form.FormID).ToListAsync(),
                 PastMedicalHistory = await _context.PastMedicalHistories
@@ -947,12 +1021,6 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             return await _context.Patients
                 .Where(p => ids.Contains(p.PatientID))
                 .ToDictionaryAsync(p => p.PatientID);
-        }
-
-        private static string UsernameFor(string externalEmployeeId)
-        {
-            var cleaned = new string(externalEmployeeId.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-            return cleaned.Length > 30 ? cleaned[..30] : cleaned;
         }
     }
 }
