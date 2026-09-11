@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { USE_MOCK, client, toApiError } from './client';
 import { db } from './mock/db';
 import { delay } from './mock/delay';
@@ -18,7 +19,9 @@ export async function searchEmployees(query) {
     const { data } = await client.get('/employees', { params: { q: query } });
     return data;
   } catch (error) {
-    throw toApiError(error);
+    const err = toApiError(error);
+    toast.error(err.message || 'Failed to fetch employees');
+    return [];
   }
 }
 

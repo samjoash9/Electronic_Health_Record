@@ -1,3 +1,4 @@
+import { toast } from 'react-toastify';
 import { USE_MOCK, client, toApiError, conflictError } from './client';
 import { db } from './mock/db';
 import { delay } from './mock/delay';
@@ -81,7 +82,9 @@ export async function getQueue(status) {
     });
     return data.data ?? data;
   } catch (error) {
-    throw toApiError(error);
+    const err = toApiError(error);
+    toast.error(err.message || 'Failed to load queue');
+    return [];
   }
 }
 
@@ -97,7 +100,9 @@ export async function getAllForms() {
     const { data } = await client.get('/wellnessforms');
     return data.data ?? data;
   } catch (error) {
-    throw toApiError(error);
+    const err = toApiError(error);
+    toast.error(err.message || 'Failed to load forms');
+    return [];
   }
 }
 

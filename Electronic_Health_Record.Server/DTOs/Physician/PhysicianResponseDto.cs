@@ -17,6 +17,7 @@ namespace Electronic_Health_Record.Server.DTOs.Physician
         // which accounts have never been claimed.
         public bool MustChangePassword { get; set; }
         public bool IsActive { get; set; }
+        public bool CanSign { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 

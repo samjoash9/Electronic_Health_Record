@@ -9,6 +9,7 @@ namespace Electronic_Health_Record.Server.Models
     {
         public int AdminID { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
         // Permission tier within the Admin table: "admin" (hospital staff working
         // Stations 1-2) or "superadmin". Distinct from the session's role field,
         // which says which table the account authenticated against.

@@ -140,9 +140,18 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasIndex(a => a.Username).IsUnique();
             });
 
-            modelBuilder.Entity<AdminSession>(entity =>
+            modelBuilder.Entity<UserSession>(entity =>
             {
-                entity.ToTable("AdminSession");
+                entity.ToTable("UserSession", t =>
+                {
+                    // a session belongs to a staff account or a physician account, never both
+                    // and never neither. spelled out longhand because T-SQL has no boolean type:
+                    // "([AdminID] IS NULL) <> ([PhysicianID] IS NULL)" cannot compare two predicates.
+                    t.HasCheckConstraint(
+                        "CK_UserSession_ExactlyOnePrincipal",
+                        "([AdminID] IS NOT NULL AND [PhysicianID] IS NULL)" +
+                        " OR ([AdminID] IS NULL AND [PhysicianID] IS NOT NULL)");
+                });
                 entity.HasKey(s => s.SessionID);
                 // char(64) is the exact width of SHA-256 rendered as lowercase hex
                 entity.Property(s => s.TokenHash).HasColumnType("char(64)").IsRequired();
@@ -153,6 +162,13 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasOne<Admin>()
                     .WithMany()
                     .HasForeignKey(s => s.AdminID)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<Physician>()
+                    .WithMany()
+                    .HasForeignKey(s => s.PhysicianID)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
