@@ -272,7 +272,9 @@ public class AuthController : ControllerBase
                     physician
                 ),
 
-                AccountType = "Physician"
+                AccountType = "Physician",
+
+                Station = physician.Station
             });
         }
 
@@ -1035,7 +1037,11 @@ public async Task<IActionResult> GetUser()
                 middleName = physician.MiddleName,
                 surname = physician.Surname,
 
-                accountType = "Physician"
+                accountType = "Physician",
+
+                // The client restores its session from here, so omitting the
+                // station would drop a doctor to the no-station page on refresh.
+                station = physician.Station
             });
         }
 

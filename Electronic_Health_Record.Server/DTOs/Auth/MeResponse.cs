@@ -11,6 +11,10 @@
         // Admin only: "admin" or "superadmin". Null for Physician/Patient.
         public string? Role { get; set; }
 
+        // Physician only: the desk they staff (3 Consultation, 4 Dental,
+        // 5 Vision). Null for Admin/Patient.
+        public int? Station { get; set; }
+
         // Patient only: the employee ID from the HR sync (Patient.ExternalEmployeeId).
         // Null for Admin/Physician.
         public string? Employee { get; set; }

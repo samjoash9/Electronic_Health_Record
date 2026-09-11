@@ -32,6 +32,13 @@ namespace Electronic_Health_Record.Server.DTOs.Auth
         // Physician / Patient:
         //     null
         public string? Role { get; set; }
+
+        // Physician only: the desk they staff (3 Consultation, 4 Dental,
+        // 5 Vision), assigned by an admin at onboarding. The client routes
+        // straight to this station at sign-in.
+        //
+        // Admin / Patient: null.
+        public int? Station { get; set; }
     }
 }
 
