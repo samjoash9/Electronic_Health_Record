@@ -104,7 +104,7 @@ namespace Electronic_Health_Record.Server.Data
                 // without having to reset an account by hand first.
                 context.Admins.AddRange(
                     new Admin
-                    {
+                    {//kini ra ang avail
                         Username = "superadmin",
                         Role = AdminRoles.SuperAdmin,
                         ContactNo = "09170000000",
