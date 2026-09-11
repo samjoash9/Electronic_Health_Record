@@ -32,6 +32,8 @@ function toPhysician(row) {
     middleName: row.middleName ?? null,
     prcLicenseNo: row.prcLicenseNo,
     contactNo: row.contactNo ?? null,
+    // Which desk this doctor staffs (3 Consultation, 4 Dental, 5 Vision).
+    station: row.station,
     mustChangePassword: Boolean(row.mustChangePassword),
     isActive: row.isActive,
     createdAt: row.createdAt ?? null,
@@ -62,7 +64,7 @@ export async function listPhysicians() {
 }
 
 export async function createPhysician({
-  surname, firstName, middleName, prcLicenseNo, contactNo, username, password,
+  surname, firstName, middleName, prcLicenseNo, contactNo, username, password, station,
 }) {
   if (USE_MOCK) {
     await delay(300);
@@ -91,6 +93,7 @@ export async function createPhysician({
         middleName: middleName?.trim() || null,
         prcLicenseNo: prcLicenseNo.trim(),
         contactNo: contactNo?.trim() || null,
+        station,
         isActive: true,
         createdAt: nowIso(),
         updatedAt: nowIso(),
@@ -101,7 +104,7 @@ export async function createPhysician({
   }
   try {
     const { data } = await client.post('/physicians', {
-      surname, firstName, middleName, prcLicenseNo, contactNo, username, password,
+      surname, firstName, middleName, prcLicenseNo, contactNo, username, password, station,
     });
     return data;
   } catch (error) {
@@ -111,7 +114,7 @@ export async function createPhysician({
 
 /** Profile fields only. Credentials move through resetPhysicianPassword. */
 export async function updatePhysician(physicianID, {
-  surname, firstName, middleName, prcLicenseNo, contactNo,
+  surname, firstName, middleName, prcLicenseNo, contactNo, station,
 }) {
   if (USE_MOCK) {
     await delay(300);
@@ -131,13 +134,14 @@ export async function updatePhysician(physicianID, {
       physician.middleName = middleName?.trim() || null;
       physician.prcLicenseNo = prcLicenseNo.trim();
       physician.contactNo = contactNo?.trim() || null;
+      physician.station = station;
       physician.updatedAt = nowIso();
       return toPhysician(physician);
     });
   }
   try {
     const { data } = await client.put(`/physicians/${physicianID}`, {
-      surname, firstName, middleName, prcLicenseNo, contactNo,
+      surname, firstName, middleName, prcLicenseNo, contactNo, station,
     });
     return data;
   } catch (error) {

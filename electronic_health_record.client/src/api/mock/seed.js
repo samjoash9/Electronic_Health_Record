@@ -284,6 +284,7 @@ export function buildSeed() {
         middleName: 'B',
         prcLicenseNo: '0123456',
         contactNo: '09171234567',
+        station: 3,
         // settled account: the Station 3 fixtures are signed by this doctor, so
         // it must not sit behind a first-login password prompt
         mustChangePassword: false,
@@ -298,7 +299,21 @@ export function buildSeed() {
         middleName: 'E',
         prcLicenseNo: '0987654',
         contactNo: '09176789012',
+        station: 4,
         // freshly onboarded by an admin: still on the password they were handed
+        mustChangePassword: true,
+        isActive: true,
+      },
+      {
+        physicianID: 3,
+        username: 'jtan',
+        password: 'password123',
+        surname: 'Tan',
+        firstName: 'Jonas',
+        middleName: 'R',
+        prcLicenseNo: '0456789',
+        contactNo: '09173456789',
+        station: 5,
         mustChangePassword: true,
         isActive: true,
       },
@@ -351,7 +366,7 @@ export function buildSeed() {
       adminID: 4,
       patientID: 2,
       patientAccountID: 2,
-      physicianID: 3,
+      physicianID: 4,
       formID: 1,
       fmhID: 1,
       pmhID: 1,

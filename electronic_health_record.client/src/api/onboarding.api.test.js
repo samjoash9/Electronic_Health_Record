@@ -84,6 +84,33 @@ describe('physician onboarding', () => {
     expect(stored.password).toBe('Fresh#54321');
     expect(stored.mustChangePassword).toBe(true);
   });
+
+  it('stores the station a doctor is assigned to', async () => {
+    const created = await createPhysician({
+      surname: 'Cruz', firstName: 'Ana', middleName: 'B',
+      prcLicenseNo: '1122334', contactNo: '09170001111',
+      username: 'acruz', password: 'password123', station: 5,
+    });
+
+    expect(created.station).toBe(5);
+    const listed = await listPhysicians();
+    expect(listed.find((p) => p.physicianID === created.physicianID).station).toBe(5);
+  });
+
+  it('reassigns a doctor to another station', async () => {
+    const created = await createPhysician({
+      surname: 'Reyes', firstName: 'Ben', middleName: 'C',
+      prcLicenseNo: '5566778', contactNo: '09170002222',
+      username: 'breyes', password: 'password123', station: 3,
+    });
+
+    const updated = await updatePhysician(created.physicianID, {
+      surname: 'Reyes', firstName: 'Ben', middleName: 'C',
+      prcLicenseNo: '5566778', contactNo: '09170002222', station: 4,
+    });
+
+    expect(updated.station).toBe(4);
+  });
 });
 
 describe('employee onboarding', () => {
