@@ -40,18 +40,18 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(p => p.PatientID);
                 entity.Property(p => p.ExternalEmployeeId).HasMaxLength(50).IsRequired();
                 entity.HasIndex(p => p.ExternalEmployeeId).IsUnique();
-                entity.Property(p => p.Surname).HasMaxLength(50).IsRequired();
-                entity.Property(p => p.FirstName).HasMaxLength(50).IsRequired();
-                entity.Property(p => p.MiddleName).HasMaxLength(50);
+                // Widths mirror Employee: Station 1 copies an employee record onto
+                // the patient verbatim, so anything the HR feed fits must fit here.
+                entity.Property(p => p.Surname).HasMaxLength(150).IsRequired();
+                entity.Property(p => p.FirstName).HasMaxLength(150).IsRequired();
+                entity.Property(p => p.MiddleName).HasMaxLength(150);
                 entity.Property(p => p.Birthdate).HasColumnType("date");
-                // Wire value is the full word ("Male"/"Female"), not an M/F code --
-                // see SEX_OPTIONS in src/lib/constants.js.
-                entity.Property(p => p.Sex).HasMaxLength(10).IsUnicode(false).IsRequired();
-                entity.Property(p => p.CivilStatus).HasMaxLength(20).IsUnicode(false).IsRequired();
-                entity.Property(p => p.Address).HasMaxLength(255);
-                entity.Property(p => p.AgencyOffice).HasMaxLength(100);
-                entity.Property(p => p.Position).HasMaxLength(50);
-                entity.Property(p => p.ContactNo).HasMaxLength(20).IsUnicode(false);
+                entity.Property(p => p.Sex).HasMaxLength(150).IsRequired();
+                entity.Property(p => p.CivilStatus).HasMaxLength(150).IsRequired();
+                entity.Property(p => p.Address).HasMaxLength(400);
+                entity.Property(p => p.AgencyOffice).HasMaxLength(200);
+                entity.Property(p => p.Position).HasMaxLength(400);
+                entity.Property(p => p.ContactNo).HasMaxLength(150).IsUnicode(false);
                 entity.Property(p => p.LastSyncedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
                 entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");

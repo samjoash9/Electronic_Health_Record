@@ -16,39 +16,42 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
     // picker supplies but the identity form itself does not render.
     public class Station1PatientDto
     {
+        // Widths match Employee (and the Patient columns these are copied into),
+        // not the narrower directory-sized originals -- the HR feed returns free
+        // text that overflowed those, which failed ModelState here as a bare 400.
         [Required, MaxLength(50)]
         public string ExternalEmployeeId { get; set; } = string.Empty;
 
-        [Required, MaxLength(50)]
+        [Required, MaxLength(150)]
         public string Surname { get; set; } = string.Empty;
 
-        [Required, MaxLength(50)]
+        [Required, MaxLength(150)]
         public string FirstName { get; set; } = string.Empty;
 
-        [MaxLength(50)]
+        [MaxLength(150)]
         public string? MiddleName { get; set; }
 
         [Required, DataType(DataType.Date)]
         public DateTime Birthdate { get; set; }
 
-        // Wire value is the full word -- SEX_OPTIONS in src/lib/constants.js is
-        // ['Male', 'Female'], populated straight from the employee record.
-        [Required, MaxLength(10)]
+        // Free text in the HR feed rather than the ['Male', 'Female'] of
+        // SEX_OPTIONS in src/lib/constants.js, so sized like Employee.Sex.
+        [Required, MaxLength(150)]
         public string Sex { get; set; } = string.Empty;
 
-        [Required, MaxLength(20)]
+        [Required, MaxLength(150)]
         public string CivilStatus { get; set; } = string.Empty;
 
-        [MaxLength(255)]
+        [MaxLength(400)]
         public string? Address { get; set; }
 
-        [MaxLength(100)]
+        [MaxLength(200)]
         public string? AgencyOffice { get; set; }
 
-        [MaxLength(50)]
+        [MaxLength(400)]
         public string? Position { get; set; }
 
-        [MaxLength(20)]
+        [MaxLength(150)]
         public string? ContactNo { get; set; }
 
         // Only required when this employee has no PatientAccount yet -- the
