@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, LayoutDashboard, Table, ClipboardList, ListChecks, Stethoscope, Smile, Eye, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus } from 'lucide-react';
+import { LayoutGrid, LayoutDashboard, Table, ClipboardList, ListChecks, Stethoscope, Smile, Eye, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus, Receipt } from 'lucide-react';
 import phoLogo from '../../assets/images/PHO_logo.jpg';
 import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
@@ -17,6 +17,7 @@ const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon:
 const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope, station: 3 };
 const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile, station: 4 };
 const STATION5_LINK = { to: '/station5', label: 'Station 5: Vision', icon: Eye, station: 5 };
+const STATION6_LINK = { to: '/station6', label: 'Station 6: Billing', icon: Receipt, station: 6 };
 const ONBOARDING_LINK = { to: '/onboarding', label: 'Onboarding', icon: UserPlus };
 
 const LINKS = {
@@ -47,7 +48,7 @@ export default function Sidebar({ collapsed }) {
     if (superAdmin) return link !== ONBOARDING_LINK;
     return !link.station || link.station === gateStation;
   });
-  if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, STATION5_LINK, ONBOARDING_LINK, ACTIVITY_LOGS_LINK);
+  if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, STATION5_LINK, STATION6_LINK, ONBOARDING_LINK, ACTIVITY_LOGS_LINK);
 
   const handleSignOut = async () => {
     await signOut();

@@ -21,6 +21,7 @@ import Station4QueuePage from './features/station4/Station4QueuePage';
 import Station4DentalPage from './features/station4/Station4DentalPage';
 import Station5QueuePage from './features/station5/Station5QueuePage';
 import Station5VisionPage from './features/station5/Station5VisionPage';
+import Station6Billing from './features/station6/Station6Billing';
 import MyRecordPage from './features/patient/MyRecordPage';
 import MyRecordDetailPage from './features/patient/MyRecordDetailPage';
 import AppShell from './components/layout/AppShell';
@@ -64,6 +65,7 @@ export const routeElements = createRoutesFromElements(
 
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} requireSuperAdmin />}>
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
+        <Route path="/station6" element={<Station6Billing />} />
       </Route>
 
       {/* RequireStation pins each desk to the station assigned to this doctor's
