@@ -8,6 +8,7 @@ import Badge from '../../components/ui/Badge';
 import ScoreRing from '../../components/ui/ScoreRing';
 import AnswersReview from '../station2/AnswersReview';
 import { SubPanel } from './SectionCard';
+import DiagnosticTestList from '../../components/ui/DiagnosticTestList';
 
 /** Read-only stand-in for a Textarea — the physician's own words, no input. */
 function StaticAnswer({ value, placeholder }) {
@@ -94,7 +95,7 @@ export default function PriorStationsPanel({ form, categories, upToStation = 2 }
             <>
               <div className="flex flex-col gap-4">
                 <SubPanel icon={FlaskConical} title="Recommended Diagnostic Test" subtitle="Labs, imaging, or referrals ordered.">
-                  <StaticAnswer value={form.recommendedDiagnosticTest} placeholder="None ordered." />
+                  <DiagnosticTestList value={form.recommendedDiagnosticTest} />
                 </SubPanel>
                 <SubPanel icon={Stethoscope} title="Impression / Clinical" subtitle="Working diagnosis from the findings above.">
                   <StaticAnswer value={form.impressionClinical} placeholder="No impression recorded." />

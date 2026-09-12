@@ -1,6 +1,24 @@
 import { useEffect } from 'react';
 import { useBlocker } from 'react-router-dom';
 
+// Signing out must never be blocked by a dirty form. The session is already
+// cleared by the time we navigate to /login, so a blocked navigation strands
+// the user on a shell with no session and no way forward -- the sidebar stays
+// up, the outlet renders nothing, and the blocker never resolves because the
+// page that owns the confirmation modal is the one being navigated away from.
+//
+// Module-level rather than context so the blocker predicate can read it
+// synchronously at intercept time, in the same tick as the navigate() call.
+let signingOut = false;
+
+export function beginSignOut() {
+  signingOut = true;
+}
+
+export function endSignOut() {
+  signingOut = false;
+}
+
 /**
  * Blocks in-app navigation and browser unload while a form has unsaved edits.
  * Returns the blocker so the caller can render its own confirmation modal.
@@ -18,12 +36,14 @@ export function useUnsavedChangesGuard(isDirty) {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      readIsDirty() && currentLocation.pathname !== nextLocation.pathname,
+      !signingOut &&
+      readIsDirty() &&
+      currentLocation.pathname !== nextLocation.pathname,
   );
 
   useEffect(() => {
     const handler = (event) => {
-      if (!readIsDirty()) return;
+      if (signingOut || !readIsDirty()) return;
       event.preventDefault();
       event.returnValue = '';
     };

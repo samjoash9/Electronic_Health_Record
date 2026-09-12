@@ -126,11 +126,54 @@ export const FAMILY_CONDITIONS = [
   { conditionID: null, name: 'Others (Please Specify)', isOther: true },
 ];
 
-export const DIAGNOSTIC_TESTS = [
-  'CBC', 'BT', 'U/A', 'SE', 'RBS', 'FBS', 'Liquid Profile', 'Crea', 'SGPT/SGOT',
-  'SUA', 'ASO', 'NaK', 'BUN', 'HVC', 'Tumor Markers CA 125', 'TT3', 'TT4',
-  'Drug Test', 'H. Pylori', 'HBA1c', 'ECG', 'UTZ', 'Chest Xray', 'Papsmear',
+/**
+ * Station 3's orderable tests. The thyroid panel (TT3/TT4/TSH) is read as one
+ * group by physicians, so THYROID_PANEL keeps those three on a row of their own
+ * at every breakpoint -- see DiagnosticTestGrid in AssessmentPlanSection.jsx.
+ * They are listed here in the same order so the stored comma-joined string
+ * still follows this array.
+ */
+export const THYROID_PANEL = ['TT3', 'TT4', 'TSH'];
+
+/**
+ * Price list for the orderable tests, in PHP. A null price is one the office
+ * has not fixed a rate for: the tile shows a dash and reveals an optional
+ * amount box, so the doctor can quote it per form without it being mistaken
+ * for free. SGPT/SGOT is one order covering both enzymes at 250.00 each.
+ *
+ * `was` records a name this test used to be stored under. The chosen tests are
+ * persisted as a comma-joined string of these names, so a form saved before a
+ * rename still pre-checks its boxes -- see splitValue in AssessmentPlanSection.
+ */
+export const DIAGNOSTIC_TEST_CATALOG = [
+  { name: 'CBC', price: 180 },
+  { name: 'BT', price: 100 },
+  { name: 'U/A', price: 130 },
+  { name: 'SE', price: 50 },
+  { name: 'RBS', price: 120 },
+  { name: 'FBS', price: 120 },
+  { name: 'Lipid Profile', price: 900, was: 'Liquid Profile' },
+  { name: 'Crea', price: 230 },
+  { name: 'SGPT/SGOT', price: 500 },
+  { name: 'SUA', price: 200 },
+  { name: 'ASO', price: 180 },
+  { name: 'NaK', price: 800 },
+  { name: 'BUN', price: 300 },
+  { name: 'HCV', price: null, was: 'HVC' },
+  { name: 'Tumor Markers CA 125', price: null },
+  { name: 'TT3', price: 650 },
+  { name: 'TT4', price: 650 },
+  { name: 'TSH', price: null },
+  { name: 'Drug Test', price: 250 },
+  { name: 'H. Pylori', price: 450 },
+  { name: 'HBA1c', price: 900 },
+  { name: 'ECG', price: null },
+  { name: 'UTZ', price: null },
+  { name: 'Chest Xray', price: 220 },
+  { name: 'Papsmear', price: 400 },
 ];
+
+export const DIAGNOSTIC_TESTS = DIAGNOSTIC_TEST_CATALOG.map((t) => t.name);
 
 export const SEX_OPTIONS = ['Male', 'Female'];
 

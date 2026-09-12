@@ -10,9 +10,9 @@ import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
-import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
+import { fullName, ageFrom, formatDate, formatDateTime, peso } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
-import { ROLES } from '../../lib/constants';
+import { ROLES, STATIONS } from '../../lib/constants';
 import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -42,6 +42,8 @@ const BLANK_PMH_ROW = {
   maintenanceDrugGeneric: '', dosage: '', frequency: '',
 };
 
+const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '', price: '' };
+
 const DEFAULT_VALUES = {
   familyHistory: {
     none: false,
@@ -61,8 +63,41 @@ const DEFAULT_VALUES = {
   exercise: [{ exerciseType: '', exerciseFrequency: '', exerciseYearStarted: '' }],
   recommendedDiagnosticTest: '',
   impressionClinical: '',
-  managementTreatment: '',
+  medications: [{ ...BLANK_MEDICATION_ROW }],
+  lifestyleFollowUp: '',
 };
+
+// Medication rows and the free-text advice are captured separately but stored
+// in the one ManagementTreatment column the record already has, so the detail
+// pages that read it back as plain text keep working unchanged.
+function buildManagementTreatment(values) {
+  const rows = (values.medications ?? []).filter((row) => row.drug?.trim());
+
+  const meds = rows.map((row) => {
+    const detail = [row.drug.trim(), row.dosage?.trim(), row.frequency?.trim()]
+      .filter(Boolean)
+      .join(' — ');
+    const price = Number(row.price);
+    return Number.isFinite(price) && row.price !== ''
+      ? `${detail} — ${peso(price)}`
+      : detail;
+  });
+
+  const total = rows.reduce((sum, row) => {
+    const price = Number(row.price);
+    return sum + (Number.isFinite(price) ? price : 0);
+  }, 0);
+
+  const advice = values.lifestyleFollowUp?.trim();
+
+  return [
+    meds.length
+      ? `Medications:\n${meds.map((m) => `• ${m}`).join('\n')}${
+        total > 0 ? `\nMedication total: ${peso(total)}` : ''}`
+      : '',
+    advice ? `Lifestyle advice and follow-up:\n${advice}` : '',
+  ].filter(Boolean).join('\n\n') || null;
+}
 
 function buildFamilyHistory(values) {
   const fh = values.familyHistory;
@@ -146,7 +181,7 @@ export default function Station3ConsultationPage() {
     queryFn: listPhysicians,
   });
 
-  const physicianOptions = activePhysicianOptions(physicians);
+  const physicianOptions = activePhysicianOptions(physicians, STATIONS.THREE);
   const selectedPhysician = findPhysician(physicians, physicianID);
 
   const {
@@ -227,7 +262,7 @@ export default function Station3ConsultationPage() {
         },
         recommendedDiagnosticTest: values.recommendedDiagnosticTest || null,
         impressionClinical: values.impressionClinical || null,
-        managementTreatment: values.managementTreatment || null,
+        managementTreatment: buildManagementTreatment(values),
         signature,
       },
     }),
@@ -318,7 +353,7 @@ export default function Station3ConsultationPage() {
         <FamilyHistorySection register={register} watch={watch} setValue={setValue} control={control} />
         <PastMedicalHistorySection control={control} register={register} />
         <SocialHistorySection control={control} watch={watch} />
-        <AssessmentPlanSection register={register} watch={watch} setValue={setValue} />
+        <AssessmentPlanSection register={register} watch={watch} setValue={setValue} control={control} />
         <PhysicianSignature
           physicianOptions={physicianOptions}
           physicianID={physicianID}

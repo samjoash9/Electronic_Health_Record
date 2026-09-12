@@ -15,6 +15,8 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import PriorStationsPanel from '../station3/PriorStationsPanel';
 import SectionCard, { SubPanel } from '../station3/SectionCard';
+import StationGroup from './StationGroup';
+import DiagnosticTestList from '../../components/ui/DiagnosticTestList';
 
 const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
@@ -133,251 +135,274 @@ export default function FormDetailPage() {
 
       <PriorStationsPanel form={form} categories={categories} />
 
-      <SectionCard
-        step={1}
-        title="Family Medical History"
-        subtitle="Conditions reported among the patient's immediate family."
-        icon={Users}
-      >
-        <HistoryList
-          items={form.familyMedicalHistory}
-          empty="No family medical history on file."
-          render={(row) => row.isNone
-            ? 'None reported'
-            : `${row.conditionOther ?? `Condition #${row.conditionID}`}${row.conditionType ? ` — ${row.conditionType}` : ''}`}
-        />
-      </SectionCard>
-
-      <SectionCard
-        step={2}
-        title="Past Medical History"
-        subtitle="Diagnosed conditions and any maintenance medication on file."
-        icon={Stethoscope}
-      >
-        <HistoryList
-          items={form.pastMedicalHistory}
-          empty="No past medical history on file."
-          render={(row) => `${row.conditionOther} (${row.yearDiagnosed ?? '—'}) — ${row.maintenanceDrugGeneric ?? '—'} ${row.dosage ?? ''} ${row.frequency ?? ''}`}
-        />
-      </SectionCard>
-
-      <SectionCard
-        step={3}
-        title="Social History"
-        subtitle="Lifestyle habits recorded during the consultation."
-        icon={Activity}
-      >
-        {social ? (
-          <div className="flex flex-col gap-4">
-            <SubPanel icon={Cigarette} title="Smoking" subtitle="Cigarette and e-cigarette usage">
-              {social.smokes !== true ? (
-                <p className="text-sm text-ink-500">Patient does not smoke.</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {social.smokesCigarette && (
-                    <p className="text-sm font-medium text-ink-900">
-                      Cigarette — {social.cigaretteSticksPerDay ?? '—'} sticks/day,{' '}
-                      {social.cigaretteFrequency ?? '—'}, started {social.cigaretteYearStarted ?? '—'},{' '}
-                      {social.cigarettePuffsPerDay ?? '—'} puffs/day
-                    </p>
-                  )}
-                  {social.smokesEcig && (
-                    <p className="text-sm font-medium text-ink-900">
-                      E-cigarette — {social.ecigPodsPerMonth ?? '—'} pods/month,{' '}
-                      {social.ecigFrequency ?? '—'}, started {social.ecigYearStarted ?? '—'},{' '}
-                      {social.ecigPuffsPerDay ?? '—'} puffs/day
-                    </p>
-                  )}
-                  {!social.smokesCigarette && !social.smokesEcig && (
-                    <p className="text-sm text-ink-500">No cigarette or e-cigarette details on file.</p>
-                  )}
-                </div>
-              )}
-            </SubPanel>
-            <SubPanel icon={Dumbbell} title="Exercise" subtitle="Physical activity">
-              <HistoryList
-                items={form.exercise}
-                empty="No exercise on file."
-                render={(row) => `${row.exerciseType} — ${row.exerciseFrequency ?? '—'} · started ${row.exerciseYearStarted ?? '—'}`}
-              />
-            </SubPanel>
-            <SubPanel icon={Wine} title="Alcohol" subtitle="Alcohol consumption">
-              <p className="text-sm font-medium text-ink-900">{social.alcoholType ?? '—'}</p>
-              <p className="mt-1 text-xs text-ink-500">Drinking frequency: {social.drinkFrequency ?? '—'}</p>
-            </SubPanel>
-          </div>
-        ) : (
-          <p className="text-sm text-ink-500">No social history on file.</p>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        step={4}
-        title="Physician's Assessment"
-        subtitle="Findings and plan of care recorded by the attending physician."
+      {/* Sections 1-4 are all Station 3's output: the physician records the
+          patient's histories during the consultation and signs off on them
+          together with the assessment, so they open and close as one desk. */}
+      <StationGroup
+        title="Station 3 — Consultation"
+        subtitle={form.signedAt ? `Signed ${formatDateTime(form.signedAt)}` : 'Not yet completed'}
         icon={ClipboardList}
       >
-        {/* Gated on the physician's own signature, not overall form
-            completion: Station 3 signs well before Station 5 (now the one
-            that sets Completed), so this section has data on file long
-            before the form as a whole is done. */}
-        {form.signedAt ? (
-          <>
+        <SectionCard
+          step={1}
+          title="Family Medical History"
+          subtitle="Conditions reported among the patient's immediate family."
+          icon={Users}
+        >
+          <HistoryList
+            items={form.familyMedicalHistory}
+            empty="No family medical history on file."
+            render={(row) => row.isNone
+              ? 'None reported'
+              : `${row.conditionOther ?? `Condition #${row.conditionID}`}${row.conditionType ? ` — ${row.conditionType}` : ''}`}
+          />
+        </SectionCard>
+
+        <SectionCard
+          step={2}
+          title="Past Medical History"
+          subtitle="Diagnosed conditions and any maintenance medication on file."
+          icon={Stethoscope}
+        >
+          <HistoryList
+            items={form.pastMedicalHistory}
+            empty="No past medical history on file."
+            render={(row) => `${row.conditionOther} (${row.yearDiagnosed ?? '—'}) — ${row.maintenanceDrugGeneric ?? '—'} ${row.dosage ?? ''} ${row.frequency ?? ''}`}
+          />
+        </SectionCard>
+
+        <SectionCard
+          step={3}
+          title="Social History"
+          subtitle="Lifestyle habits recorded during the consultation."
+          icon={Activity}
+        >
+          {social ? (
             <div className="flex flex-col gap-4">
-              <SubPanel icon={FlaskConical} title="Recommended Diagnostic Test" subtitle="Labs, imaging, or referrals ordered.">
-                <StaticAnswer value={form.recommendedDiagnosticTest} placeholder="None ordered." />
+              <SubPanel icon={Cigarette} title="Smoking" subtitle="Cigarette and e-cigarette usage">
+                {social.smokes !== true ? (
+                  <p className="text-sm text-ink-500">Patient does not smoke.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {social.smokesCigarette && (
+                      <p className="text-sm font-medium text-ink-900">
+                        Cigarette — {social.cigaretteSticksPerDay ?? '—'} sticks/day,{' '}
+                        {social.cigaretteFrequency ?? '—'}, started {social.cigaretteYearStarted ?? '—'},{' '}
+                        {social.cigarettePuffsPerDay ?? '—'} puffs/day
+                      </p>
+                    )}
+                    {social.smokesEcig && (
+                      <p className="text-sm font-medium text-ink-900">
+                        E-cigarette — {social.ecigPodsPerMonth ?? '—'} pods/month,{' '}
+                        {social.ecigFrequency ?? '—'}, started {social.ecigYearStarted ?? '—'},{' '}
+                        {social.ecigPuffsPerDay ?? '—'} puffs/day
+                      </p>
+                    )}
+                    {!social.smokesCigarette && !social.smokesEcig && (
+                      <p className="text-sm text-ink-500">No cigarette or e-cigarette details on file.</p>
+                    )}
+                  </div>
+                )}
               </SubPanel>
-              <SubPanel icon={Stethoscope} title="Impression / Clinical" subtitle="Working diagnosis from the findings above.">
-                <StaticAnswer value={form.impressionClinical} placeholder="No impression recorded." />
+              <SubPanel icon={Dumbbell} title="Exercise" subtitle="Physical activity">
+                <HistoryList
+                  items={form.exercise}
+                  empty="No exercise on file."
+                  render={(row) => `${row.exerciseType} — ${row.exerciseFrequency ?? '—'} · started ${row.exerciseYearStarted ?? '—'}`}
+                />
               </SubPanel>
-              <SubPanel icon={Pill} title="Management / Treatment" subtitle="Medication, lifestyle advice, and follow-up.">
-                <StaticAnswer value={form.managementTreatment} placeholder="No treatment plan recorded." />
+              <SubPanel icon={Wine} title="Alcohol" subtitle="Alcohol consumption">
+                <p className="text-sm font-medium text-ink-900">{social.alcoholType ?? '—'}</p>
+                <p className="mt-1 text-xs text-ink-500">Drinking frequency: {social.drinkFrequency ?? '—'}</p>
               </SubPanel>
             </div>
+          ) : (
+            <p className="text-sm text-ink-500">No social history on file.</p>
+          )}
+        </SectionCard>
 
-            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
-                >
-                  <BadgeCheck size={16} strokeWidth={1.9} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Physician</p>
-                  <p className="text-sm font-semibold text-ink-900">
-                    {form.physician ? `Dr. ${form.physician.firstName} ${form.physician.surname}` : '—'}
-                  </p>
-                  <p className="text-xs text-ink-500">PRC License No. {form.physician?.prcLicenseNo ?? '—'}</p>
+        <SectionCard
+          step={4}
+          title="Physician's Assessment"
+          subtitle="Findings and plan of care recorded by the attending physician."
+          icon={ClipboardList}
+        >
+          {/* Gated on the physician's own signature, not overall form
+              completion: Station 3 signs well before Station 5 (now the one
+              that sets Completed), so this section has data on file long
+              before the form as a whole is done. */}
+          {form.signedAt ? (
+            <>
+              <div className="flex flex-col gap-4">
+                <SubPanel icon={FlaskConical} title="Recommended Diagnostic Test" subtitle="Labs, imaging, or referrals ordered.">
+                  <DiagnosticTestList value={form.recommendedDiagnosticTest} />
+                </SubPanel>
+                <SubPanel icon={Stethoscope} title="Impression / Clinical" subtitle="Working diagnosis from the findings above.">
+                  <StaticAnswer value={form.impressionClinical} placeholder="No impression recorded." />
+                </SubPanel>
+                <SubPanel icon={Pill} title="Management / Treatment" subtitle="Medication, lifestyle advice, and follow-up.">
+                  <StaticAnswer value={form.managementTreatment} placeholder="No treatment plan recorded." />
+                </SubPanel>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
+                  >
+                    <BadgeCheck size={16} strokeWidth={1.9} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Physician</p>
+                    <p className="text-sm font-semibold text-ink-900">
+                      {form.physician ? `Dr. ${form.physician.firstName} ${form.physician.surname}` : '—'}
+                    </p>
+                    <p className="text-xs text-ink-500">PRC License No. {form.physician?.prcLicenseNo ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start sm:items-end">
+                  {form.signature && (
+                    <img src={form.signature} alt="Physician signature" className="h-16 rounded border border-line bg-surface" />
+                  )}
+                  <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.signedAt)}</p>
                 </div>
               </div>
-              <div className="flex flex-col items-start sm:items-end">
-                {form.signature && (
-                  <img src={form.signature} alt="Physician signature" className="h-16 rounded border border-line bg-surface" />
-                )}
-                <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.signedAt)}</p>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-ink-500">Not yet completed.</p>
-        )}
-      </SectionCard>
+            </>
+          ) : (
+            <p className="text-sm text-ink-500">Not yet completed.</p>
+          )}
+        </SectionCard>
 
-      <SectionCard
-        step={5}
-        title="Dental Assessment"
-        subtitle="Station 4 findings and the examining dentist's remarks."
+      </StationGroup>
+
+      <StationGroup
+        title="Station 4 — Dental"
+        subtitle={form.dentalSignedAt ? `Signed ${formatDateTime(form.dentalSignedAt)}` : 'Not yet completed'}
         icon={Smile}
       >
-        {form.dentalAssessment ? (
-          <div className="flex flex-col gap-4">
-            {DENTAL_INDICATORS.map(({ name, label }, index) => (
-              // SubPanel renders its icon unconditionally with no fallback, and
-              // DENTAL_INDICATORS carries no per-indicator icon, so every row
-              // reuses the section's own Smile icon rather than passing none.
-              <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-semibold text-ink-900">
-                    {form.dentalAssessment[name] || <span className="font-normal text-ink-400 italic">Not assessed</span>}
-                  </p>
-                  <StaticAnswer
-                    value={form.dentalAssessment[`${name}Remarks`]}
-                    placeholder="No remarks."
-                  />
-                </div>
-              </SubPanel>
-            ))}
-
-            <div className="mt-1 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
-                >
-                  <BadgeCheck size={16} strokeWidth={1.9} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Dentist</p>
-                  <p className="text-sm font-semibold text-ink-900">
-                    {form.dentist ? `Dr. ${form.dentist.firstName} ${form.dentist.surname}` : '—'}
-                  </p>
-                  <p className="text-xs text-ink-500">PRC License No. {form.dentist?.prcLicenseNo ?? '—'}</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-start sm:items-end">
-                {form.dentalSignature && (
-                  <img src={form.dentalSignature} alt="Dentist signature" className="h-16 rounded border border-line bg-surface" />
-                )}
-                <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.dentalSignedAt)}</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-ink-500">Not yet completed.</p>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        step={6}
-        title="Vision Assessment"
-        subtitle="Station 5 findings and the examining optometrist's remarks."
-        icon={Eye}
-      >
-        {form.visionAssessment ? (
-          <div className="flex flex-col gap-4">
-            {VISION_INDICATORS.map((indicator, index) => {
-              const { name, label, type, hasOther, otherFieldName } = indicator;
-              const value = form.visionAssessment[name];
-              const otherValue = hasOther ? form.visionAssessment[otherFieldName] : null;
-              // SubPanel renders its icon unconditionally with no fallback, and
-              // VISION_INDICATORS carries no per-indicator icon, so every row
-              // reuses the section's own Eye icon rather than passing none.
-              return (
-                <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+        <SectionCard
+          step={5}
+          title="Dental Assessment"
+          subtitle="Station 4 findings and the examining dentist's remarks."
+          icon={Smile}
+        >
+          {form.dentalAssessment ? (
+            <div className="flex flex-col gap-4">
+              {DENTAL_INDICATORS.map(({ name, label }, index) => (
+                // SubPanel renders its icon unconditionally with no fallback, and
+                // DENTAL_INDICATORS carries no per-indicator icon, so every row
+                // reuses the section's own Smile icon rather than passing none.
+                <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
                   <div className="flex flex-col gap-1.5">
                     <p className="text-sm font-semibold text-ink-900">
-                      {value
-                        ? `${value}${hasOther && value === 'Other' && otherValue ? ` — ${otherValue}` : ''}`
-                        : <span className="font-normal text-ink-400 italic">{type === 'text' ? 'Not recorded' : 'Not assessed'}</span>}
+                      {form.dentalAssessment[name] || <span className="font-normal text-ink-400 italic">Not assessed</span>}
                     </p>
                     <StaticAnswer
-                      value={form.visionAssessment[`${name}Remarks`]}
+                      value={form.dentalAssessment[`${name}Remarks`]}
                       placeholder="No remarks."
                     />
                   </div>
                 </SubPanel>
-              );
-            })}
+              ))}
 
-            <div className="mt-1 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
-                >
-                  <BadgeCheck size={16} strokeWidth={1.9} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Optometrist</p>
-                  <p className="text-sm font-semibold text-ink-900">
-                    {form.optometrist ? `Dr. ${form.optometrist.firstName} ${form.optometrist.surname}` : '—'}
-                  </p>
-                  <p className="text-xs text-ink-500">PRC License No. {form.optometrist?.prcLicenseNo ?? '—'}</p>
+              <div className="mt-1 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
+                  >
+                    <BadgeCheck size={16} strokeWidth={1.9} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Dentist</p>
+                    <p className="text-sm font-semibold text-ink-900">
+                      {form.dentist ? `Dr. ${form.dentist.firstName} ${form.dentist.surname}` : '—'}
+                    </p>
+                    <p className="text-xs text-ink-500">PRC License No. {form.dentist?.prcLicenseNo ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start sm:items-end">
+                  {form.dentalSignature && (
+                    <img src={form.dentalSignature} alt="Dentist signature" className="h-16 rounded border border-line bg-surface" />
+                  )}
+                  <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.dentalSignedAt)}</p>
                 </div>
               </div>
-              <div className="flex flex-col items-start sm:items-end">
-                {form.visionSignature && (
-                  <img src={form.visionSignature} alt="Optometrist signature" className="h-16 rounded border border-line bg-surface" />
-                )}
-                <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.visionSignedAt)}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-500">Not yet completed.</p>
+          )}
+        </SectionCard>
+
+      </StationGroup>
+
+      <StationGroup
+        title="Station 5 — Vision"
+        subtitle={form.visionSignedAt ? `Signed ${formatDateTime(form.visionSignedAt)}` : 'Not yet completed'}
+        icon={Eye}
+      >
+        <SectionCard
+          step={6}
+          title="Vision Assessment"
+          subtitle="Station 5 findings and the examining optometrist's remarks."
+          icon={Eye}
+        >
+          {form.visionAssessment ? (
+            <div className="flex flex-col gap-4">
+              {VISION_INDICATORS.map((indicator, index) => {
+                const { name, label, type, hasOther, otherFieldName } = indicator;
+                const value = form.visionAssessment[name];
+                const otherValue = hasOther ? form.visionAssessment[otherFieldName] : null;
+                // SubPanel renders its icon unconditionally with no fallback, and
+                // VISION_INDICATORS carries no per-indicator icon, so every row
+                // reuses the section's own Eye icon rather than passing none.
+                return (
+                  <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-sm font-semibold text-ink-900">
+                        {value
+                          ? `${value}${hasOther && value === 'Other' && otherValue ? ` — ${otherValue}` : ''}`
+                          : <span className="font-normal text-ink-400 italic">{type === 'text' ? 'Not recorded' : 'Not assessed'}</span>}
+                      </p>
+                      <StaticAnswer
+                        value={form.visionAssessment[`${name}Remarks`]}
+                        placeholder="No remarks."
+                      />
+                    </div>
+                  </SubPanel>
+                );
+              })}
+
+              <div className="mt-1 flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9fbf6] text-[#0e7d6b] ring-1 ring-[#0e7d6b]/10"
+                  >
+                    <BadgeCheck size={16} strokeWidth={1.9} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Optometrist</p>
+                    <p className="text-sm font-semibold text-ink-900">
+                      {form.optometrist ? `Dr. ${form.optometrist.firstName} ${form.optometrist.surname}` : '—'}
+                    </p>
+                    <p className="text-xs text-ink-500">PRC License No. {form.optometrist?.prcLicenseNo ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start sm:items-end">
+                  {form.visionSignature && (
+                    <img src={form.visionSignature} alt="Optometrist signature" className="h-16 rounded border border-line bg-surface" />
+                  )}
+                  <p className="mt-1 text-xs text-ink-500">Signed {formatDateTime(form.visionSignedAt)}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <p className="text-sm text-ink-500">Not yet completed.</p>
-        )}
-      </SectionCard>
+          ) : (
+            <p className="text-sm text-ink-500">Not yet completed.</p>
+          )}
+        </SectionCard>
+      </StationGroup>
     </div>
   );
 }

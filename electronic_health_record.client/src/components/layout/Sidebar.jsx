@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
 import { ROLES, isSuperAdmin } from '../../lib/constants';
 import ChangePasswordModal from '../ui/ChangePasswordModal';
+import SignOutModal from '../ui/SignOutModal';
 
 const CHANGE_STATION_LINK = { to: '/stations', label: 'Change Station', icon: LayoutGrid };
 const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon: ShieldCheck };
@@ -38,6 +39,8 @@ export default function Sidebar({ collapsed }) {
   const { station } = useStationChoice();
   const navigate = useNavigate();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const superAdmin = isSuperAdmin(user);
   // Doctors' station links are gated on their admin-assigned `user.station`;
@@ -50,7 +53,16 @@ export default function Sidebar({ collapsed }) {
   if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, STATION5_LINK, ONBOARDING_LINK, ACTIVITY_LOGS_LINK);
 
   const handleSignOut = async () => {
-    await signOut();
+    setSigningOut(true);
+    try {
+      // signOut() clears the local session even when the server call fails
+      // (an already-expired token answers 401), so the redirect below is
+      // correct either way -- there is no signed-in state left to return to.
+      await signOut();
+    } finally {
+      setSigningOut(false);
+      setSignOutOpen(false);
+    }
     navigate('/login', { replace: true });
   };
 
@@ -114,7 +126,7 @@ export default function Sidebar({ collapsed }) {
         <button
           type="button"
           title="Log Out"
-          onClick={handleSignOut}
+          onClick={() => setSignOutOpen(true)}
           className={`flex h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''
             }`}
         >
@@ -124,6 +136,13 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
+
+      <SignOutModal
+        open={signOutOpen}
+        pending={signingOut}
+        onConfirm={handleSignOut}
+        onClose={() => setSignOutOpen(false)}
+      />
     </nav>
   );
 }
