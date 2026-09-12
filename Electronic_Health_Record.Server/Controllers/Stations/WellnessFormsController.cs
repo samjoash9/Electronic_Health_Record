@@ -837,6 +837,76 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             }
         }
 
+        // DELETE /api/wellnessforms/{formID}
+        // Body: { reason, rowVersion }. Hard delete: unlike Cancel above, this
+        // removes the form row and everything that points at it -- assessment
+        // answers, station 1/4/5 detail rows, and the form's own audit log --
+        // permanently. Superadmin only, same actor check as Cancel (no auth
+        // scheme yet, so this can't be an [Authorize(Roles = ...)] attribute).
+        [HttpDelete("{formID}")]
+        public async Task<IActionResult> DeleteForm(int formID, [FromBody] DeleteFormDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (_currentUser.AdminID is not { } adminID)
+                return Unauthorized(new { message = "No admin identity on this request." });
+
+            var actor = await _context.Admins.FindAsync(adminID);
+            if (actor == null || actor.Role != AdminRoles.SuperAdmin)
+                return Forbid();
+
+            var form = await _context.WellnessForms.FindAsync(formID);
+            if (form == null)
+                return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            ApplyRowVersionToken(form, dto.RowVersion);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.AssessmentAnswers.RemoveRange(
+                    _context.AssessmentAnswers.Where(a => a.FormID == formID));
+                _context.FamilyMedicalHistories.RemoveRange(
+                    _context.FamilyMedicalHistories.Where(f => f.FormID == formID));
+                _context.PastMedicalHistories.RemoveRange(
+                    _context.PastMedicalHistories.Where(p => p.FormID == formID));
+                _context.Exercises.RemoveRange(
+                    _context.Exercises.Where(e => e.FormID == formID));
+                _context.SocialHistories.RemoveRange(
+                    _context.SocialHistories.Where(s => s.FormID == formID));
+                _context.DentalAssessments.RemoveRange(
+                    _context.DentalAssessments.Where(d => d.FormID == formID));
+                _context.VisionAssessments.RemoveRange(
+                    _context.VisionAssessments.Where(v => v.FormID == formID));
+                _context.WellnessFormAuditLogs.RemoveRange(
+                    _context.WellnessFormAuditLogs.Where(l => l.FormID == formID));
+
+                await _context.SaveChangesAsync();
+
+                _context.WellnessForms.Remove(form);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                _logger.LogWarning(
+                    "Wellness form {FormID} hard-deleted by admin {AdminID}. Reason: {Reason}",
+                    formID, adminID, dto.Reason);
+
+                return NoContent();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync();
+                return Conflict(new { message = "This record was changed at another station." });
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
         // Sets EF's row-version original-value token from the client's opaque
         // base64 string, so SaveChangesAsync throws DbUpdateConcurrencyException
         // if another station has since updated the row in the meantime. The

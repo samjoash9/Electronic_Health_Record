@@ -145,7 +145,15 @@ export default function EmployeeFormModal({ employee, isPending, error, onSubmit
           </Field>
 
           <Field label="Contact No." htmlFor="employee-contact">
-            <Input id="employee-contact" {...register('contactNo')} />
+            <Input
+              id="employee-contact"
+              inputMode="numeric"
+              {...register('contactNo', {
+                onChange: (e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '');
+                },
+              })}
+            />
           </Field>
           <Field label="Address" htmlFor="employee-address" className="sm:col-span-2">
             <Input id="employee-address" {...register('address')} />

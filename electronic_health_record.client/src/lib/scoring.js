@@ -49,6 +49,17 @@ export function scoreAllCategories(categories, answers) {
   }));
 }
 
+export function overallScore(categories, answers) {
+  const scores = scoreAllCategories(categories, answers);
+  const total = scores.reduce((sum, s) => sum + s.total, 0);
+  const max = scores.reduce((sum, s) => sum + s.max, 0);
+  return {
+    total,
+    max,
+    percent: max === 0 ? null : Math.round((total / max) * 1000) / 10,
+  };
+}
+
 export function totalAnswered(categories, answers) {
   const map = answersToMap(answers);
   return (categories ?? []).reduce(

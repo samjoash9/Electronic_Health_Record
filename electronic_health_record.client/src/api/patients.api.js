@@ -2,9 +2,6 @@ import { USE_MOCK, client, toApiError } from './client';
 import { db } from './mock/db';
 import { delay } from './mock/delay';
 
-// The server serves employees in the shape of the external HR feed (eid,
-// firstname, office, ...). Map it onto the field names the app uses everywhere
-// else so components don't have to know which source a row came from.
 // A row the HR feed never supplied a birthdate for is stored as DateTime.MinValue
 // rather than NULL, which would otherwise format as "Jan 1, 1".
 function usableDate(value) {
@@ -14,20 +11,17 @@ function usableDate(value) {
 
 function normalizeEmployee(row) {
   return {
-    // eid is 0 when the local ExternalEmployeeId wasn't numeric; that's absence,
-    // not an id of zero.
-    externalEmployeeId: row.eid ? String(row.eid) : '',
+    externalEmployeeId: row.externalEmployeeId ?? '',
     surname: row.surname ?? '',
-    firstName: row.firstname ?? '',
-    middleName: row.middlename ?? '',
-    birthdate: usableDate(row.birthDate),
-    age: row.age || null,
+    firstName: row.firstName ?? '',
+    middleName: row.middleName ?? '',
+    birthdate: usableDate(row.birthdate),
     sex: row.sex ?? '',
     civilStatus: row.civilStatus ?? '',
     address: row.address ?? '',
-    agencyOffice: row.office ?? '',
+    agencyOffice: row.agencyOffice ?? '',
     position: row.position ?? '',
-    contactNo: row.contactNumber ?? '',
+    contactNo: row.contactNo ?? '',
   };
 }
 

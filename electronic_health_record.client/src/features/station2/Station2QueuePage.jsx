@@ -15,7 +15,6 @@ import SearchInput from '../../components/ui/SearchInput';
 
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (row) => fullName(row.patient) },
-  { key: 'employeeId', header: 'Employee ID', render: (row) => row.patient?.externalEmployeeId },
   { key: 'agency', header: 'Agency', render: (row) => row.patient?.agencyOffice },
   { key: 'submitted', header: 'Submitted', render: (row) => formatDateTime(row.station1SubmittedAt) },
 ];
@@ -46,7 +45,7 @@ export default function Station2QueuePage() {
             id="station2-search"
             value={table.query}
             onChange={table.onSearch}
-            placeholder="Search by name, employee ID, or agency"
+            placeholder="Search by name or agency"
           />
 
           <DataTable

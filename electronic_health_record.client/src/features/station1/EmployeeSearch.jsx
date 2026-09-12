@@ -18,10 +18,28 @@ function useDebouncedValue(value, delayMs) {
 }
 
 const COLUMNS = [
-  { key: 'name', header: 'Name', render: (e) => fullName(e) },
-  { key: 'externalEmployeeId', header: 'Employee ID' },
-  { key: 'position', header: 'Position' },
-  { key: 'agencyOffice', header: 'Agency/Office' },
+  {
+    key: 'name',
+    header: 'Name',
+    sortable: true,
+    width: '28%',
+    render: (e) => fullName(e),
+    sortValue: (e) => `${e.surname ?? ''}, ${e.firstName ?? ''}`.toLowerCase(),
+  },
+  {
+    key: 'position', header: 'Position', sortable: true, width: '27%', sortValue: (e) => (e.position ?? '').toLowerCase(),
+  },
+  {
+    key: 'agencyOffice', header: 'Agency/Office', sortable: true, width: '27%', sortValue: (e) => (e.agencyOffice ?? '').toLowerCase(),
+  },
+  {
+    key: 'contactNo',
+    header: 'Contact No.',
+    sortable: true,
+    width: '18%',
+    render: (e) => e.contactNo || '—',
+    sortValue: (e) => (e.contactNo ?? '').toLowerCase(),
+  },
 ];
 
 const PAGE_SIZE = 10;
@@ -30,12 +48,34 @@ export default function EmployeeSearch({ onSelect }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [previewEmployee, setPreviewEmployee] = useState(null);
+  const [sortKey, setSortKey] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
   const debounced = useDebouncedValue(query, 300);
 
-  const { data: results = [], isFetching } = useQuery({
+  const { data: rawResults = [], isFetching } = useQuery({
     queryKey: ['employees', debounced],
     queryFn: () => searchEmployees(debounced),
   });
+
+  const sortColumn = COLUMNS.find((c) => c.key === sortKey);
+  const results = sortColumn
+    ? [...rawResults].sort((a, b) => {
+      const va = sortColumn.sortValue(a);
+      const vb = sortColumn.sortValue(b);
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return sortDirection === 'desc' ? -cmp : cmp;
+    })
+    : rawResults;
+
+  const handleSort = (key) => {
+    if (key === sortKey) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+    setPage(1);
+  };
 
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -49,13 +89,16 @@ export default function EmployeeSearch({ onSelect }) {
           label="Search Employee"
           value={query}
           onChange={setQuery}
-          placeholder="Search by name or employee ID, e.g. Santos or PHO-1001"
+          placeholder="Search by name or agency, e.g. Santos"
         />
 
         <DataTable
           columns={COLUMNS}
           rows={pageRows}
           onRowClick={setPreviewEmployee}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSort={handleSort}
           empty={isFetching ? 'Searching…' : 'No matching employees.'}
         />
 

@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowLeft, IdCard, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
+  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
   Users, Stethoscope, Activity, ClipboardList, FlaskConical, Pill,
   Cigarette, Dumbbell, Wine, BadgeCheck, Smile, Eye,
 } from 'lucide-react';
@@ -38,7 +38,6 @@ const STATUS_TONE = {
 // same identity grid when they open the record, so the admin's copy reads as
 // the same document rather than a lighter substitute.
 const PATIENT_FIELDS = [
-  { key: 'externalEmployeeId', label: 'Employee ID', icon: IdCard },
   { key: 'position', label: 'Position', icon: Briefcase },
   { key: 'agencyOffice', label: 'Agency/Office', icon: Building2 },
   { key: 'birthdate', label: 'Birthdate', icon: Cake, render: (p) => formatDate(p.birthdate) },

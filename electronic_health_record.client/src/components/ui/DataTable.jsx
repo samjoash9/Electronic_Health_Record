@@ -1,9 +1,19 @@
-import { Inbox } from 'lucide-react';
+import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 /**
  * Columns may carry an `icon` (a lucide component) shown beside the header
  * label. `rowActions` renders a trailing, header-less cell per row — clicks
  * inside it do not trigger `onRowClick`, so a row menu cannot also navigate.
+ *
+ * A column is sortable when it has `sortable: true`; clicking its header
+ * calls `onSort(key)` and the caller owns the actual sort state/logic (via
+ * `sortKey`/`sortDirection`) so it can sort by a different value than what
+ * `render` displays (e.g. sort Name by surname+firstName).
+ *
+ * A column may carry a `width` (any CSS width, e.g. '20%' or '10rem'). Once
+ * any column sets one the table switches to a fixed layout so columns keep
+ * their position when sorting changes which rows' text is longest --
+ * otherwise the browser resizes columns to fit content on every re-sort.
  *
  * `variant` picks the skin: "tinted" is the station queues' teal header with
  * zebra rows; "plain" is the quieter hairline-and-white treatment the dashboard
@@ -34,8 +44,10 @@ const VARIANTS = {
 
 export default function DataTable({
   columns, rows, onRowClick, rowActions, variant = 'tinted', empty = 'Nothing here yet.',
+  sortKey, sortDirection, onSort,
 }) {
   const skin = VARIANTS[variant] ?? VARIANTS.tinted;
+  const hasWidths = columns.some((c) => c.width);
 
   if (!rows?.length) {
     return (
@@ -47,17 +59,39 @@ export default function DataTable({
   }
   return (
     <div className={skin.frame}>
-      <table className="w-full text-sm">
+      <table className={`w-full text-sm ${hasWidths ? 'table-fixed' : ''}`}>
+        {hasWidths && (
+          <colgroup>
+            {columns.map((c) => <col key={c.key} style={{ width: c.width }} />)}
+            {rowActions && <col />}
+          </colgroup>
+        )}
         <thead className={skin.head}>
           <tr>
-            {columns.map(({ key, header, icon: Icon }) => (
-              <th key={key} className={skin.th}>
-                <span className="inline-flex items-center gap-1.5">
-                  {Icon && <Icon size={14} strokeWidth={2} className={skin.thIcon} />}
-                  {header}
-                </span>
-              </th>
-            ))}
+            {columns.map(({ key, header, icon: Icon, sortable }) => {
+              const isSorted = sortKey === key;
+              const SortIcon = isSorted ? (sortDirection === 'desc' ? ArrowDown : ArrowUp) : ArrowUpDown;
+              return (
+                <th key={key} className={skin.th}>
+                  {sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort?.(key)}
+                      className={`inline-flex items-center gap-1.5 ${isSorted ? '' : 'opacity-70 hover:opacity-100'}`}
+                    >
+                      {Icon && <Icon size={14} strokeWidth={2} className={skin.thIcon} />}
+                      {header}
+                      <SortIcon size={12} strokeWidth={2.25} className={skin.thIcon} />
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      {Icon && <Icon size={14} strokeWidth={2} className={skin.thIcon} />}
+                      {header}
+                    </span>
+                  )}
+                </th>
+              );
+            })}
             {rowActions && <th className={skin.th} />}
           </tr>
         </thead>
