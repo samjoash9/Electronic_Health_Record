@@ -7,6 +7,7 @@ import { submitStation1 } from '../../api/forms.api';
 import { hasPatientAccount } from '../../api/patients.api';
 import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
 import { station1Schema, newAccountUsernameSchema } from '../../lib/schemas';
+import { DEFAULT_PATIENT_PASSWORD } from '../../lib/constants';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
@@ -18,6 +19,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import StationStepIndicator from '../../components/ui/StationStepIndicator';
+import AccountCreatedModal from './AccountCreatedModal';
 
 const BLANK_VITALS = {
   weightKg: '', heightCm: '', bpSystolic: '', bpDiastolic: '',
@@ -38,6 +40,10 @@ export default function Station1Page() {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  // Set only when the submission just provisioned a login, so the admin can read
+  // the credentials out to the patient. Holds { username, patientName } rather
+  // than a boolean because the form is reset before this renders.
+  const [createdAccount, setCreatedAccount] = useState(null);
   // Mirrors mutation.isSuccess but updates synchronously, matching the
   // pattern in the later stations' submittedRef -- autosave must stop the
   // instant a submit succeeds so it can't resurrect a just-cleared draft.
@@ -89,11 +95,27 @@ export default function Station1Page() {
 
   const mutation = useMutation({
     mutationFn: submitStation1,
-    onSuccess: (_, variables) => {
+    onSuccess: (form, variables) => {
       submittedRef.current = true;
       clearDraft(variables.patient.externalEmployeeId);
       toast.success('Submitted to Station 2.');
       queryClient.invalidateQueries({ queryKey: ['queue'] });
+
+      // accountProvisioned is true only on the submission that created this
+      // patient's login -- re-registering an existing patient has no credentials
+      // to hand over. Captured before reset(), which clears the form values.
+      if (form?.accountProvisioned && form?.patientAccount?.username) {
+        setCreatedAccount({
+          username: form.patientAccount.username,
+          patientName: `${variables.patient.firstName} ${variables.patient.surname}`.trim(),
+        });
+      }
+
+      // The Patients panel and the Employee Directory's Portal Account column
+      // both read this, and a new registration has just changed it.
+      queryClient.invalidateQueries({ queryKey: ['patient-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['patientHasAccount'] });
+
       reset(BLANK_VALUES);
       setStep(1);
       submittedRef.current = false;
@@ -214,6 +236,15 @@ export default function Station1Page() {
           )}
         </div>
       </div>
+
+      {createdAccount && (
+        <AccountCreatedModal
+          username={createdAccount.username}
+          patientName={createdAccount.patientName}
+          defaultPassword={DEFAULT_PATIENT_PASSWORD}
+          onClose={() => setCreatedAccount(null)}
+        />
+      )}
 
       <Modal
         open={blocker.state === 'blocked'}

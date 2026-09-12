@@ -68,6 +68,69 @@ export async function getPatient(patientID) {
   }
 }
 
+/**
+ * The portal-account fields a client may read. An explicit pick rather than an
+ * omit, so a credential field added to the row later cannot leak by default --
+ * same shape toPhysician() uses in onboarding.api.js.
+ */
+function toPatientAccount(row) {
+  if (!row) return null;
+  return {
+    patientAccountID: row.patientAccountID,
+    patientID: row.patientID,
+    username: row.username ?? '',
+    status: row.status ?? '',
+    mustChangePassword: Boolean(row.mustChangePassword),
+    provisionedAt: row.provisionedAt ?? null,
+    activatedAt: row.activatedAt ?? null,
+    lastLoginAt: row.lastLoginAt ?? null,
+  };
+}
+
+/**
+ * Admin Patients panel: everyone Station 1 has registered, with the portal
+ * username issued to them. `account` is null for a Patient row the HR sync
+ * created but that has never been through Station 1, so the panel can show
+ * those as "not onboarded" rather than dropping them.
+ */
+export async function listPatientAccounts() {
+  if (USE_MOCK) {
+    await delay(150);
+    const { patients, patientAccounts } = db.read();
+    return patients
+      .map((p) => ({
+        patientID: p.patientID,
+        externalEmployeeId: p.externalEmployeeId ?? '',
+        surname: p.surname ?? '',
+        firstName: p.firstName ?? '',
+        middleName: p.middleName ?? null,
+        birthdate: usableDate(p.birthdate),
+        sex: p.sex ?? '',
+        agencyOffice: p.agencyOffice ?? null,
+        position: p.position ?? null,
+        contactNo: p.contactNo ?? null,
+        createdAt: p.createdAt ?? null,
+        account: toPatientAccount(
+          patientAccounts.find((a) => a.patientID === p.patientID),
+        ),
+      }))
+      .sort((a, b) => a.surname.localeCompare(b.surname)
+        || a.firstName.localeCompare(b.firstName));
+  }
+
+  try {
+    const { data } = await client.get('/patients/accounts');
+    const rows = Array.isArray(data) ? data : (data?.data ?? []);
+    return rows.map((row) => ({
+      ...row,
+      birthdate: usableDate(row.birthdate),
+      account: toPatientAccount(row.account),
+    }));
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 // Station 1: once an employee is picked, checks whether they already have a
 // PatientAccount. If not, the admin must ask the patient for a username
 // before the registration can be submitted.

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { UserPlus, Pencil } from 'lucide-react';
 import { listEmployees, createEmployee, updateEmployee } from '../../../api/onboarding.api';
+import { listPatientAccounts } from '../../../api/patients.api';
 import { useTableControls } from '../../../hooks/useTableControls';
 import { formatDate } from '../../../lib/formatters';
 import Card from '../../../components/ui/Card';
@@ -18,6 +19,15 @@ import EmployeeFormModal from './EmployeeFormModal';
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (e) => `${e.firstName} ${e.middleName ? `${e.middleName} ` : ''}${e.surname}` },
   { key: 'externalEmployeeId', header: 'Employee ID' },
+  {
+    key: 'username',
+    header: 'Portal Account',
+    // Employees and patients are separate tables joined on externalEmployeeId:
+    // an employee only has a username once Station 1 has registered them.
+    render: (e) => (e.username
+      ? <span className="font-medium text-ink-900">{e.username}</span>
+      : <span className="text-ink-400">Not onboarded</span>),
+  },
   { key: 'position', header: 'Position', render: (e) => e.position || '—' },
   { key: 'agencyOffice', header: 'Agency/Office', render: (e) => e.agencyOffice || '—' },
   { key: 'birthdate', header: 'Birthdate', render: (e) => formatDate(e.birthdate) },
@@ -30,7 +40,7 @@ const COLUMNS = [
   },
 ];
 
-const searchFields = (e) => [e.surname, e.firstName, e.middleName, e.externalEmployeeId, e.position];
+const searchFields = (e) => [e.surname, e.firstName, e.middleName, e.externalEmployeeId, e.position, e.username];
 
 export default function EmployeesPanel() {
   const queryClient = useQueryClient();
@@ -40,6 +50,26 @@ export default function EmployeesPanel() {
     queryKey: ['employees'],
     queryFn: listEmployees,
   });
+
+  // The portal usernames Station 1 issued, keyed by employee ID. Kept as its own
+  // query rather than folded into /employees: the directory is the HR mirror and
+  // knows nothing about logins, and a failure here must not blank the table --
+  // hence no error branch, the column just reads "Not onboarded".
+  const { data: patientAccounts } = useQuery({
+    queryKey: ['patient-accounts'],
+    queryFn: listPatientAccounts,
+  });
+
+  const usernameByEmployeeId = useMemo(() => Object.fromEntries(
+    (patientAccounts ?? [])
+      .filter((p) => p.account)
+      .map((p) => [p.externalEmployeeId, p.account.username]),
+  ), [patientAccounts]);
+
+  const employeeRows = useMemo(() => (employees ?? []).map((e) => ({
+    ...e,
+    username: usernameByEmployeeId[e.externalEmployeeId] ?? null,
+  })), [employees, usernameByEmployeeId]);
 
   // Prefix match, so Station 1's own ['employees', query] searches go stale too.
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -62,7 +92,7 @@ export default function EmployeesPanel() {
     },
   });
 
-  const table = useTableControls(employees, { searchFields });
+  const table = useTableControls(employeeRows, { searchFields });
 
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -79,7 +109,7 @@ export default function EmployeesPanel() {
             id="employees-search"
             value={table.query}
             onChange={table.onSearch}
-            placeholder="Search by name, employee ID, or position"
+            placeholder="Search by name, employee ID, position, or username"
             className="w-80"
           />
           <Button type="button" variant="teal" size="md" onClick={() => setFormTarget('create')}>
@@ -91,8 +121,8 @@ export default function EmployeesPanel() {
     >
       <div className="flex flex-col gap-3">
         <p className="text-xs text-ink-500">
-          The list Station 1 searches when registering a patient. Employees have no sign-in of
-          their own — a patient account is provisioned at Station 1.
+          The list Station 1 searches when registering a patient. An employee has no sign-in
+          until Station 1 registers them — the username issued there shows under Portal Account.
         </p>
 
         <DataTable

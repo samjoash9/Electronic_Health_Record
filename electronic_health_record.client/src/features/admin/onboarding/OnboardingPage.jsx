@@ -1,28 +1,31 @@
 import { useState } from 'react';
-import { Stethoscope, Users, ShieldCheck } from 'lucide-react';
+import { Stethoscope, Users, ShieldCheck, UserRound } from 'lucide-react';
 import { useAuth } from '../../../auth/useAuth';
 import { isSuperAdmin } from '../../../lib/constants';
 import AdminsPanel from './AdminsPanel';
 import DoctorsPanel from './DoctorsPanel';
 import EmployeesPanel from './EmployeesPanel';
+import PatientsPanel from './PatientsPanel';
 
 const ADMINS_TAB = { id: 'admins', label: 'Admins', icon: ShieldCheck };
 
 const TABS = [
   { id: 'doctors', label: 'Doctors', icon: Stethoscope },
   { id: 'employees', label: 'Employees', icon: Users },
+  { id: 'patients', label: 'Patients', icon: UserRound },
 ];
 
 const PANELS = {
   admins: AdminsPanel,
   doctors: DoctorsPanel,
   employees: EmployeesPanel,
+  patients: PatientsPanel,
 };
 
 /**
  * Where accounts and records enter the system: staff sign-ins, doctor sign-ins
- * (which drive the Station 3 physician list) and the employee directory
- * Station 1 searches.
+ * (which drive the Station 3 physician list), the employee directory Station 1
+ * searches, and the patient portal logins Station 1 issues.
  *
  * The Admins tab is superadmin-only, matching the server: creating an admin is
  * the one provisioning endpoint a plain admin cannot call.
@@ -41,7 +44,8 @@ export default function OnboardingPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-semibold text-ink-900">Onboarding</h1>
         <p className="text-sm text-ink-500">
-          Register the doctors who sign consultations and keep the employee directory current.
+          Register the doctors who sign consultations, keep the employee directory current, and
+          look up the portal usernames issued to patients at Station 1.
         </p>
       </div>
 

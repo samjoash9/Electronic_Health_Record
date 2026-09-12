@@ -176,6 +176,14 @@ export const DIAGNOSTIC_TEST_CATALOG = [
 
 export const DIAGNOSTIC_TESTS = DIAGNOSTIC_TEST_CATALOG.map((t) => t.name);
 
+/**
+ * The password every account provisioned at Station 1 starts on, mirroring
+ * WellnessFormsController.DefaultPatientPassword on the server. Only ever
+ * displayed to the admin doing the registering, so they can read it out to the
+ * patient — the patient is forced to replace it on first sign-in.
+ */
+export const DEFAULT_PATIENT_PASSWORD = 'password123';
+
 export const SEX_OPTIONS = ['Male', 'Female'];
 
 export const CIVIL_STATUS_OPTIONS = [

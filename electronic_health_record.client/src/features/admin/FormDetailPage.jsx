@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
+  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, AtSign,
   Users, Stethoscope, Activity, ClipboardList, FlaskConical, Pill,
   Cigarette, Dumbbell, Wine, BadgeCheck, Smile, Eye,
 } from 'lucide-react';
@@ -98,6 +98,7 @@ export default function FormDetailPage() {
   }
 
   const patient = form.patient;
+  const account = form.patientAccount;
   const social = form.socialHistory;
 
   return (
@@ -112,6 +113,18 @@ export default function FormDetailPage() {
           <div className="min-w-0 flex-1">
             <p className="text-lg font-semibold text-ink-900">{fullName(patient)}</p>
             <p className="text-sm text-ink-500">Age {ageFrom(patient?.birthdate)} · {patient?.position} · {patient?.agencyOffice}</p>
+            {account?.username && (
+              // The portal handle issued at Station 1, sat with the name rather than
+              // in the field grid below: it identifies the person, it is not a
+              // clinical detail of the visit.
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-500">
+                <AtSign size={13} strokeWidth={2.25} className="text-[#0e7d6b]" />
+                <span className="font-medium text-ink-700">{account.username}</span>
+                {account.mustChangePassword && (
+                  <span className="text-ink-400">· has not signed in yet</span>
+                )}
+              </p>
+            )}
           </div>
           <Badge tone={STATUS_TONE[form.status]}>{STATUS_LABEL[form.status] ?? form.status}</Badge>
         </div>

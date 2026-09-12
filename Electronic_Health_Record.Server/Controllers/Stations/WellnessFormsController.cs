@@ -59,8 +59,9 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
 
             var forms = await query.ToListAsync();
             var patientsById = await PatientsByIdAsync(forms.Select(f => f.PatientID));
+            var accountsByPatientId = await PatientAccountsByPatientIdAsync(forms.Select(f => f.PatientID));
 
-            return Ok(forms.Select(f => WithPatient(f, patientsById)));
+            return Ok(forms.Select(f => WithPatient(f, patientsById, accountsByPatientId)));
         }
 
         // GET /api/wellnessforms/stats
@@ -117,8 +118,9 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 .ToListAsync();
 
             var patientsById = await PatientsByIdAsync(forms.Select(f => f.PatientID));
+            var accountsByPatientId = await PatientAccountsByPatientIdAsync(forms.Select(f => f.PatientID));
 
-            return Ok(forms.Select(f => WithPatient(f, patientsById)));
+            return Ok(forms.Select(f => WithPatient(f, patientsById, accountsByPatientId)));
         }
 
         // GET /api/wellnessforms/{formID}
@@ -180,6 +182,10 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 await _context.SaveChangesAsync(); // assigns PatientID for a new patient
 
                 var hasAccount = await _context.PatientAccounts.AnyAsync(a => a.PatientID == patient.PatientID);
+                // Whether this submission is the one that provisioned the account, so
+                // the client can show the handover confirmation ("give the patient
+                // these credentials") only on a genuine first registration.
+                var accountProvisioned = !hasAccount;
                 if (!hasAccount)
                 {
                     // First registration: the admin must have asked the patient what
@@ -250,7 +256,13 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
-                return Ok(await BuildFormResponseAsync(form));
+
+                // accountProvisioned is threaded through the normal form response
+                // rather than wrapping it, so the shape Station 1 already consumes
+                // is unchanged. It lets the client tell "registered an existing
+                // patient" from "just created this patient's login" -- only the
+                // latter has credentials to hand over.
+                return Ok(await BuildFormResponseAsync(form, accountProvisioned));
             }
             catch
             {
@@ -928,9 +940,29 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             _context.Entry(form).Property(f => f.RowVersion).OriginalValue = bytes;
         }
 
-        private async Task<object> BuildFormResponseAsync(WellnessForm form)
+        // accountProvisioned is only ever true on the Station 1 submit that
+        // created the patient's login; every other caller leaves it false.
+        private async Task<object> BuildFormResponseAsync(WellnessForm form, bool accountProvisioned = false)
         {
             var patient = await _context.Patients.FindAsync(form.PatientID);
+
+            // The portal login Station 1 issued this patient. Projected, never the
+            // raw entity -- PatientAccount carries PasswordHash. Staff read forms;
+            // a patient reading their own form only ever sees their own handle.
+            var patientAccount = await _context.PatientAccounts
+                .Where(a => a.PatientID == form.PatientID)
+                .Select(a => new DTOs.Patient.PatientAccountDto
+                {
+                    PatientAccountID = a.PatientAccountID,
+                    PatientID = a.PatientID,
+                    Username = a.Username,
+                    Status = a.Status,
+                    MustChangePassword = a.MustChangePassword,
+                    ProvisionedAt = a.ProvisionedAt,
+                    ActivatedAt = a.ActivatedAt,
+                    LastLoginAt = a.LastLoginAt,
+                })
+                .FirstOrDefaultAsync();
 
             // never the raw entity here: Physician carries PasswordHash
             var physician = form.PhysicianID.HasValue
@@ -1027,6 +1059,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.CreatedAt,
                 form.UpdatedAt,
                 Patient = patient,
+                PatientAccount = patientAccount,
+                AccountProvisioned = accountProvisioned,
                 Physician = physician,
                 Dentist = dentist,
                 Optometrist = optometrist,
@@ -1047,9 +1081,13 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             };
         }
 
-        private object WithPatient(WellnessForm form, Dictionary<int, Patient> patientsById)
+        private object WithPatient(
+            WellnessForm form,
+            Dictionary<int, Patient> patientsById,
+            Dictionary<int, DTOs.Patient.PatientAccountDto> accountsByPatientId)
         {
             patientsById.TryGetValue(form.PatientID, out var patient);
+            accountsByPatientId.TryGetValue(form.PatientID, out var account);
 
             return new
             {
@@ -1082,6 +1120,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.CreatedAt,
                 form.UpdatedAt,
                 Patient = patient,
+                PatientAccount = account,
             };
         }
 
@@ -1091,6 +1130,29 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             return await _context.Patients
                 .Where(p => ids.Contains(p.PatientID))
                 .ToDictionaryAsync(p => p.PatientID);
+        }
+
+        // One batched lookup for a whole list of forms, so the forms table can show
+        // each patient's portal username without a query per row. Projected rather
+        // than the raw entity -- PatientAccount carries PasswordHash.
+        private async Task<Dictionary<int, DTOs.Patient.PatientAccountDto>> PatientAccountsByPatientIdAsync(
+            IEnumerable<int> patientIds)
+        {
+            var ids = patientIds.Distinct().ToList();
+            return await _context.PatientAccounts
+                .Where(a => ids.Contains(a.PatientID))
+                .Select(a => new DTOs.Patient.PatientAccountDto
+                {
+                    PatientAccountID = a.PatientAccountID,
+                    PatientID = a.PatientID,
+                    Username = a.Username,
+                    Status = a.Status,
+                    MustChangePassword = a.MustChangePassword,
+                    ProvisionedAt = a.ProvisionedAt,
+                    ActivatedAt = a.ActivatedAt,
+                    LastLoginAt = a.LastLoginAt,
+                })
+                .ToDictionaryAsync(a => a.PatientID);
         }
     }
 }

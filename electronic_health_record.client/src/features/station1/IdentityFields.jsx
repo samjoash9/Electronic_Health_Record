@@ -1,6 +1,6 @@
 import { Controller } from 'react-hook-form';
 import { ageFrom } from '../../lib/formatters';
-import { SEX_OPTIONS, CIVIL_STATUS_OPTIONS } from '../../lib/constants';
+import { SEX_OPTIONS, CIVIL_STATUS_OPTIONS, DEFAULT_PATIENT_PASSWORD } from '../../lib/constants';
 import Card from '../../components/ui/Card';
 import DatePicker from '../../components/ui/DatePicker';
 import Field from '../../components/ui/Field';
@@ -28,7 +28,7 @@ export default function IdentityFields({ register, watch, control, errors, needs
           </Field>
           <p className="mt-1 text-xs text-ink-500">
             This employee has no patient portal account yet. Default password will be{' '}
-            <code>password123</code>; the patient must change it on first login.
+            <code>{DEFAULT_PATIENT_PASSWORD}</code>; the patient must change it on first login.
           </p>
         </div>
       )}

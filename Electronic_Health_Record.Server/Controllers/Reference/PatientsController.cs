@@ -133,6 +133,70 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             }
         }
 
+        // GET /api/patients/accounts
+        // Every patient with the portal account Station 1 provisioned for them,
+        // for the admin Patients panel. Staff-only: a patient must never be able
+        // to enumerate other patients' login handles.
+        //
+        // Account is null for a Patient row the HR sync created but that has
+        // never been registered at Station 1, so the panel can show those as
+        // "not onboarded" rather than hiding them.
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
+        [HttpGet("accounts")]
+        public async Task<IActionResult> GetPatientAccounts()
+        {
+            try
+            {
+                // Left-joined in one query rather than per-patient lookups --
+                // PatientAccount is 1:1 with Patient (see the HasOne/WithOne in
+                // ElectronicHealthRecordDbContext), so this cannot fan out.
+                var rows = await _context.Patients
+                    .GroupJoin(
+                        _context.PatientAccounts,
+                        p => p.PatientID,
+                        a => a.PatientID,
+                        (p, accounts) => new { Patient = p, Accounts = accounts })
+                    .SelectMany(
+                        x => x.Accounts.DefaultIfEmpty(),
+                        (x, account) => new PatientWithAccountDto
+                        {
+                            PatientID = x.Patient.PatientID,
+                            ExternalEmployeeId = x.Patient.ExternalEmployeeId,
+                            Surname = x.Patient.Surname,
+                            FirstName = x.Patient.FirstName,
+                            MiddleName = x.Patient.MiddleName,
+                            Birthdate = x.Patient.Birthdate,
+                            Sex = x.Patient.Sex,
+                            AgencyOffice = x.Patient.AgencyOffice,
+                            Position = x.Patient.Position,
+                            ContactNo = x.Patient.ContactNo,
+                            CreatedAt = x.Patient.CreatedAt,
+                            // never the raw entity here: PatientAccount carries PasswordHash
+                            Account = account == null ? null : new PatientAccountDto
+                            {
+                                PatientAccountID = account.PatientAccountID,
+                                PatientID = account.PatientID,
+                                Username = account.Username,
+                                Status = account.Status,
+                                MustChangePassword = account.MustChangePassword,
+                                ProvisionedAt = account.ProvisionedAt,
+                                ActivatedAt = account.ActivatedAt,
+                                LastLoginAt = account.LastLoginAt,
+                            },
+                        })
+                    .OrderBy(p => p.Surname)
+                    .ThenBy(p => p.FirstName)
+                    .ToListAsync();
+
+                return Ok(rows);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve patient accounts.");
+                return StatusCode(500, "An error occurred while retrieving patient accounts.");
+            }
+        }
+
         // PUT    /api/patients/:id → full update (edit patient profile)
 
 

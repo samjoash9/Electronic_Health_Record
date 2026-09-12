@@ -36,6 +36,15 @@ const STATUS_TONE = {
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (f) => fullName(f.patient) },
   {
+    key: 'username',
+    header: 'Username',
+    // The portal handle issued at Station 1. Absent only for forms whose patient
+    // predates account provisioning.
+    render: (f) => (f.patientAccount?.username
+      ? <span className="font-medium text-ink-900">{f.patientAccount.username}</span>
+      : <span className="text-ink-400">—</span>),
+  },
+  {
     key: 'status',
     header: 'Status',
     render: (f) => <Badge tone={STATUS_TONE[f.status]}>{STATUS_LABEL[f.status] ?? f.status}</Badge>,
@@ -51,7 +60,7 @@ const STATUS_FILTER_OPTIONS = [
 
 const searchFields = (f) => {
   const p = f.patient ?? {};
-  return [fullName(p), p.externalEmployeeId];
+  return [fullName(p), p.externalEmployeeId, f.patientAccount?.username];
 };
 
 const filterField = (f) => f.status;
@@ -105,7 +114,7 @@ export default function FormsPage() {
             id="forms-search"
             value={table.query}
             onChange={table.onSearch}
-            placeholder="Search by name"
+            placeholder="Search by name or username"
             className="w-72"
           />
           <Select
