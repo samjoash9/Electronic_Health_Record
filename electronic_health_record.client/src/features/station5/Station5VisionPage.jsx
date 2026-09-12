@@ -12,7 +12,7 @@ import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station5Draft';
-import { ROLES, VISION_INDICATORS } from '../../lib/constants';
+import { ROLES, STATIONS, VISION_INDICATORS } from '../../lib/constants';
 import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -96,7 +96,7 @@ export default function Station5VisionPage() {
     queryFn: listPhysicians,
   });
 
-  const optometristOptions = activePhysicianOptions(physicians);
+  const optometristOptions = activePhysicianOptions(physicians, STATIONS.FIVE);
   const selectedOptometrist = findPhysician(physicians, optometristID);
 
   const {

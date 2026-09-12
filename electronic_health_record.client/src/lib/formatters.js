@@ -23,6 +23,13 @@ export function formatDateTime(iso) {
   });
 }
 
+/** Peso amount with thousands separators and a fixed two decimals. */
+export function peso(amount) {
+  return `₱${Number(amount || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  })}`;
+}
+
 export function ageFrom(birthdate) {
   if (!birthdate) return null;
   const dob = new Date(birthdate);

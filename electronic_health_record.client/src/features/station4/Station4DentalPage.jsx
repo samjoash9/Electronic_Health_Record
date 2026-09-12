@@ -12,7 +12,7 @@ import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station4Draft';
-import { ROLES, DENTAL_INDICATORS } from '../../lib/constants';
+import { ROLES, STATIONS, DENTAL_INDICATORS } from '../../lib/constants';
 import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -84,7 +84,7 @@ export default function Station4DentalPage() {
     queryFn: listPhysicians,
   });
 
-  const dentistOptions = activePhysicianOptions(physicians);
+  const dentistOptions = activePhysicianOptions(physicians, STATIONS.FOUR);
   const selectedDentist = findPhysician(physicians, dentistID);
 
   const {

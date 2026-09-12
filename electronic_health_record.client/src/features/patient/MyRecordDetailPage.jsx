@@ -13,6 +13,7 @@ import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import PriorStationsPanel from '../station3/PriorStationsPanel';
 import SectionCard, { SubPanel } from '../station3/SectionCard';
+import DiagnosticTestList from '../../components/ui/DiagnosticTestList';
 
 // Mirrors Station3ConsultationPage's PATIENT_FIELDS — the physician sees this
 // same identity grid when they open the record, so the patient's own copy
@@ -180,7 +181,7 @@ export default function MyRecordDetailPage() {
       >
         <div className="flex flex-col gap-4">
           <SubPanel icon={FlaskConical} title="Recommended Diagnostic Test" subtitle="Labs, imaging, or referrals ordered.">
-            <StaticAnswer value={form.recommendedDiagnosticTest} placeholder="None ordered." />
+            <DiagnosticTestList value={form.recommendedDiagnosticTest} />
           </SubPanel>
           <SubPanel icon={Stethoscope} title="Impression / Clinical" subtitle="Working diagnosis from the findings above.">
             <StaticAnswer value={form.impressionClinical} placeholder="No impression recorded." />

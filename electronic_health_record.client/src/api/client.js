@@ -21,10 +21,22 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+// ASP.NET ModelState rejections carry no `message` -- the reasons live under
+// `errors` as { FieldName: [...] }. Without this they surfaced as axios's bare
+// "Request failed with status code 400", which says nothing about what was wrong.
+function validationMessage(data) {
+  const fields = data?.errors && typeof data.errors === 'object' ? data.errors : null;
+  if (!fields) return null;
+
+  const reasons = Object.values(fields).flat().filter(Boolean);
+  return reasons.length ? reasons.join(' ') : null;
+}
+
 /** Normalises axios errors so callers only ever read `.status` and `.message`. */
 export function toApiError(error) {
+  const data = error?.response?.data;
   const err = new Error(
-    error?.response?.data?.message ?? error?.message ?? 'Request failed',
+    data?.message ?? validationMessage(data) ?? error?.message ?? 'Request failed',
   );
   err.status = error?.response?.status ?? 0;
   return err;

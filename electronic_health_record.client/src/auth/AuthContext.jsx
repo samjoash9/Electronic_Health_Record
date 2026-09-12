@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
 } from '../services/authService';
 import { clearSession } from '../lib/session';
+import { beginSignOut, endSignOut } from '../hooks/useUnsavedChangesGuard';
 
 // eslint-disable-next-line react-refresh/only-export-components -- co-located with its provider by design
 export const AuthContext = createContext(null);
@@ -52,13 +53,24 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // endSignOut() here rather than at the end of signOut: a fresh sign-in is
+  // what actually re-arms the guard. Without it, a user who signs out and
+  // straight back in inside the same tab keeps the blocker disabled and loses
+  // the unsaved-changes prompt on every station form.
   const signIn = useCallback(async (credentials) => {
     const session = await apiLogin(credentials);
+    endSignOut();
     setUser(session.user);
     return session.user;
   }, []);
 
+  // beginSignOut() before the await, not after: the unsaved-changes blocker
+  // must already be standing down by the time the caller navigates to /login,
+  // which happens in the same tick this promise resolves. It is never reset --
+  // signing out ends in a full remount at /login, and leaving it set keeps a
+  // dirty station form from blocking the redirect that follows.
   const signOut = useCallback(async () => {
+    beginSignOut();
     await apiLogout();
     setUser(null);
   }, []);

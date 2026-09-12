@@ -41,6 +41,18 @@ describe('station 3 physician selection', () => {
     });
   });
 
+  it('offers only the doctors assigned to the requested station', async () => {
+    const physicians = await listPhysicians();
+    for (const station of [3, 4, 5]) {
+      const options = activePhysicianOptions(physicians, station);
+      expect(options.length).toBeGreaterThan(0);
+      for (const option of options) {
+        const doctor = physicians.find((p) => p.physicianID === option.value);
+        expect(doctor.station).toBe(station);
+      }
+    }
+  });
+
   it('leaves a deactivated doctor out of the list', async () => {
     const created = await createPhysician({
       surname: 'Lim', firstName: 'Paolo', middleName: '',
