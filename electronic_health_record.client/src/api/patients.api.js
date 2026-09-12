@@ -26,15 +26,16 @@ function normalizeEmployee(row) {
 }
 
 export async function searchEmployees(query) {
+  const searchTerms = (query ?? '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+
   if (USE_MOCK) {
     await delay(150);
-    const q = (query ?? '').trim().toLowerCase();
     const employees = db.read().employees;
-    if (!q) return employees;
-    return employees.filter((e) =>
-      `${e.firstName} ${e.middleName} ${e.surname}`.toLowerCase().includes(q)
-      || e.externalEmployeeId.toLowerCase().includes(q),
-    );
+    if (searchTerms.length === 0) return employees;
+    return employees.filter((e) => {
+      const name = `${e.surname ?? ''} ${e.firstName ?? ''} ${e.middleName ?? ''} ${e.externalEmployeeId ?? ''}`.toLowerCase();
+      return searchTerms.every((term) => name.includes(term));
+    });
   }
 
   try {
@@ -43,12 +44,11 @@ export async function searchEmployees(query) {
 
     // GET /api/employees returns the whole local table and ignores `q`, so the
     // match has to happen here to mirror the mock path's behaviour.
-    const q = (query ?? '').trim().toLowerCase();
-    if (!q) return employees;
-    return employees.filter((e) =>
-      `${e.firstName} ${e.middleName} ${e.surname}`.toLowerCase().includes(q)
-      || e.externalEmployeeId.toLowerCase().includes(q),
-    );
+    if (searchTerms.length === 0) return employees;
+    return employees.filter((e) => {
+      const name = `${e.surname ?? ''} ${e.firstName ?? ''} ${e.middleName ?? ''} ${e.externalEmployeeId ?? ''}`.toLowerCase();
+      return searchTerms.every((term) => name.includes(term));
+    });
   } catch (error) {
     throw toApiError(error);
   }

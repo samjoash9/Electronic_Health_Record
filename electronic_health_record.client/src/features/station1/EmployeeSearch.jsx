@@ -57,15 +57,23 @@ export default function EmployeeSearch({ onSelect }) {
     queryFn: () => searchEmployees(debounced),
   });
 
+  const searchTerms = debounced.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const filteredList = searchTerms.length > 0
+    ? rawResults.filter((emp) => {
+      const fullName = `${emp.surname ?? ''} ${emp.firstName ?? ''} ${emp.middleName ?? ''} ${emp.externalEmployeeId ?? ''}`.toLowerCase();
+      return searchTerms.every((term) => fullName.includes(term));
+    })
+    : rawResults;
+
   const sortColumn = COLUMNS.find((c) => c.key === sortKey);
   const results = sortColumn
-    ? [...rawResults].sort((a, b) => {
+    ? [...filteredList].sort((a, b) => {
       const va = sortColumn.sortValue(a);
       const vb = sortColumn.sortValue(b);
       const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return sortDirection === 'desc' ? -cmp : cmp;
     })
-    : rawResults;
+    : filteredList;
 
   const handleSort = (key) => {
     if (key === sortKey) {
@@ -89,7 +97,7 @@ export default function EmployeeSearch({ onSelect }) {
           label="Search Employee"
           value={query}
           onChange={setQuery}
-          placeholder="Search by name or agency, e.g. Santos"
+          placeholder="Search by name e.g. Santos"
         />
 
         <DataTable

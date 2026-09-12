@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText, ClipboardList, MessageSquareDot, CircleCheck, CircleX,
-  Users, Send, Landmark, User, ListFilter, Calendar, ArrowRight, MoreHorizontal,
+  Users, Landmark, User, ListFilter, Calendar, ArrowRight, MoreHorizontal, Receipt,
 } from 'lucide-react';
 import { getAllForms } from '../../api/forms.api';
 import { FORM_STATUS, STATIONS, STATUS_LABEL, STATUS_TONE } from '../../lib/constants';
@@ -32,6 +32,7 @@ const STATION_CARDS = [
   { key: STATIONS.THREE, label: 'At Station 3', accent: 'violet' },
   { key: STATIONS.FOUR, label: 'At Station 4', accent: 'amber' },
   { key: STATIONS.FIVE, label: 'At Station 5', accent: 'rose' },
+  { key: STATIONS.SIX, label: 'At Station 6', accent: 'teal', icon: Receipt },
 ];
 
 const RECENT_COLUMNS = [
@@ -84,14 +85,6 @@ const RECENT_COLUMNS = [
 const RECENT_LIMIT = 25;
 const RECENT_PAGE_SIZE = 5;
 
-function isToday(iso) {
-  if (!iso) return false;
-  const d = new Date(iso);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear()
-    && d.getMonth() === now.getMonth()
-    && d.getDate() === now.getDate();
-}
 
 function countByStatus(forms) {
   const counts = { total: forms.length };
@@ -164,7 +157,6 @@ export default function DashboardPage() {
   const counts = countByStatus(forms);
   const stationCounts = countByStation(forms);
   const totalPatients = new Set(forms.map((f) => f.patientID)).size;
-  const submittedToday = forms.filter((f) => isToday(f.formDate)).length;
 
   const viewForm = (form) => navigate(`/forms/${form.formID}`);
 
@@ -175,13 +167,12 @@ export default function DashboardPage() {
           <StatCard key={key} label={label} value={counts[key] ?? 0} icon={icon} accent={accent} />
         ))}
         <StatCard label="Total Patients" value={totalPatients} icon={Users} accent="violet" />
-        <StatCard label="Submitted Today" value={submittedToday} icon={Send} accent="sky" />
-        {STATION_CARDS.map(({ key, label, accent }) => (
+        {STATION_CARDS.map(({ key, label, accent, icon: CardIcon }) => (
           <StatCard
             key={key}
             label={label}
             value={stationCounts[key] ?? 0}
-            icon={Landmark}
+            icon={CardIcon ?? Landmark}
             accent={accent}
           />
         ))}

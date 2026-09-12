@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, LayoutDashboard, Table, ClipboardList, ListChecks, Stethoscope, Smile, Eye, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus, Receipt } from 'lucide-react';
+import { LayoutGrid, LayoutDashboard, Sheet, ClipboardList, ListChecks, Stethoscope, Smile, Eye, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus, Receipt } from 'lucide-react';
 import phoLogo from '../../assets/images/PHO_logo.jpg';
 import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
@@ -23,7 +23,7 @@ const ONBOARDING_LINK = { to: '/onboarding', label: 'Onboarding', icon: UserPlus
 const LINKS = {
   admin: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/forms', label: 'Forms', icon: Table },
+    { to: '/forms', label: 'Forms', icon: Sheet },
     { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 },
     { to: '/station2', label: 'Station 2: Assessment', icon: ListChecks, station: 2 },
     // No `station`: onboarding is not a station desk, so it stays available
@@ -56,21 +56,33 @@ export default function Sidebar({ collapsed }) {
   };
 
   const linkClass = ({ isActive }) =>
-    `flex h-11 items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap transition ${collapsed ? 'justify-center' : ''
-    } ${isActive ? 'bg-white text-[#0e7d6b]' : 'text-white/80 hover:bg-white/10 hover:text-white'}`;
+    `flex h-11 items-center rounded-md px-3 py-2 text-base font-medium whitespace-nowrap transition ${collapsed ? 'justify-center' : ''
+    } ${isActive
+      ? 'bg-[#37AF9B] text-white shadow-sm font-semibold'
+      : 'text-white/80 hover:bg-[#37AF9B] hover:text-white'
+    }`;
+
+  const buttonClass = `flex h-11 w-full cursor-pointer items-center rounded-md px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-[#37AF9B] hover:text-white ${collapsed ? 'justify-center' : ''
+    }`;
+
+  const labelClass = `transition-all duration-300 overflow-hidden whitespace-nowrap truncate ${collapsed ? 'w-0 opacity-0 ml-0' : 'w-48 opacity-100 ml-3'
+    }`;
 
   return (
     <nav
-      className={`flex flex-col gap-1 border-r border-black/10 bg-linear-to-b from-[#14a690] to-[#0e7d6b] p-3 transition-all duration-200 ${collapsed ? 'w-16' : 'w-60'
+      className={`flex flex-col gap-1 border-r border-black/10 bg-[#0A594D] p-3 transition-all duration-300 ${collapsed ? 'w-16' : 'w-72'
         }`}
     >
-      <div className={`flex items-center gap-2 px-1 py-2 ${collapsed ? 'justify-center' : ''}`}>
-        <img src={phoLogo} alt="Provincial Health Office" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-        {!collapsed && (
-          <span className="text-base font-bold text-white">
-            eHPR <span className="text-xs font-semibold tracking-wide text-white/70">SYSTEM</span>
-          </span>
-        )}
+      <div className={`flex items-center py-2 ${collapsed ? 'justify-center' : 'px-1'}`}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center p-1">
+          <img src={phoLogo} alt="Provincial Health Office" className="h-full w-full rounded-md object-contain" />
+        </div>
+        <span
+          className={`transition-all duration-300 overflow-hidden whitespace-nowrap truncate text-base font-bold text-white ${collapsed ? 'w-0 opacity-0 ml-0' : 'w-48 opacity-100 ml-3'
+            }`}
+        >
+          eHPR <span className="text-xs font-semibold tracking-wide text-white/70">SYSTEM</span>
+        </span>
       </div>
 
       <div className="mb-2 border-t border-white/15" />
@@ -79,7 +91,7 @@ export default function Sidebar({ collapsed }) {
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} title={label} className={linkClass}>
             <Icon size={18} className="shrink-0" />
-            {!collapsed && label}
+            <span className={labelClass}>{label}</span>
           </NavLink>
         ))}
       </div>
@@ -88,39 +100,37 @@ export default function Sidebar({ collapsed }) {
         {user?.role === ROLES.ADMIN && !superAdmin && (
           <NavLink to={CHANGE_STATION_LINK.to} title={CHANGE_STATION_LINK.label} className={linkClass}>
             <CHANGE_STATION_LINK.icon size={18} className="shrink-0" />
-            {!collapsed && CHANGE_STATION_LINK.label}
+            <span className={labelClass}>{CHANGE_STATION_LINK.label}</span>
           </NavLink>
         )}
         <button
           type="button"
           title="Settings"
           onClick={() => setChangePasswordOpen(true)}
-          className={`flex h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''
-            }`}
+          className={buttonClass}
         >
           <Settings size={18} className="shrink-0" />
-          {!collapsed && 'Settings'}
+          <span className={`${labelClass} text-left`}>Settings</span>
         </button>
         {!superAdmin && (
           <button
             type="button"
             title="Support"
-            className={`flex h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''
-              }`}
+            className={buttonClass}
           >
             <LifeBuoy size={18} className="shrink-0" />
-            {!collapsed && 'Support'}
+            <span className={`${labelClass} text-left`}>Support</span>
           </button>
         )}
         <button
           type="button"
           title="Log Out"
           onClick={handleSignOut}
-          className={`flex h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''
+          className={`flex h-11 w-full cursor-pointer items-center rounded-md px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition-all duration-200 hover:bg-[#F87171]/15 hover:text-[#F87171] ${collapsed ? 'justify-center' : ''
             }`}
         >
           <LogOut size={18} className="shrink-0" />
-          {!collapsed && 'Log Out'}
+          <span className={`${labelClass} text-left`}>Log Out</span>
         </button>
       </div>
 

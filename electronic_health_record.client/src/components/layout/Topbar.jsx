@@ -16,13 +16,13 @@ export default function Topbar({ collapsed, onToggleSidebar }) {
   const [showAccount, setShowAccount] = useState(false);
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-black/10 bg-linear-to-r from-[#14a690] to-[#0e7d6b] px-4 text-white">
+    <header className="flex h-16 items-center justify-between border-b border-black/10 bg-[#0A594D] px-4 text-white">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onToggleSidebar}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
         >
           {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
         </button>
