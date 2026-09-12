@@ -13,7 +13,7 @@ import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station4Draft';
 import { ROLES, DENTAL_INDICATORS } from '../../lib/constants';
-import { ArrowLeft, IdCard, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
+import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Button from '../../components/ui/Button';
@@ -25,7 +25,6 @@ import { activePhysicianOptions, findPhysician } from '../station3/physicianOpti
 import DentalAssessmentSection from './DentalAssessmentSection';
 
 const PATIENT_FIELDS = [
-  { key: 'externalEmployeeId', label: 'Employee ID', icon: IdCard },
   { key: 'position', label: 'Position', icon: Briefcase },
   { key: 'agencyOffice', label: 'Agency/Office', icon: Building2 },
   { key: 'birthdate', label: 'Birthdate', icon: Cake, render: (p) => formatDate(p.birthdate) },

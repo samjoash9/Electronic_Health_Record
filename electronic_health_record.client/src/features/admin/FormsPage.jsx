@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Ban } from 'lucide-react';
-import { getAllForms, cancelForm } from '../../api/forms.api';
+import { Ban, Trash2 } from 'lucide-react';
+import { getAllForms, cancelForm, deleteForm } from '../../api/forms.api';
 import { FORM_STATUS, isSuperAdmin } from '../../lib/constants';
 import { fullName, formatDate } from '../../lib/formatters';
 import { useAuth } from '../../auth/useAuth';
@@ -17,6 +17,7 @@ import TableFooter from '../../components/ui/TableFooter';
 import SearchInput from '../../components/ui/SearchInput';
 import Select from '../../components/ui/Select';
 import CancelFormModal from './CancelFormModal';
+import DeleteFormModal from './DeleteFormModal';
 
 const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
@@ -34,7 +35,6 @@ const STATUS_TONE = {
 
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (f) => fullName(f.patient) },
-  { key: 'externalEmployeeId', header: 'Employee ID', render: (f) => f.patient?.externalEmployeeId },
   {
     key: 'status',
     header: 'Status',
@@ -62,6 +62,7 @@ export default function FormsPage() {
   const { user } = useAuth();
   const canCancel = isSuperAdmin(user);
   const [formToCancel, setFormToCancel] = useState(null);
+  const [formToDelete, setFormToDelete] = useState(null);
 
   const { data: forms, isLoading, error, refetch } = useQuery({
     queryKey: ['forms'],
@@ -80,6 +81,16 @@ export default function FormsPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: ({ formID, reason, rowVersion }) =>
+      deleteForm({ formID, reason, rowVersion }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['forms'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+      setFormToDelete(null);
+    },
+  });
+
   const table = useTableControls(forms, { searchFields, filterField });
 
   if (isLoading) return <Skeleton />;
@@ -94,7 +105,7 @@ export default function FormsPage() {
             id="forms-search"
             value={table.query}
             onChange={table.onSearch}
-            placeholder="Search by name or employee ID"
+            placeholder="Search by name"
             className="w-72"
           />
           <Select
@@ -112,18 +123,30 @@ export default function FormsPage() {
           rows={table.pageRows}
           onRowClick={(row) => navigate(`/forms/${row.formID}`)}
           rowActions={canCancel ? (row) => (
-            row.status === FORM_STATUS.CANCELLED ? null : (
+            <div className="flex items-center gap-1">
+              {row.status !== FORM_STATUS.CANCELLED && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-rose-600 hover:bg-rose-50"
+                  title={`Cancel form #${row.formID}`}
+                  onClick={() => setFormToCancel(row)}
+                >
+                  <Ban size={16} />
+                  Cancel
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="ghost"
                 className="text-rose-600 hover:bg-rose-50"
-                title={`Cancel form #${row.formID}`}
-                onClick={() => setFormToCancel(row)}
+                title={`Permanently delete form #${row.formID}`}
+                onClick={() => setFormToDelete(row)}
               >
-                <Ban size={16} />
-                Cancel
+                <Trash2 size={16} />
+                Delete
               </Button>
-            )
+            </div>
           ) : undefined}
           empty={table.isSearching || table.isFiltered ? 'No forms match your search.' : 'No forms found.'}
         />
@@ -151,6 +174,24 @@ export default function FormsPage() {
         onClose={() => {
           cancelMutation.reset();
           setFormToCancel(null);
+        }}
+      />
+      )}
+
+      {formToDelete && (
+      <DeleteFormModal
+        key={formToDelete.formID}
+        form={formToDelete}
+        isPending={deleteMutation.isPending}
+        error={deleteMutation.error}
+        onConfirm={({ reason }) => deleteMutation.mutate({
+          formID: formToDelete.formID,
+          reason,
+          rowVersion: formToDelete.rowVersion,
+        })}
+        onClose={() => {
+          deleteMutation.reset();
+          setFormToDelete(null);
         }}
       />
       )}

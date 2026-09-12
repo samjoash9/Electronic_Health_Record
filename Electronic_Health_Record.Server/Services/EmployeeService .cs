@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.DTOs.Employee;
 using Electronic_Health_Record.Server.DTOs.Patient;
 using Electronic_Health_Record.Server.Models;
 
@@ -201,38 +202,38 @@ namespace Electronic_Health_Record.Server.Services
         // These NEVER call the external HR API.
         // ========================================================
 
-        public async Task<List<EmployeeDto>> GetLocalEmployeesAsync()
+        public async Task<List<EmployeeResponseDto>> GetLocalEmployeesAsync()
         {
             var localEmployees = await _context.Employees
                 .AsNoTracking()
                 .ToListAsync();
 
-            return localEmployees.Select(MapToDto).ToList();
+            return localEmployees.Select(MapToResponseDto).ToList();
         }
 
-        public async Task<EmployeeDto?> GetLocalEmployeeByIdAsync(string externalEmployeeId)
+        public async Task<EmployeeResponseDto?> GetLocalEmployeeByIdAsync(string externalEmployeeId)
         {
             var employee = await _context.Employees
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.ExternalEmployeeId == externalEmployeeId);
 
-            return employee == null ? null : MapToDto(employee);
+            return employee == null ? null : MapToResponseDto(employee);
         }
 
-        private static EmployeeDto MapToDto(Employee e) => new()
+        private static EmployeeResponseDto MapToResponseDto(Employee e) => new()
         {
-            Eid = int.TryParse(e.ExternalEmployeeId, out var eid) ? eid : 0,
+            ExternalEmployeeId = e.ExternalEmployeeId,
             Surname = e.Surname,
-            Firstname = e.FirstName,
-            Middlename = e.MiddleName,
-            BirthDate = e.Birthdate,
-            Age = e.Age,
+            FirstName = e.FirstName,
+            MiddleName = e.MiddleName,
+            Birthdate = e.Birthdate,
             Sex = e.Sex,
             CivilStatus = e.CivilStatus,
             Address = e.Address,
-            Office = e.AgencyOffice,
+            AgencyOffice = e.AgencyOffice,
             Position = e.Position,
-            ContactNumber = e.ContactNo
+            ContactNo = e.ContactNo,
+            IsLocallyAdded = e.IsLocallyAdded
         };
 
         private static string Truncate(string value, int maxLength)

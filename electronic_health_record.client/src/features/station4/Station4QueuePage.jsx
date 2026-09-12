@@ -15,7 +15,6 @@ import TableFooter from '../../components/ui/TableFooter';
 
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (row) => fullName(row.patient) },
-  { key: 'employeeId', header: 'Employee ID', render: (row) => row.patient?.externalEmployeeId },
   { key: 'age', header: 'Age', render: (row) => ageFrom(row.patient?.birthdate) },
   {
     key: 'status',
@@ -65,7 +64,7 @@ export default function Station4QueuePage() {
             id="station4-search"
             value={table.query}
             onChange={table.onSearch}
-            placeholder="Search by name, employee ID, or agency"
+            placeholder="Search by name or agency"
             className="w-72"
           />
           <Select

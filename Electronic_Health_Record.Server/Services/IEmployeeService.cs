@@ -1,3 +1,4 @@
+using Electronic_Health_Record.Server.DTOs.Employee;
 using Electronic_Health_Record.Server.DTOs.Patient;
 
 namespace Electronic_Health_Record.Server.Services
@@ -9,7 +10,7 @@ namespace Electronic_Health_Record.Server.Services
         Task<List<EmployeeDto>> GetEmployeesAsync();
 
         // Local database only — used by the app's normal read paths.
-        Task<List<EmployeeDto>> GetLocalEmployeesAsync();
-        Task<EmployeeDto?> GetLocalEmployeeByIdAsync(string externalEmployeeId);
+        Task<List<EmployeeResponseDto>> GetLocalEmployeesAsync();
+        Task<EmployeeResponseDto?> GetLocalEmployeeByIdAsync(string externalEmployeeId);
     }
 }

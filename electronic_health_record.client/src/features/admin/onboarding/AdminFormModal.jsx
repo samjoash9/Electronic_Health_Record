@@ -62,7 +62,15 @@ export default function AdminFormModal({ isPending, error, onSubmit, onClose }) 
             />
           </Field>
           <Field label="Contact No." htmlFor="admin-contact">
-            <Input id="admin-contact" {...register('contactNo')} />
+            <Input
+              id="admin-contact"
+              inputMode="numeric"
+              {...register('contactNo', {
+                onChange: (e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '');
+                },
+              })}
+            />
           </Field>
         </div>
 

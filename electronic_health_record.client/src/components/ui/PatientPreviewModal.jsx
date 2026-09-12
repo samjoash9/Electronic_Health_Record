@@ -1,10 +1,9 @@
-import { IdCard, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone } from 'lucide-react';
+import { Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone } from 'lucide-react';
 import { fullName, formatDate } from '../../lib/formatters';
 import Modal from './Modal';
 import Button from './Button';
 
 const PREVIEW_FIELDS = [
-  { key: 'externalEmployeeId', label: 'Employee ID', icon: IdCard },
   { key: 'position', label: 'Position', icon: Briefcase },
   { key: 'agencyOffice', label: 'Agency/Office', icon: Building2 },
   { key: 'birthdate', label: 'Birthdate', icon: Cake, render: (p) => formatDate(p.birthdate) },

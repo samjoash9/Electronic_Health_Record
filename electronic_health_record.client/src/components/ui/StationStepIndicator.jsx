@@ -2,7 +2,7 @@ import { Check } from 'lucide-react';
 
 export default function StationStepIndicator({ steps, current, unlockedUpTo, onSelect }) {
   return (
-    <ol className="flex items-center justify-center">
+    <ol className="flex items-start justify-center">
       {steps.map((step, i) => {
         const stepNumber = i + 1;
         const isDone = stepNumber < current;
@@ -11,7 +11,7 @@ export default function StationStepIndicator({ steps, current, unlockedUpTo, onS
         const isLast = stepNumber === steps.length;
 
         return (
-          <li key={step} className={`flex items-center ${isLast ? '' : 'flex-1'}`}>
+          <li key={step} className={`flex items-start ${isLast ? '' : 'flex-1'}`}>
             <button
               type="button"
               disabled={!isUnlocked}
@@ -41,7 +41,7 @@ export default function StationStepIndicator({ steps, current, unlockedUpTo, onS
             </button>
             {!isLast && (
               <span
-                className={`mx-2 h-0.5 flex-1 rounded-full ${isDone ? 'bg-[#0e7d6b]' : 'bg-gray-200'}`}
+                className={`mx-2 mt-4.5 h-0.5 flex-1 rounded-full ${isDone ? 'bg-[#0e7d6b]' : 'bg-gray-200'}`}
                 aria-hidden="true"
               />
             )}

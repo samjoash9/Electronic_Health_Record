@@ -87,7 +87,15 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
             />
           </Field>
           <Field label="Contact No." htmlFor="doctor-contact">
-            <Input id="doctor-contact" {...register('contactNo')} />
+            <Input
+              id="doctor-contact"
+              inputMode="numeric"
+              {...register('contactNo', {
+                onChange: (e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '');
+                },
+              })}
+            />
           </Field>
           <Field
             label="Station"

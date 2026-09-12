@@ -222,6 +222,29 @@ export async function cancelForm({
 
 
 /**
+ * Hard delete a wellness form. Unlike cancelForm, this permanently removes
+ * the form and everything that points at it (assessment answers, station
+ * 1/4/5 detail rows, the form's own audit log). Superadmin only.
+ */
+export async function deleteForm({
+    formID,
+    reason,
+    rowVersion,
+}) {
+    try {
+        await api.delete(`/wellnessforms/${formID}`, {
+            data: {
+                reason,
+                rowVersion,
+            },
+        });
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
+
+/**
  * Get wellness form activity/audit logs.
  */
 export async function getActivityLogs() {

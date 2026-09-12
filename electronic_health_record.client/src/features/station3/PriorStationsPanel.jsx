@@ -1,6 +1,6 @@
 import { HeartPulse, ListChecks, ClipboardList, FlaskConical, Stethoscope, Pill, BadgeCheck, Smile } from 'lucide-react';
 import { bmiCategory } from '../../lib/bmi';
-import { scoreAllCategories } from '../../lib/scoring';
+import { scoreAllCategories, overallScore } from '../../lib/scoring';
 import { formatDateTime } from '../../lib/formatters';
 import { DENTAL_INDICATORS } from '../../lib/constants';
 import Collapsible from '../../components/ui/Collapsible';
@@ -35,6 +35,7 @@ function VitalRow({ label, value }) {
 export default function PriorStationsPanel({ form, categories, upToStation = 2 }) {
   const category = bmiCategory(form.bmi);
   const scores = categories ? scoreAllCategories(categories, form.assessmentAnswers) : [];
+  const overall = categories ? overallScore(categories, form.assessmentAnswers) : null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -72,6 +73,9 @@ export default function PriorStationsPanel({ form, categories, upToStation = 2 }
               {scores.map((s) => (
                 <ScoreRing key={s.categoryID} label={s.name} percent={s.percent} total={s.total} max={s.max} />
               ))}
+              {overall && (
+                <ScoreRing label="Overall Average" percent={overall.percent} total={overall.total} max={overall.max} />
+              )}
             </div>
             <AnswersReview categories={categories} answers={form.assessmentAnswers} />
           </>

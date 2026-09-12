@@ -16,7 +16,7 @@ export default function HandoffConfirm({ form }) {
       <div className="mb-6 rounded border border-line bg-canvas p-4">
         <p className="text-xl font-semibold text-ink-900">{fullName(patient)}</p>
         <p className="mt-1 text-sm text-ink-500">
-          {patient?.externalEmployeeId} · {patient?.agencyOffice} · Age {ageFrom(patient?.birthdate)}
+          {patient?.agencyOffice} · Age {ageFrom(patient?.birthdate)}
         </p>
       </div>
 
