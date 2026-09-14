@@ -295,7 +295,7 @@ export default function ChargeCatalogPanel() {
               type="button"
               title={item.isActive ? 'Retire this item' : 'Restore this item'}
               onClick={() => toggleActive(item)}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+              className={`flex h-11 w-11 items-center justify-center rounded-lg transition ${
                 item.isActive
                   ? 'text-ink-400 hover:bg-rose-50 hover:text-rose-600'
                   : 'text-ink-400 hover:bg-emerald-50 hover:text-emerald-600'

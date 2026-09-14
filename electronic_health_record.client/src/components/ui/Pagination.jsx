@@ -37,7 +37,7 @@ export default function Pagination({ page, totalPages, onPageChange, maxButtons 
           onClick={() => onPageChange(p)}
           aria-current={p === page ? 'page' : undefined}
           aria-label={`Page ${p}`}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-medium transition ${
             p === page
               ? 'bg-[#1fc8a8] text-white'
               : 'text-ink-700 hover:bg-gray-100'

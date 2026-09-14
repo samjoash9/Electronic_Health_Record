@@ -140,7 +140,7 @@ const DatePicker = forwardRef(function DatePicker(
                   ? setView(new Date(view.getFullYear() - YEAR_PAGE_SIZE, view.getMonth(), 1))
                   : setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))
               }
-              className="flex h-9 w-9 items-center justify-center rounded-md text-ink-500 transition hover:bg-[#f3fdfb] hover:text-[#0e7d6b]"
+              className="flex h-11 w-11 items-center justify-center rounded-md text-ink-500 transition hover:bg-[#f3fdfb] hover:text-[#0e7d6b]"
             >
               <ChevronLeft size={20} />
             </button>
@@ -160,7 +160,7 @@ const DatePicker = forwardRef(function DatePicker(
                   ? setView(new Date(view.getFullYear() + YEAR_PAGE_SIZE, view.getMonth(), 1))
                   : setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))
               }
-              className="flex h-9 w-9 items-center justify-center rounded-md text-ink-500 transition hover:bg-[#f3fdfb] hover:text-[#0e7d6b]"
+              className="flex h-11 w-11 items-center justify-center rounded-md text-ink-500 transition hover:bg-[#f3fdfb] hover:text-[#0e7d6b]"
             >
               <ChevronRight size={20} />
             </button>

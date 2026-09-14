@@ -274,7 +274,7 @@ function DiagnosticTestGrid({ watch, setValue }) {
                     type="button"
                     aria-label={`Remove row ${index + 1}`}
                     onClick={() => removeRow(index)}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center justify-self-end rounded-lg text-ink-300 transition hover:bg-rose-50 hover:text-rose-600"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center justify-self-end rounded-lg text-ink-300 transition hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -389,7 +389,7 @@ function MedicationTable({ control, register, watch }) {
                     type="button"
                     aria-label={`Remove row ${index + 1}`}
                     onClick={() => handleRemove(index)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-300 transition group-hover:text-ink-500 hover:bg-rose-50 hover:text-rose-600"
+                    className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-300 transition group-hover:text-ink-500 hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 size={15} />
                   </button>

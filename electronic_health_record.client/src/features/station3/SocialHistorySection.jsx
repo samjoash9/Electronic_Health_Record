@@ -374,7 +374,7 @@ export default function SocialHistorySection({ control, watch }) {
                   type="button"
                   aria-label={`Remove row ${index + 1}`}
                   onClick={() => handleRemoveExercise(index)}
-                  className="flex h-9 w-9 items-center justify-center self-end rounded-lg text-ink-300 transition hover:bg-rose-50 hover:text-rose-600 md:self-center"
+                  className="flex h-11 w-11 items-center justify-center self-end rounded-lg text-ink-300 transition hover:bg-rose-50 hover:text-rose-600 md:self-center"
                 >
                   <Trash2 size={15} />
                 </button>
