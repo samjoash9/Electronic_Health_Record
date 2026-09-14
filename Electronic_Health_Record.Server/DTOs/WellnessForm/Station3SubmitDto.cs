@@ -37,6 +37,11 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
 
         public SocialHistoryDto? SocialHistory { get; set; }
 
+        // Billing's source of truth for this visit's labs and medications.
+        // Replaces the form's charges wholesale, same as every other list on
+        // this DTO -- a resubmit must not accumulate duplicates.
+        public List<ChargeItemSubmitDto> Charges { get; set; } = new();
+
         [Required]
         public string RowVersion { get; set; } = string.Empty;
     }

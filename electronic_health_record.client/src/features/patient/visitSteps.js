@@ -51,8 +51,22 @@ export const STEPS = [
   },
 ];
 
-/** Index of the stop the visit is sitting at, or STEPS.length once it's done. */
+/**
+ * Index of the stop the visit is sitting at, or STEPS.length once it's done.
+ *
+ * A Completed form is always fully done, even when a walk through the
+ * timestamps would say otherwise: a form can be Completed at CurrentStation 3
+ * (rows written before Station 4/Dental and Station 5/Vision existed, when
+ * Station 3 completed the form directly). CK_WellnessForm_CompletedIsDentalSigned
+ * and CK_WellnessForm_CompletedIsVisionSigned both carve this out explicitly
+ * server-side (their "CurrentStation < 4" / "< 5" clauses) -- station4SubmittedAt
+ * and station5SubmittedAt are genuinely, permanently null on such a row, not
+ * merely not-yet-set. Without this check, StatusBand (which trusts form.status)
+ * and StatusTimeline (which used to walk only the timestamps) could disagree
+ * on the same form.
+ */
 export function currentStepIndex(form) {
+  if (form.status === 'Completed') return STEPS.length;
   const index = STEPS.findIndex((step) => !form[step.key]);
   return index === -1 ? STEPS.length : index;
 }

@@ -1,8 +1,11 @@
 import { Check } from 'lucide-react';
 
 export default function StationStepIndicator({ steps, current, unlockedUpTo, onSelect }) {
+  // px-16: the labels below are centred on their circles and overhang them (see
+  // the note on the label span). The first and last circles sit at the row's
+  // edges, so without this gutter their labels are clipped by the container.
   return (
-    <ol className="flex items-start justify-center pb-6">
+    <ol className="flex items-start justify-center px-16 pb-6">
       {steps.map((step, i) => {
         const stepNumber = i + 1;
         const isDone = stepNumber < current;

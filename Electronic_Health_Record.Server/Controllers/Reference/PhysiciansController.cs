@@ -90,7 +90,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         //GET    /api/physicians/:id      → get one physician's profile
-        [HttpGet("{PhysicianID}")]
+        [HttpGet("{PhysicianID:int}")]
         public async Task<IActionResult> GetPhysician(int PhysicianID)
         {
             try
@@ -177,7 +177,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
         //PUT    /api/physicians/:id      → full update
         [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
-        [HttpPut("{physicianId}")]
+        [HttpPut("{physicianId:int}")]
         public async Task<IActionResult> UpdatePhysician(
             int physicianId,
             [FromBody] UpdatePhysicianDto dto)
@@ -222,7 +222,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
         //PATCH  /api/physicians/:id      → partial update
         [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
-        [HttpPatch("{physicianId}")]
+        [HttpPatch("{physicianId:int}")]
         public async Task<IActionResult> PatchPhysician(
             int physicianId,
             [FromBody] PatchPhysicianDto dto)
@@ -290,7 +290,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // Separate from PATCH so a credential change is never a side effect of a
         // profile edit, and so the response carries no password material.
         [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
-        [HttpPost("{physicianId}/password")]
+        [HttpPost("{physicianId:int}/password")]
         public async Task<IActionResult> SetPhysicianPassword(
             int physicianId,
             [FromBody] SetPhysicianPasswordDto dto)
@@ -329,7 +329,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // destroy a row referenced by signed medical records, so it sits a tier
         // above the rest of the writes.
         [Authorize(Roles = AdminRoles.SuperAdmin)]
-        [HttpDelete("{physicianId}")]
+        [HttpDelete("{physicianId:int}")]
         public async Task<IActionResult> DeletePhysician(int physicianId)
         {
             var physician = await _context.Physicians.FindAsync(physicianId);

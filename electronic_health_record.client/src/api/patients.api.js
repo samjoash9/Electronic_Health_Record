@@ -131,6 +131,29 @@ export async function listPatientAccounts() {
   }
 }
 
+/**
+ * A patient's full visit history, newest first -- one row per WellnessForm,
+ * since a patient now goes through the station workflow repeatedly (monthly,
+ * six-monthly; the cadence is an operational decision this call does not
+ * encode). Used by Station 1 (is this a returning patient?), Station 3
+ * (PriorStationsPanel's "Previous visits"), and Station 6 (has this patient
+ * been billed before?).
+ *
+ * Unlike the other functions in this file, there is no USE_MOCK branch: the
+ * endpoint it calls is new server-side and the local mock db has no
+ * equivalent wellnessForms collection to read, matching forms.api.js's
+ * functions (which this data joins against) rather than this file's own
+ * dual-mode pattern.
+ */
+export async function getPatientVisitHistory(patientID) {
+  try {
+    const { data } = await client.get(`/patients/${patientID}/forms`);
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 // Station 1: once an employee is picked, checks whether they already have a
 // PatientAccount. If not, the admin must ask the patient for a username
 // before the registration can be submitted.

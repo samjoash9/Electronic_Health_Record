@@ -18,20 +18,27 @@ const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon:
 const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope, station: 3 };
 const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile, station: 4 };
 const STATION5_LINK = { to: '/station5', label: 'Station 5: Vision', icon: Eye, station: 5 };
-const STATION6_LINK = { to: '/station6', label: 'Station 6: Billing', icon: Receipt, station: 6 };
+// No `station`: billing is not a per-device desk. Stations 1-2 are chosen on
+// the station picker, which never offers 6, so gating this on the device choice
+// would hide it from every admin.
+const STATION6_LINK = { to: '/station6', label: 'Station 6: Billing', icon: Receipt };
 const ONBOARDING_LINK = { to: '/onboarding', label: 'Onboarding', icon: UserPlus };
+// No `station`: the read-only record of every form, which a doctor needs
+// precisely because their queue drops work once it is signed.
+const FORMS_LINK = { to: '/forms', label: 'Forms', icon: Sheet };
 
 const LINKS = {
   admin: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/forms', label: 'Forms', icon: Sheet },
+    FORMS_LINK,
     { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 },
     { to: '/station2', label: 'Station 2: Assessment', icon: ListChecks, station: 2 },
     // No `station`: onboarding is not a station desk, so it stays available
     // whichever station an admin picked.
+    STATION6_LINK,
     ONBOARDING_LINK,
   ],
-  doctor: [STATION3_LINK, STATION4_LINK, STATION5_LINK],
+  doctor: [STATION3_LINK, STATION4_LINK, STATION5_LINK, FORMS_LINK],
   patient: [{ to: '/my-record', label: 'My Record', icon: FileText }],
 };
 
@@ -47,8 +54,11 @@ export default function Sidebar({ collapsed }) {
   // Doctors' station links are gated on their admin-assigned `user.station`;
   // admins' station links are still gated on the device choice from useStationChoice().
   const gateStation = user?.role === ROLES.DOCTOR ? user?.station : station;
+  // A superadmin drops the station-less links here and has them re-pushed below,
+  // so they land after the doctor desks instead of above them. Both must be
+  // excluded or they would render twice and collide on their `to` key.
   const links = (LINKS[user?.role] ?? []).filter((link) => {
-    if (superAdmin) return link !== ONBOARDING_LINK;
+    if (superAdmin) return link !== ONBOARDING_LINK && link !== STATION6_LINK;
     return !link.station || link.station === gateStation;
   });
   if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, STATION5_LINK, STATION6_LINK, ONBOARDING_LINK, ACTIVITY_LOGS_LINK);

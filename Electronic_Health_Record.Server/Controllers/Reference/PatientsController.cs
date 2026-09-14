@@ -46,7 +46,10 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
         // get specific patient
         [Authorize]
-        [HttpGet("{PatientId}")]
+        // :int so this cannot swallow the literal routes below it -- without the
+        // constraint "accounts" matches here too and fails model binding with
+        // "The value 'accounts' is not valid."
+        [HttpGet("{PatientId:int}")]
         public async Task<IActionResult> GetPatient(int PatientId)
         {
             try
@@ -204,6 +207,62 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
         // DELETE /api/patients/:id → delete/deactivate patient
 
-        // GET    /api/patients/:id/consultations → list this patient's visit history
+        // GET /api/patients/{id}/forms
+        // A patient's full visit history, newest first: one row per
+        // WellnessForm, since a patient can now go through the station
+        // workflow repeatedly (monthly, six-monthly -- the cadence is an
+        // operational decision this endpoint does not encode). Used by
+        // Station 1 (is this a returning patient?), Station 3
+        // (PriorStationsPanel's "Previous visits"), and Station 6 (has this
+        // patient been billed before?).
+        [Authorize]
+        [HttpGet("{patientId:int}/forms")]
+        public async Task<IActionResult> GetPatientForms(int patientId)
+        {
+            var patientExists = await _context.Patients.AnyAsync(p => p.PatientID == patientId);
+            if (!patientExists)
+                return NotFound(new { message = $"Patient with ID {patientId} was not found." });
+
+            try
+            {
+                var forms = await _context.WellnessForms
+                    .Where(f => f.PatientID == patientId)
+                    .OrderByDescending(f => f.FormDate)
+                    .ThenByDescending(f => f.FormID)
+                    .ToListAsync();
+
+                var formIds = forms.Select(f => f.FormID).ToList();
+
+                var chargeTotals = await _context.WellnessFormCharges
+                    .Where(c => formIds.Contains(c.FormID))
+                    .GroupBy(c => c.FormID)
+                    .Select(g => new { FormID = g.Key, Total = g.Sum(c => (c.UnitPrice ?? 0) * c.Quantity) })
+                    .ToDictionaryAsync(g => g.FormID, g => g.Total);
+
+                var billingByForm = await _context.FormBillings
+                    .Where(b => formIds.Contains(b.FormID))
+                    .ToDictionaryAsync(b => b.FormID);
+
+                var rows = forms.Select(f => new
+                {
+                    f.FormID,
+                    f.Status,
+                    f.CurrentStation,
+                    f.FormDate,
+                    f.ImpressionClinical,
+                    f.RecommendedDiagnosticTest,
+                    f.ManagementTreatment,
+                    TotalCharged = chargeTotals.GetValueOrDefault(f.FormID, 0m),
+                    BillingStatus = billingByForm.GetValueOrDefault(f.FormID)?.Status ?? FormBillingStatus.Pending,
+                }).ToList();
+
+                return Ok(new { data = rows });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve visit history for patient {PatientID}.", patientId);
+                return StatusCode(500, "An error occurred while retrieving this patient's visit history.");
+            }
+        }
     }
 }

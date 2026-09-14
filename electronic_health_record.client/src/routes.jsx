@@ -21,7 +21,7 @@ import Station4QueuePage from './features/station4/Station4QueuePage';
 import Station4DentalPage from './features/station4/Station4DentalPage';
 import Station5QueuePage from './features/station5/Station5QueuePage';
 import Station5VisionPage from './features/station5/Station5VisionPage';
-import Station6Billing from './features/station6/Station6Billing';
+import Station6BillingPage from './features/station6/Station6BillingPage';
 import MyRecordPage from './features/patient/MyRecordPage';
 import MyRecordDetailPage from './features/patient/MyRecordDetailPage';
 import AppShell from './components/layout/AppShell';
@@ -52,20 +52,29 @@ export const routeElements = createRoutesFromElements(
     </Route>
 
     <Route element={<AppShell />}>
-      <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+      {/* Forms is the read-only record of finished work, so doctors reach it too:
+          the station queues only carry what is still pending, and a consultation
+          they have already signed is findable nowhere else. Cancel and delete
+          inside the page stay gated on superadmin. */}
+      <Route element={<RequireAuth allow={[ROLES.ADMIN, ROLES.DOCTOR]} />}>
         <Route path="/forms" element={<FormsPage />} />
         <Route path="/forms/:formId" element={<FormDetailPage />} />
+      </Route>
+
+      <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/station1" element={<Station1Page />} />
         <Route path="/station1/:formId" element={<Station1Page />} />
         <Route path="/station2" element={<Station2QueuePage />} />
         <Route path="/station2/:formId" element={<Station2AssessmentPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
+        {/* Billing is not a per-device desk like stations 1-2 -- any admin may
+            open it whichever station this tablet is set to, same as onboarding. */}
+        <Route path="/station6" element={<Station6BillingPage />} />
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} requireSuperAdmin />}>
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
-        <Route path="/station6" element={<Station6Billing />} />
       </Route>
 
       {/* RequireStation pins each desk to the station assigned to this doctor's

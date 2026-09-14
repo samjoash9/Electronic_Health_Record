@@ -31,6 +31,10 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<AssessmentOption> AssessmentOptions => Set<AssessmentOption>();
         public DbSet<AssessmentAnswer> AssessmentAnswers => Set<AssessmentAnswer>();
         public DbSet<WellnessFormAuditLog> WellnessFormAuditLogs => Set<WellnessFormAuditLog>();
+        public DbSet<ChargeItem> ChargeItems => Set<ChargeItem>();
+        public DbSet<WellnessFormCharge> WellnessFormCharges => Set<WellnessFormCharge>();
+        public DbSet<BillingSettings> BillingSettings => Set<BillingSettings>();
+        public DbSet<FormBilling> FormBillings => Set<FormBilling>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -342,6 +346,176 @@ namespace Electronic_Health_Record.Server.Data
                 // patient portal: "my visits, newest first"
                 entity.HasIndex(w => new { w.PatientID, w.FormDate })
                     .HasDatabaseName("IX_WellnessForm_PatientID_FormDate");
+            });
+
+            modelBuilder.Entity<ChargeItem>(entity =>
+            {
+                entity.ToTable("ChargeItem", t =>
+                {
+                    t.HasCheckConstraint("CK_ChargeItem_ItemType", "ItemType IN ('Lab', 'Medication')");
+                });
+                entity.HasKey(c => c.ChargeItemID);
+                entity.Property(c => c.ItemType).HasMaxLength(20).IsUnicode(false).IsRequired();
+                entity.Property(c => c.Name).HasMaxLength(100).IsRequired();
+                entity.Property(c => c.Category).HasMaxLength(50);
+                entity.Property(c => c.UnitPrice).HasPrecision(10, 2);
+                entity.Property(c => c.IsActive).HasDefaultValue(true);
+                entity.Property(c => c.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(c => c.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                // one entry per name within a type; a retired row keeps its slot
+                // so a re-seed or backfill can still resolve an old alias to it
+                entity.HasIndex(c => new { c.ItemType, c.Name }).IsUnique();
+                entity.HasIndex(c => new { c.ItemType, c.IsActive, c.DisplayOrder })
+                    .HasDatabaseName("IX_ChargeItem_ItemType_IsActive_DisplayOrder");
+
+                entity.HasOne<Admin>()
+                    .WithMany()
+                    .HasForeignKey(c => c.UpdatedByAdminID)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Seeded from the 25 entries DIAGNOSTIC_TEST_CATALOG carried on
+                // the client before this table existed, same order, same null
+                // prices for the tests with no fixed office rate (decision 6b).
+                // HasData requires a literal value for every non-nullable
+                // column -- SYSDATETIME() above is a column default, which
+                // HasData's generated INSERT does not go through -- so
+                // CreatedAt/UpdatedAt use a fixed constant rather than
+                // DateTime.UtcNow, which would make the migration
+                // non-reproducible and diff on every regeneration.
+                var chargeItemSeededAt = new DateTime(2026, 9, 13, 0, 0, 0, DateTimeKind.Utc);
+                entity.HasData(
+                    new ChargeItem { ChargeItemID = 1, ItemType = "Lab", Name = "CBC", UnitPrice = 180, DisplayOrder = 1, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 2, ItemType = "Lab", Name = "BT", UnitPrice = 100, DisplayOrder = 2, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 3, ItemType = "Lab", Name = "U/A", UnitPrice = 130, DisplayOrder = 3, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 4, ItemType = "Lab", Name = "SE", UnitPrice = 50, DisplayOrder = 4, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 5, ItemType = "Lab", Name = "RBS", UnitPrice = 120, DisplayOrder = 5, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 6, ItemType = "Lab", Name = "FBS", UnitPrice = 120, DisplayOrder = 6, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 7, ItemType = "Lab", Name = "Lipid Profile", UnitPrice = 900, DisplayOrder = 7, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    // retired alias: the client catalog's `was: 'Liquid Profile'`
+                    // typo. Kept inactive so the backfill can still resolve a
+                    // form saved under the old spelling to ChargeItemID 7's name.
+                    new ChargeItem { ChargeItemID = 8, ItemType = "Lab", Name = "Liquid Profile", UnitPrice = 900, IsActive = false, DisplayOrder = 7, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 9, ItemType = "Lab", Name = "Crea", UnitPrice = 230, DisplayOrder = 8, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 10, ItemType = "Lab", Name = "SGPT/SGOT", UnitPrice = 500, DisplayOrder = 9, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 11, ItemType = "Lab", Name = "SUA", UnitPrice = 200, DisplayOrder = 10, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 12, ItemType = "Lab", Name = "ASO", UnitPrice = 180, DisplayOrder = 11, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 13, ItemType = "Lab", Name = "NaK", UnitPrice = 800, DisplayOrder = 12, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 14, ItemType = "Lab", Name = "BUN", UnitPrice = 300, DisplayOrder = 13, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 15, ItemType = "Lab", Name = "HCV", UnitPrice = null, DisplayOrder = 14, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    // retired alias: the client catalog's `was: 'HVC'` typo.
+                    new ChargeItem { ChargeItemID = 16, ItemType = "Lab", Name = "HVC", UnitPrice = null, IsActive = false, DisplayOrder = 14, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 17, ItemType = "Lab", Name = "Tumor Markers CA 125", UnitPrice = null, DisplayOrder = 15, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 18, ItemType = "Lab", Name = "TT3", UnitPrice = 650, DisplayOrder = 16, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 19, ItemType = "Lab", Name = "TT4", UnitPrice = 650, DisplayOrder = 17, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 20, ItemType = "Lab", Name = "TSH", UnitPrice = null, DisplayOrder = 18, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 21, ItemType = "Lab", Name = "Drug Test", UnitPrice = 250, DisplayOrder = 19, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 22, ItemType = "Lab", Name = "H. Pylori", UnitPrice = 450, DisplayOrder = 20, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 23, ItemType = "Lab", Name = "HBA1c", UnitPrice = 900, DisplayOrder = 21, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 24, ItemType = "Lab", Name = "ECG", UnitPrice = null, DisplayOrder = 22, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 25, ItemType = "Lab", Name = "UTZ", UnitPrice = null, DisplayOrder = 23, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 26, ItemType = "Lab", Name = "Chest Xray", UnitPrice = 220, DisplayOrder = 24, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt },
+                    new ChargeItem { ChargeItemID = 27, ItemType = "Lab", Name = "Papsmear", UnitPrice = 400, DisplayOrder = 25, CreatedAt = chargeItemSeededAt, UpdatedAt = chargeItemSeededAt }
+                );
+            });
+
+            modelBuilder.Entity<WellnessFormCharge>(entity =>
+            {
+                entity.ToTable("WellnessFormCharge", t =>
+                {
+                    t.HasCheckConstraint("CK_WellnessFormCharge_ItemType", "ItemType IN ('Lab', 'Medication')");
+                    t.HasCheckConstraint("CK_WellnessFormCharge_Quantity", "Quantity > 0");
+                });
+                entity.HasKey(c => c.ChargeID);
+                entity.Property(c => c.ItemType).HasMaxLength(20).IsUnicode(false).IsRequired();
+                entity.Property(c => c.Name).HasMaxLength(100).IsRequired();
+                entity.Property(c => c.UnitPrice).HasPrecision(10, 2);
+                entity.Property(c => c.Quantity).HasDefaultValue(1);
+                entity.Property(c => c.Dosage).HasMaxLength(50);
+                entity.Property(c => c.Frequency).HasMaxLength(50);
+                entity.Property(c => c.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                // every read is "the charges for this form"; a resubmit replaces
+                // them wholesale (same pattern as PastMedicalHistory etc.), and
+                // deleting the form deletes its charges with it
+                entity.HasIndex(c => c.FormID).HasDatabaseName("IX_WellnessFormCharge_FormID");
+
+                entity.HasOne<WellnessForm>()
+                    .WithMany()
+                    .HasForeignKey(c => c.FormID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // retiring a catalog item must never delete a historical charge;
+                // Name/UnitPrice above are already a full snapshot, so the charge
+                // stays meaningful with ChargeItemID null
+                entity.HasOne<ChargeItem>()
+                    .WithMany()
+                    .HasForeignKey(c => c.ChargeItemID)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<BillingSettings>(entity =>
+            {
+                entity.ToTable("BillingSettings", t =>
+                {
+                    // enforced as a singleton so a read never has to handle "no
+                    // settings row yet" -- the migration seeds the one row
+                    t.HasCheckConstraint("CK_BillingSettings_SingletonId", "BillingSettingsID = 1");
+                });
+                entity.HasKey(b => b.BillingSettingsID);
+                entity.Property(b => b.DefaultAllotment).HasPrecision(12, 2);
+                entity.Property(b => b.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+
+                entity.HasOne<Admin>()
+                    .WithMany()
+                    .HasForeignKey(b => b.UpdatedByAdminID)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // The one row CK_BillingSettings_SingletonId requires. Seeded at
+                // 0 rather than a guessed figure -- an admin sets the real
+                // amount in the catalog/settings UI; 0 is visibly "not
+                // configured yet" rather than a plausible-looking default that
+                // could go unnoticed.
+                entity.HasData(new BillingSettings
+                {
+                    BillingSettingsID = 1,
+                    DefaultAllotment = 0,
+                    UpdatedAt = new DateTime(2026, 9, 13, 0, 0, 0, DateTimeKind.Utc),
+                });
+            });
+
+            modelBuilder.Entity<FormBilling>(entity =>
+            {
+                entity.ToTable("FormBilling", t =>
+                {
+                    t.HasCheckConstraint("CK_FormBilling_Status", "Status IN ('Pending', 'Deducted')");
+                    // a form only carries a total/approver once it has actually
+                    // been approved; a Pending row never has either
+                    t.HasCheckConstraint("CK_FormBilling_DeductedIsApproved",
+                        "Status <> 'Deducted' OR (TotalCharged IS NOT NULL AND ApprovedByAdminID IS NOT NULL AND ApprovedAt IS NOT NULL)");
+                });
+                entity.HasKey(f => f.FormBillingID);
+                entity.Property(f => f.AllotmentSnapshot).HasPrecision(12, 2);
+                entity.Property(f => f.TotalCharged).HasPrecision(12, 2);
+                entity.Property(f => f.Status)
+                    .HasMaxLength(20)
+                    .IsUnicode(false)
+                    .HasDefaultValue("Pending")
+                    .IsRequired();
+                entity.Property(f => f.RowVersion).IsRowVersion();
+
+                // one billing outcome per form
+                entity.HasIndex(f => f.FormID).IsUnique();
+
+                entity.HasOne<WellnessForm>()
+                    .WithMany()
+                    .HasForeignKey(f => f.FormID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Admin>()
+                    .WithMany()
+                    .HasForeignKey(f => f.ApprovedByAdminID)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<MedicalCondition>(entity =>

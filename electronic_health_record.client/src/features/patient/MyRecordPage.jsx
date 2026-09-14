@@ -1,95 +1,55 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { ChevronRight, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, FileText, X } from 'lucide-react';
 import { getPatientForms } from '../../api/forms.api';
 import { useAuth } from '../../auth/useAuth';
 import { FORM_STATUS, STATUS_LABEL, STATUS_TONE } from '../../lib/constants';
 import { formatDate } from '../../lib/formatters';
 import Badge from '../../components/ui/Badge';
 import Card from '../../components/ui/Card';
+import DataTable from '../../components/ui/DataTable';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import StatusTimeline from './StatusTimeline';
-import { STEPS, currentStepIndex } from './visitSteps';
 
 function Page({ children }) {
   return <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-8">{children}</div>;
 }
 
-/**
- * The band answers the only question the patient came here with — is it ready,
- * and if not, what is it waiting on — so the answer is the headline rather
- * than a status code they'd have to translate.
- */
-function StatusBand({ form }) {
-  const visit = `Wellness examination on ${formatDate(form.formDate)}`;
-
-  if (form.status === FORM_STATUS.CANCELLED) {
-    return (
-      <div className="rounded-2xl border border-line bg-surface px-6 py-7 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">This visit was cancelled</h1>
-        <p className="mt-1.5 text-sm text-ink-500">
-          {visit}. Ask the health office if you think this is a mistake.
-        </p>
-      </div>
-    );
-  }
-
-  if (form.status === FORM_STATUS.COMPLETED) {
-    return (
-      <div className="rounded-2xl bg-linear-to-br from-[#14a690] to-[#0e7d6b] px-6 py-7 text-white shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">Your record is ready</h1>
-        <p className="mt-1.5 text-sm text-white/75">{visit}</p>
-        <Link
-          to={`/my-record/${form.formID}`}
-          className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-[#0e7d6b] shadow-sm transition hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          View my record
-        </Link>
-      </div>
-    );
-  }
-
-  const waiting = STEPS[currentStepIndex(form)]?.waiting;
-  return (
-    <div className="rounded-2xl bg-linear-to-br from-[#14a690] to-[#0e7d6b] px-6 py-7 text-white shadow-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">Your record is being prepared</h1>
-      {waiting && <p className="mt-1.5 text-sm text-white/85">{waiting}.</p>}
-      <p className="mt-3 text-sm text-white/65">{visit}</p>
-    </div>
-  );
-}
-
-function EarlierVisit({ form }) {
-  const viewable = form.status === FORM_STATUS.COMPLETED;
-  const body = (
-    <>
-      <span className="text-sm font-medium text-ink-900">{formatDate(form.formDate)}</span>
-      <span className="flex items-center gap-2">
-        <Badge tone={STATUS_TONE[form.status]} dot>{STATUS_LABEL[form.status]}</Badge>
-        {viewable && <ChevronRight size={16} className="text-ink-400" />}
+const COLUMNS = [
+  { key: 'formDate', header: 'Visit Date', render: (f) => formatDate(f.formDate) },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (f) => <Badge tone={STATUS_TONE[f.status]} dot>{STATUS_LABEL[f.status] ?? f.status}</Badge>,
+  },
+  { key: 'currentStation', header: 'Station', render: (f) => `Station ${f.currentStation}` },
+  {
+    key: 'action',
+    header: '',
+    render: (f) => (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0e7d6b]">
+        {f.status === FORM_STATUS.COMPLETED ? 'View record' : 'View progress'}
+        <ChevronRight size={14} />
       </span>
-    </>
-  );
+    ),
+  },
+];
 
-  return (
-    <li className="border-t border-line first:border-t-0">
-      {viewable ? (
-        <Link
-          to={`/my-record/${form.formID}`}
-          className="-mx-2 flex items-center justify-between rounded-lg px-2 py-3 transition hover:bg-[#f3fdfb]"
-        >
-          {body}
-        </Link>
-      ) : (
-        <div className="flex items-center justify-between py-3">{body}</div>
-      )}
-    </li>
-  );
-}
-
+/**
+ * A patient can go through the station workflow repeatedly (monthly,
+ * six-monthly cadence -- not yet decided, and not encoded here), so this
+ * page always shows the full table of visits rather than treating "the
+ * latest one" as special. One row at a time expands below the table:
+ * a Completed visit's row instead navigates straight to its full record
+ * (MyRecordDetailPage), since that page redirects away from anything else.
+ */
 export default function MyRecordPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [expandedFormID, setExpandedFormID] = useState(null);
+
   const { data: forms, isLoading, error, refetch } = useQuery({
     queryKey: ['my-forms', user.patientID],
     queryFn: () => getPatientForms(user.patientID),
@@ -114,21 +74,46 @@ export default function MyRecordPage() {
     );
   }
 
-  const [latest, ...older] = forms;
+  const expandedForm = forms.find((f) => f.formID === expandedFormID) ?? null;
+
+  function onRowClick(form) {
+    if (form.status === FORM_STATUS.COMPLETED) {
+      navigate(`/my-record/${form.formID}`);
+      return;
+    }
+    // No standalone page exists for an in-progress visit -- MyRecordDetailPage
+    // redirects away from anything not Completed -- so its timeline expands
+    // in place instead. Clicking the same row again collapses it.
+    setExpandedFormID((current) => (current === form.formID ? null : form.formID));
+  }
 
   return (
     <Page>
-      <StatusBand form={latest} />
-
-      <Card title="Your visit, step by step" flush>
-        <StatusTimeline form={latest} />
+      <Card title="Your Visits" flush>
+        <DataTable
+          columns={COLUMNS}
+          rows={forms.map((f) => ({ ...f, id: f.formID }))}
+          onRowClick={onRowClick}
+          variant="plain"
+        />
       </Card>
 
-      {older.length > 0 && (
-        <Card title="Earlier visits" flush>
-          <ul className="-mt-1 flex flex-col">
-            {older.map((f) => <EarlierVisit key={f.formID} form={f} />)}
-          </ul>
+      {expandedForm && (
+        <Card
+          flush
+          title={`Visit on ${formatDate(expandedForm.formDate)} — step by step`}
+          actions={
+            <button
+              type="button"
+              onClick={() => setExpandedFormID(null)}
+              aria-label="Close"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
+            >
+              <X size={14} />
+            </button>
+          }
+        >
+          <StatusTimeline form={expandedForm} />
         </Card>
       )}
     </Page>

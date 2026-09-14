@@ -7,11 +7,13 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { submitStation3 } from '../../api/forms.api';
 import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
+import { useStationFormGuard } from '../../hooks/useStationFormGuard';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime, peso } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
+import { parseDiagnosticTests } from '../../lib/diagnosticTests';
 import { ROLES, STATIONS } from '../../lib/constants';
 import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
@@ -99,6 +101,48 @@ function buildManagementTreatment(values) {
   ].filter(Boolean).join('\n\n') || null;
 }
 
+// Billing's source of truth for this visit (see WellnessFormCharge
+// server-side). The two free-text fields above stay the physician-facing
+// display text; this turns the same on-screen data into the line items
+// billing actually totals from.
+//
+// Labs go through parseDiagnosticTests() -- the same parser that already
+// reads recommendedDiagnosticTest back for display -- so a lab charge always
+// agrees with what the physician sees on screen. No ChargeItemID is sent:
+// Station 3's picker still runs off its own local catalog copy rather than
+// the server's, so the server resolves each name against the real catalog
+// itself (see SubmitStation3's byNameLookup) rather than trusting whatever
+// price this parse found.
+//
+// Medications need no parsing at all -- they are already the structured rows
+// MedicationTable collects -- so this is a straight filter and map, exactly
+// mirroring the row-is-real test buildManagementTreatment() itself uses
+// (row.drug?.trim()).
+function buildCharges(values) {
+  const labs = parseDiagnosticTests(values.recommendedDiagnosticTest).map((row) => ({
+    itemType: 'Lab',
+    name: row.name,
+    unitPrice: row.price,
+    quantity: 1,
+  }));
+
+  const medications = (values.medications ?? [])
+    .filter((row) => row.drug?.trim())
+    .map((row) => {
+      const price = Number(row.price);
+      return {
+        itemType: 'Medication',
+        name: row.drug.trim(),
+        unitPrice: Number.isFinite(price) && row.price !== '' ? price : null,
+        quantity: 1,
+        dosage: row.dosage?.trim() || null,
+        frequency: row.frequency?.trim() || null,
+      };
+    });
+
+  return [...labs, ...medications];
+}
+
 function buildFamilyHistory(values) {
   const fh = values.familyHistory;
   if (fh.none) return [{ conditionID: 1, isNone: true, conditionType: null }];
@@ -182,6 +226,10 @@ export default function Station3ConsultationPage() {
   });
 
   const physicianOptions = activePhysicianOptions(physicians, STATIONS.THREE);
+
+  // A form this desk has already finished is read-only: bounce a typed or
+  // bookmarked URL to the Forms view rather than reopening the editable page.
+  const formDone = useStationFormGuard(form, STATIONS.THREE);
   const selectedPhysician = findPhysician(physicians, physicianID);
 
   const {
@@ -263,6 +311,7 @@ export default function Station3ConsultationPage() {
         recommendedDiagnosticTest: values.recommendedDiagnosticTest || null,
         impressionClinical: values.impressionClinical || null,
         managementTreatment: buildManagementTreatment(values),
+        charges: buildCharges(values),
         signature,
       },
     }),
@@ -301,6 +350,9 @@ export default function Station3ConsultationPage() {
 
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
+  // The redirect above fires from an effect, so skip one render rather than
+  // briefly showing an editable form for work that is already signed.
+  if (formDone) return <Skeleton />;
 
   const patient = form.patient;
 

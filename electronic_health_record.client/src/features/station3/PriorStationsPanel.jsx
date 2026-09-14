@@ -1,14 +1,77 @@
-import { HeartPulse, ListChecks, ClipboardList, FlaskConical, Stethoscope, Pill, BadgeCheck, Smile } from 'lucide-react';
+import { HeartPulse, ListChecks, ClipboardList, FlaskConical, Stethoscope, Pill, BadgeCheck, Smile, History, Receipt } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { bmiCategory } from '../../lib/bmi';
 import { scoreAllCategories, overallScore } from '../../lib/scoring';
-import { formatDateTime } from '../../lib/formatters';
-import { DENTAL_INDICATORS } from '../../lib/constants';
+import { formatDate, formatDateTime, peso } from '../../lib/formatters';
+import { DENTAL_INDICATORS, STATUS_LABEL, STATUS_TONE } from '../../lib/constants';
+import { getPatientVisitHistory } from '../../api/patients.api';
 import Collapsible from '../../components/ui/Collapsible';
 import Badge from '../../components/ui/Badge';
 import ScoreRing from '../../components/ui/ScoreRing';
 import AnswersReview from '../station2/AnswersReview';
 import { SubPanel } from './SectionCard';
 import DiagnosticTestList from '../../components/ui/DiagnosticTestList';
+
+/**
+ * A patient's earlier visits, shown collapsed above the current one's own
+ * stations so a doctor sees the last cycle's impression and prescriptions
+ * while writing this one -- the clinical payoff of a patient having many
+ * WellnessForm rows rather than exactly one. The current form itself is
+ * excluded: PriorStationsPanel already shows it in full below.
+ */
+function PreviousVisitsSection({ patientID, currentFormID }) {
+  const { data: history, isLoading } = useQuery({
+    queryKey: ['patient-visit-history', patientID],
+    queryFn: () => getPatientVisitHistory(patientID),
+    enabled: patientID != null,
+  });
+
+  const previousVisits = (history ?? []).filter((v) => v.formID !== currentFormID);
+
+  if (!patientID || isLoading || previousVisits.length === 0) return null;
+
+  return (
+    <Collapsible
+      title="Previous Visits"
+      icon={History}
+      subtitle={`${previousVisits.length} earlier visit${previousVisits.length > 1 ? 's' : ''} on record`}
+      defaultOpen={false}
+    >
+      <div className="flex flex-col gap-2">
+        {previousVisits.map((visit) => (
+          <div
+            key={visit.formID}
+            className="flex flex-col gap-2 rounded-lg border border-line bg-canvas p-3.5 sm:flex-row sm:items-start sm:justify-between"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-ink-900">{formatDate(visit.formDate)}</span>
+                <Badge tone={STATUS_TONE[visit.status] ?? 'default'}>
+                  {STATUS_LABEL[visit.status] ?? visit.status}
+                </Badge>
+              </div>
+              {visit.impressionClinical && (
+                <p className="mt-1.5 text-sm text-ink-700">{visit.impressionClinical}</p>
+              )}
+              {visit.managementTreatment && (
+                <p className="mt-1 whitespace-pre-wrap text-xs text-ink-500">{visit.managementTreatment}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-ink-600 sm:flex-col sm:items-end">
+              <span className="inline-flex items-center gap-1">
+                <Receipt size={12} className="text-ink-400" />
+                {peso(visit.totalCharged)}
+              </span>
+              <Badge tone={visit.billingStatus === 'Deducted' ? 'success' : 'warn'} dot>
+                {visit.billingStatus === 'Deducted' ? 'Billed' : 'Billing Pending'}
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Collapsible>
+  );
+}
 
 /** Read-only stand-in for a Textarea — the physician's own words, no input. */
 function StaticAnswer({ value, placeholder }) {
@@ -40,6 +103,8 @@ export default function PriorStationsPanel({ form, categories, upToStation = 2 }
 
   return (
     <div className="flex flex-col gap-3">
+      <PreviousVisitsSection patientID={form.patientID} currentFormID={form.formID} />
+
       <Collapsible
         title="Station 1 — Vital Signs"
         icon={HeartPulse}

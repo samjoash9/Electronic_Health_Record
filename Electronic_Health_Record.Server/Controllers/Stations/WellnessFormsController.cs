@@ -115,6 +115,11 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             var forms = await _context.WellnessForms
                 .Where(f => f.PatientID == patientID)
                 .OrderByDescending(f => f.FormDate)
+                // FormDate alone ties on same-day visits (a same-day resubmit,
+                // or two checkups one day apart under a fast cadence); FormID
+                // breaks the tie so "latest" is stable across requests instead
+                // of depending on undefined ordering among equal dates.
+                .ThenByDescending(f => f.FormID)
                 .ToListAsync();
 
             var patientsById = await PatientsByIdAsync(forms.Select(f => f.PatientID));
@@ -124,7 +129,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         }
 
         // GET /api/wellnessforms/{formID}
-        [HttpGet("{formID}")]
+        [HttpGet("{formID:int}")]
         public async Task<IActionResult> GetForm(int formID)
         {
             var form = await _context.WellnessForms.FindAsync(formID);
@@ -180,6 +185,28 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 patient.UpdatedAt = now;
 
                 await _context.SaveChangesAsync(); // assigns PatientID for a new patient
+
+                // A patient can go through the station workflow repeatedly
+                // (monthly, six-monthly -- the cadence is an operational
+                // decision, not encoded here), so this is a genuinely new
+                // visit rather than an edit of an old one. But two open forms
+                // for the same patient at once would make the station queues
+                // ambiguous and split one visit's charges across two bills,
+                // so only one may be in flight at a time.
+                var openForm = await _context.WellnessForms
+                    .Where(f => f.PatientID == patient.PatientID
+                             && f.Status != "Completed" && f.Status != "Cancelled")
+                    .OrderByDescending(f => f.FormID)
+                    .FirstOrDefaultAsync();
+                if (openForm != null)
+                {
+                    await transaction.RollbackAsync();
+                    return Conflict(new
+                    {
+                        message = "This patient already has a visit in progress.",
+                        formID = openForm.FormID,
+                    });
+                }
 
                 var hasAccount = await _context.PatientAccounts.AnyAsync(a => a.PatientID == patient.PatientID);
                 // Whether this submission is the one that provisioned the account, so
@@ -275,7 +302,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // Body: { answers: [{questionID, optionID}], rowVersion }. Replaces the
         // form's answer set wholesale so a resubmit cannot accumulate duplicates,
         // then hands the form to the Station 3 queue.
-        [HttpPost("{formID}/station2")]
+        [HttpPost("{formID:int}/station2")]
         public async Task<IActionResult> SubmitStation2(int formID, [FromBody] Station2SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -369,7 +396,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // in src/api/forms.api.js -- the payload is not nested under a
         // "consultation" key). Replaces Family/Past Medical History and Social
         // History wholesale, same reasoning as Station 2's answers.
-        [HttpPost("{formID}/station3")]
+        [HttpPost("{formID:int}/station3")]
         public async Task<IActionResult> SubmitStation3(int formID, [FromBody] Station3SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -439,6 +466,69 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 }
             }
 
+            // Billing's source of truth for this visit (see WellnessFormCharge).
+            // A charge naming a ChargeItemID is validated against the catalog --
+            // an arbitrary id must not end up priced by whatever the client sent.
+            var charges = dto.Charges
+                .Where(c => c.ChargeItemID.HasValue || !string.IsNullOrWhiteSpace(c.Name))
+                .ToList();
+
+            var chargeItemIds = charges.Where(c => c.ChargeItemID.HasValue)
+                .Select(c => c.ChargeItemID!.Value).Distinct().ToList();
+
+            var catalogItems = chargeItemIds.Count > 0
+                ? await _context.ChargeItems
+                    .Where(c => chargeItemIds.Contains(c.ChargeItemID))
+                    .ToDictionaryAsync(c => c.ChargeItemID)
+                : new Dictionary<int, ChargeItem>();
+
+            var unknownChargeItemIds = chargeItemIds.Except(catalogItems.Keys).ToList();
+            if (unknownChargeItemIds.Count > 0)
+            {
+                return BadRequest(new
+                {
+                    message = $"Unknown charge item ID(s): {string.Join(", ", unknownChargeItemIds)}.",
+                });
+            }
+
+            // Station 3's picker still runs off its own local catalog copy
+            // (constants.js) rather than fetching /api/chargeitems, so a lab
+            // it sends carries a name but no ChargeItemID. Resolving that name
+            // against the real catalog here -- rather than trusting the
+            // client's own price -- is what keeps decision 6a's "catalog price
+            // wins" rule true for the normal Station 3 flow, not just for a
+            // caller that already knows the id.
+            var namedByType = charges
+                .Where(c => !c.ChargeItemID.HasValue && !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => (c.ItemType, c.Name!))
+                .Distinct()
+                .ToList();
+
+            var byNameLookup = new Dictionary<(string ItemType, string Name), ChargeItem>();
+            foreach (var (itemType, name) in namedByType)
+            {
+                var match = await _context.ChargeItems
+                    .Where(c => c.ItemType == itemType && c.Name == name)
+                    .FirstOrDefaultAsync();
+                if (match != null)
+                    byNameLookup[(itemType, name)] = match;
+            }
+
+            foreach (var charge in charges)
+            {
+                var itemType = charge.ChargeItemID.HasValue
+                    ? catalogItems[charge.ChargeItemID.Value].ItemType
+                    : charge.ItemType;
+
+                if (!ChargeItemType.IsValid(itemType))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Each charge must be a Lab or a Medication.",
+                    });
+                }
+            }
+
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -452,6 +542,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     _context.SocialHistories.Where(s => s.FormID == formID));
                 _context.Exercises.RemoveRange(
                     _context.Exercises.Where(e => e.FormID == formID));
+                _context.WellnessFormCharges.RemoveRange(
+                    _context.WellnessFormCharges.Where(c => c.FormID == formID));
 
                 foreach (var item in pastHistory)
                 {
@@ -520,6 +612,35 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     });
                 }
 
+                foreach (var charge in charges)
+                {
+                    // A catalog item with a fixed UnitPrice always wins over
+                    // whatever the client sent for price -- only a null-priced
+                    // catalog item (physician must quote) or a free-text row
+                    // takes the client's amount. Name is always the catalog's
+                    // own, never client-supplied, when the row resolves to one
+                    // -- by ChargeItemID first, or by exact (ItemType, Name)
+                    // when the client only sent a name (see byNameLookup above).
+                    ChargeItem? catalogItem = charge.ChargeItemID.HasValue
+                        ? catalogItems[charge.ChargeItemID.Value]
+                        : (!string.IsNullOrWhiteSpace(charge.Name)
+                            ? byNameLookup.GetValueOrDefault((charge.ItemType, charge.Name!))
+                            : null);
+
+                    _context.WellnessFormCharges.Add(new WellnessFormCharge
+                    {
+                        FormID = formID,
+                        ChargeItemID = charge.ChargeItemID ?? catalogItem?.ChargeItemID,
+                        ItemType = catalogItem?.ItemType ?? charge.ItemType,
+                        Name = catalogItem?.Name ?? charge.Name ?? string.Empty,
+                        UnitPrice = catalogItem?.UnitPrice ?? charge.UnitPrice,
+                        Quantity = charge.Quantity,
+                        Dosage = charge.Dosage,
+                        Frequency = charge.Frequency,
+                        CreatedAt = now,
+                    });
+                }
+
                 form.PhysicianID = physicianID;
                 form.RecommendedDiagnosticTest = dto.RecommendedDiagnosticTest;
                 form.ImpressionClinical = dto.ImpressionClinical;
@@ -566,7 +687,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // (see submitStation4 in src/api/forms.api.js). Replaces the dental row
         // wholesale, same reasoning as Station 2's answers -- a resubmit must not
         // accumulate duplicates. Hands off to Station 5, which now completes the form.
-        [HttpPost("{formID}/station4")]
+        [HttpPost("{formID:int}/station4")]
         public async Task<IActionResult> SubmitStation4(int formID, [FromBody] Station4SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -674,7 +795,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // (see submitStation5 in src/api/forms.api.js). Replaces the vision row
         // wholesale, same reasoning as Station 4's dental row -- a resubmit must
         // not accumulate duplicates. This is the station that completes the form.
-        [HttpPost("{formID}/station5")]
+        [HttpPost("{formID:int}/station5")]
         public async Task<IActionResult> SubmitStation5(int formID, [FromBody] Station5SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -786,7 +907,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // which filter by status). Deliberately not [HttpDelete] -- a wellness
         // form is a medical record and is never removed, and keeping the row is
         // what lets the audit log still resolve the form it points at.
-        [HttpPost("{formID}/cancel")]
+        [HttpPost("{formID:int}/cancel")]
         public async Task<IActionResult> CancelForm(int formID, [FromBody] CancelFormDto dto)
         {
             if (!ModelState.IsValid)
@@ -855,7 +976,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // answers, station 1/4/5 detail rows, and the form's own audit log --
         // permanently. Superadmin only, same actor check as Cancel (no auth
         // scheme yet, so this can't be an [Authorize(Roles = ...)] attribute).
-        [HttpDelete("{formID}")]
+        [HttpDelete("{formID:int}")]
         public async Task<IActionResult> DeleteForm(int formID, [FromBody] DeleteFormDto dto)
         {
             if (!ModelState.IsValid)
@@ -1078,6 +1199,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     .FirstOrDefaultAsync(v => v.FormID == form.FormID),
                 AssessmentAnswers = await _context.AssessmentAnswers
                     .Where(a => a.FormID == form.FormID).ToListAsync(),
+                Charges = await _context.WellnessFormCharges
+                    .Where(c => c.FormID == form.FormID).ToListAsync(),
             };
         }
 

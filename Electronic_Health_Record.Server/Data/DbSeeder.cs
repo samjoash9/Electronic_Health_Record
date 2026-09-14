@@ -75,6 +75,15 @@ namespace Electronic_Health_Record.Server.Data
 
             var now = DateTime.UtcNow;
 
+            // Moves any pre-existing form's billing data out of
+            // RecommendedDiagnosticTest/ManagementTreatment text and into real
+            // WellnessFormCharge rows. Runs unconditionally, like the bootstrap
+            // admin below: it is idempotent (only touches forms with zero
+            // charge rows) and every form submitted after this ships gets real
+            // charges directly from Station 3, so this becomes a no-op on a
+            // database that has none left to migrate.
+            await LegacyChargeBackfill.RunAsync(context, now);
+
             // -----------------------------------------------------------------
             // Development fixtures (patients, physicians, wellness forms, patient
             // accounts) are opt-in. Set Seed:DevFixtures to true in appsettings

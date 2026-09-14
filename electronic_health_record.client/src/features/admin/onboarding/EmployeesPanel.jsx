@@ -18,7 +18,8 @@ import EmployeeFormModal from './EmployeeFormModal';
 
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (e) => `${e.firstName} ${e.middleName ? `${e.middleName} ` : ''}${e.surname}` },
-  { key: 'externalEmployeeId', header: 'Employee ID' },
+  // Employee ID is deliberately not a column -- see the same note in
+  // PatientsPanel. It stays in searchFields below, so it remains findable.
   {
     key: 'username',
     header: 'Portal Account',

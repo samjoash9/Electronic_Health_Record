@@ -60,7 +60,7 @@ namespace Electronic_Health_Record.Server.Controllers.Auth
 
         // get specific admin
         [Authorize]
-        [HttpGet("{AdminID}")]
+        [HttpGet("{AdminID:int}")]
         public async Task<IActionResult> GetAdmin(int AdminID)
         {
             try

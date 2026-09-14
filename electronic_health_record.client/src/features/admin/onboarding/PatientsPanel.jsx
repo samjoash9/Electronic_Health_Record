@@ -38,7 +38,9 @@ const COLUMNS = [
     header: 'Name',
     render: (p) => `${p.firstName} ${p.middleName ? `${p.middleName} ` : ''}${p.surname}`,
   },
-  { key: 'externalEmployeeId', header: 'Employee ID' },
+  // Employee ID is deliberately not a column: it identifies the person outside
+  // this system, and nothing on this panel needs it. It stays in searchFields
+  // below, so an admin holding the ID can still find the row.
   {
     key: 'username',
     header: 'Username',

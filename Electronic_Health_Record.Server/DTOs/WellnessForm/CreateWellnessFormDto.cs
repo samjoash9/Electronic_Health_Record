@@ -123,6 +123,37 @@ namespace Electronic_Health_Record.Server.DTOs.WellnessForm
         public string? ExerciseYearStarted { get; set; }
     }
 
+    // One billable line as Station 3 submits it. ChargeItemID, when present, is
+    // validated server-side against ChargeItem and its Name/UnitPrice snapshot
+    // is taken from that row rather than trusted from the client -- only a
+    // free-text row (ChargeItemID null) carries a client-supplied price.
+    public class ChargeItemSubmitDto
+    {
+        public int? ChargeItemID { get; set; }
+
+        // Required only when ChargeItemID is null: a free-text item the
+        // physician typed that matched nothing in the catalog.
+        [MaxLength(100)]
+        public string? Name { get; set; }
+
+        [Required(ErrorMessage = "Each charge must be a Lab or a Medication.")]
+        public string ItemType { get; set; } = string.Empty;
+
+        // The quoted amount for a catalog item with no fixed rate, or the price
+        // of a free-text item. Ignored (the catalog's own price is used
+        // instead) when ChargeItemID resolves to an item that has a UnitPrice.
+        public decimal? UnitPrice { get; set; }
+
+        [Range(1, 999)]
+        public int Quantity { get; set; } = 1;
+
+        [MaxLength(50)]
+        public string? Dosage { get; set; }
+
+        [MaxLength(50)]
+        public string? Frequency { get; set; }
+    }
+
     public class SocialHistoryDto
     {
         // null means unanswered; the Yes/No pair starts with neither selected

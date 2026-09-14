@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Stethoscope, Users, ShieldCheck, UserRound } from 'lucide-react';
+import { Stethoscope, Users, ShieldCheck, UserRound, Receipt } from 'lucide-react';
 import { useAuth } from '../../../auth/useAuth';
 import { isSuperAdmin } from '../../../lib/constants';
 import AdminsPanel from './AdminsPanel';
 import DoctorsPanel from './DoctorsPanel';
 import EmployeesPanel from './EmployeesPanel';
 import PatientsPanel from './PatientsPanel';
+import ChargeCatalogPanel from './ChargeCatalogPanel';
 
 const ADMINS_TAB = { id: 'admins', label: 'Admins', icon: ShieldCheck };
+// Superadmin-only, same as Admins: the catalog is what Station 6 bills
+// against, and writing to it is a superadmin capability server-side
+// (see ChargeItemsController).
+const BILLING_TAB = { id: 'billing', label: 'Billing Catalog', icon: Receipt };
 
 const TABS = [
   { id: 'doctors', label: 'Doctors', icon: Stethoscope },
@@ -20,6 +25,7 @@ const PANELS = {
   doctors: DoctorsPanel,
   employees: EmployeesPanel,
   patients: PatientsPanel,
+  billing: ChargeCatalogPanel,
 };
 
 /**
@@ -34,7 +40,7 @@ export default function OnboardingPage() {
   const { user } = useAuth();
   const superAdmin = isSuperAdmin(user);
 
-  const tabs = superAdmin ? [ADMINS_TAB, ...TABS] : TABS;
+  const tabs = superAdmin ? [ADMINS_TAB, ...TABS, BILLING_TAB] : TABS;
   const [tab, setTab] = useState(tabs[0].id);
 
   const Panel = PANELS[tab] ?? DoctorsPanel;

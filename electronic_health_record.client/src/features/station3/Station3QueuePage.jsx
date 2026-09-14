@@ -10,7 +10,6 @@ import DataTable from '../../components/ui/DataTable';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import SearchInput from '../../components/ui/SearchInput';
-import Select from '../../components/ui/Select';
 import TableFooter from '../../components/ui/TableFooter';
 
 const COLUMNS = [
@@ -24,26 +23,16 @@ const COLUMNS = [
   { key: 'assessed', header: 'Assessed', render: (row) => formatDateTime(row.station2SubmittedAt) },
 ];
 
-// The statuses a consultation can be in once station 2 has handed it over. A
-// queue of only PendingConsultation would leave the status filter with a single
-// option, so completed and cancelled consultations are listed too.
-const QUEUE_STATUSES = [
-  FORM_STATUS.PENDING_CONSULTATION,
-  FORM_STATUS.COMPLETED,
-  FORM_STATUS.CANCELLED,
-];
-
-const STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  ...QUEUE_STATUSES.map((value) => ({ value, label: STATUS_LABEL[value] })),
-];
+// Only what this desk still has to do. A consultation that is finished (or
+// cancelled) is history, not queue: it is read-only from here on and lives on
+// the Forms page, so listing it here would invite a doctor to reopen work that
+// is already signed.
+const QUEUE_STATUSES = [FORM_STATUS.PENDING_CONSULTATION];
 
 const searchFields = (row) => {
   const p = row.patient ?? {};
   return [fullName(p), p.externalEmployeeId, p.agencyOffice];
 };
-
-const filterField = (row) => row.status;
 
 export default function Station3QueuePage() {
   const navigate = useNavigate();
@@ -53,27 +42,19 @@ export default function Station3QueuePage() {
     refetchInterval: 15_000,
   });
 
-  const table = useTableControls(data, { searchFields, filterField });
+  const table = useTableControls(data, { searchFields });
 
   return (
     <Card
       title="Waiting for Consultation"
       actions={!isLoading && !error && (
-        <div className="flex items-center gap-2">
-          <SearchInput
-            id="station3-search"
-            value={table.query}
-            onChange={table.onSearch}
-            placeholder="Search by name or agency"
-            className="w-72"
-          />
-          <Select
-            value={table.filter}
-            onChange={(e) => table.onFilter(e.target.value)}
-            options={STATUS_FILTER_OPTIONS}
-            className="w-56"
-          />
-        </div>
+        <SearchInput
+          id="station3-search"
+          value={table.query}
+          onChange={table.onSearch}
+          placeholder="Search by name or agency"
+          className="w-72"
+        />
       )}
     >
       {isLoading && <Skeleton />}
@@ -84,7 +65,7 @@ export default function Station3QueuePage() {
             columns={COLUMNS}
             rows={table.pageRows}
             onRowClick={(row) => navigate(`/station3/${row.formID}`)}
-            empty={table.isSearching || table.isFiltered
+            empty={table.isSearching
               ? 'No patients match your search.'
               : 'No patients waiting. Forms submitted at Station 2 appear here automatically.'}
           />

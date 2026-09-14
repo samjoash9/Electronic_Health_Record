@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Ban, Trash2 } from 'lucide-react';
+import { Ban, Trash2, CalendarRange, X } from 'lucide-react';
 import { getAllForms, cancelForm, deleteForm } from '../../api/forms.api';
-import { FORM_STATUS, isSuperAdmin } from '../../lib/constants';
+import { FORM_STATUS, STATUS_LABEL, STATUS_TONE, isSuperAdmin } from '../../lib/constants';
 import { fullName, formatDate } from '../../lib/formatters';
 import { useAuth } from '../../auth/useAuth';
 import { useTableControls } from '../../hooks/useTableControls';
@@ -19,19 +19,12 @@ import Select from '../../components/ui/Select';
 import CancelFormModal from './CancelFormModal';
 import DeleteFormModal from './DeleteFormModal';
 
-const STATUS_LABEL = {
-  [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
-  [FORM_STATUS.PENDING_CONSULTATION]: 'Pending Consultation',
-  [FORM_STATUS.COMPLETED]: 'Completed',
-  [FORM_STATUS.CANCELLED]: 'Cancelled',
-};
-
-const STATUS_TONE = {
-  [FORM_STATUS.PENDING_ASSESSMENT]: 'info',
-  [FORM_STATUS.PENDING_CONSULTATION]: 'warn',
-  [FORM_STATUS.COMPLETED]: 'success',
-  [FORM_STATUS.CANCELLED]: 'danger',
-};
+// This file used to keep its own STATUS_LABEL/STATUS_TONE, copied before
+// Station 4 and 5 existed -- they never gained PendingDental/PendingVision,
+// so a form sitting at either station rendered its raw status string
+// ("PendingDental") instead of a label. Now imported from lib/constants,
+// the one place every other screen (PriorStationsPanel, MyRecordPage, the
+// station queues) already reads these from.
 
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (f) => fullName(f.patient) },
@@ -72,11 +65,34 @@ export default function FormsPage() {
   const canCancel = isSuperAdmin(user);
   const [formToCancel, setFormToCancel] = useState(null);
   const [formToDelete, setFormToDelete] = useState(null);
+  // A patient now goes through the station workflow repeatedly (monthly,
+  // six-monthly), so "every visit on this date" is a real question this
+  // list needs to answer -- these two dates are inclusive on both ends.
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const { data: forms, isLoading, error, refetch } = useQuery({
     queryKey: ['forms'],
     queryFn: getAllForms,
   });
+
+  // FormDate is a plain "date" column server-side (no time component), so a
+  // string compare against the <input type="date"> value is exact -- no
+  // timezone conversion to get wrong.
+  const dateFiltered = useMemo(() => {
+    if (!forms) return forms;
+    if (!dateFrom && !dateTo) return forms;
+    return forms.filter((f) => {
+      const d = f.formDate?.slice(0, 10);
+      if (!d) return false;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+  }, [forms, dateFrom, dateTo]);
+
+  const hasDateFilter = Boolean(dateFrom || dateTo);
+  const clearDateFilter = () => { setDateFrom(''); setDateTo(''); };
 
   const cancelMutation = useMutation({
     mutationFn: ({ formID, reason, rowVersion }) =>
@@ -100,7 +116,7 @@ export default function FormsPage() {
     },
   });
 
-  const table = useTableControls(forms, { searchFields, filterField });
+  const table = useTableControls(dateFiltered, { searchFields, filterField });
 
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -109,7 +125,7 @@ export default function FormsPage() {
     <Card
       title="Forms"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <SearchInput
             id="forms-search"
             value={table.query}
@@ -123,6 +139,36 @@ export default function FormsPage() {
             options={STATUS_FILTER_OPTIONS}
             className="w-56"
           />
+          <div className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5">
+            <CalendarRange size={15} className="text-ink-400" />
+            <input
+              type="date"
+              aria-label="Visit date from"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              max={dateTo || undefined}
+              className="h-7 rounded border-none bg-transparent text-sm text-ink-900 outline-none"
+            />
+            <span className="text-ink-400">–</span>
+            <input
+              type="date"
+              aria-label="Visit date to"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              min={dateFrom || undefined}
+              className="h-7 rounded border-none bg-transparent text-sm text-ink-900 outline-none"
+            />
+            {hasDateFilter && (
+              <button
+                type="button"
+                onClick={clearDateFilter}
+                aria-label="Clear date filter"
+                className="flex h-5 w-5 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
         </div>
       }
     >
@@ -157,7 +203,9 @@ export default function FormsPage() {
               </Button>
             </div>
           ) : undefined}
-          empty={table.isSearching || table.isFiltered ? 'No forms match your search.' : 'No forms found.'}
+          empty={table.isSearching || table.isFiltered || hasDateFilter
+            ? 'No forms match your search.'
+            : 'No forms found.'}
         />
 
         <TableFooter

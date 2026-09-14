@@ -7,6 +7,7 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { submitStation4 } from '../../api/forms.api';
 import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
+import { useStationFormGuard } from '../../hooks/useStationFormGuard';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
@@ -85,6 +86,10 @@ export default function Station4DentalPage() {
   });
 
   const dentistOptions = activePhysicianOptions(physicians, STATIONS.FOUR);
+
+  // A form this desk has already finished is read-only: bounce a typed or
+  // bookmarked URL to the Forms view rather than reopening the editable page.
+  const formDone = useStationFormGuard(form, STATIONS.FOUR);
   const selectedDentist = findPhysician(physicians, dentistID);
 
   const {
@@ -162,6 +167,9 @@ export default function Station4DentalPage() {
 
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
+  // The redirect above fires from an effect, so skip one render rather than
+  // briefly showing an editable form for work that is already signed.
+  if (formDone) return <Skeleton />;
 
   const patient = form.patient;
 

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { History } from 'lucide-react';
 import { submitStation1 } from '../../api/forms.api';
 import { hasPatientAccount } from '../../api/patients.api';
 import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
@@ -194,13 +195,27 @@ export default function Station1Page() {
 
       {step === 1 && <EmployeeSearch onSelect={onSelectEmployee} />}
       {step === 2 && (
-        <IdentityFields
-          register={register}
-          watch={watch}
-          control={control}
-          errors={errors}
-          needsUsername={needsUsername}
-        />
+        <>
+          {/* hasAccount is true only once this employee has been through
+              Station 1 before -- the account is provisioned on first
+              registration and never removed, so it doubles as "returning
+              patient" without a second lookup. */}
+          {hasAccount === true && (
+            <div className="flex items-center gap-2 rounded-lg border border-[#0e7d6b]/25 bg-[#f3fdfb] px-3.5 py-2.5 text-sm text-[#0e7d6b]">
+              <History size={15} className="shrink-0" />
+              <span>
+                Returning patient — this employee has a wellness record on file from a previous visit.
+              </span>
+            </div>
+          )}
+          <IdentityFields
+            register={register}
+            watch={watch}
+            control={control}
+            errors={errors}
+            needsUsername={needsUsername}
+          />
+        </>
       )}
       {step === 3 && <VitalsFields register={register} watch={watch} errors={errors} />}
 
