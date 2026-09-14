@@ -33,7 +33,7 @@ export default function IdentityFields({ register, watch, control, errors, needs
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-4 tab:grid-cols-2 lg:grid-cols-3">
         <Field label="Surname" htmlFor="surname">
           <Input id="surname" disabled {...register('surname')} />
         </Field>

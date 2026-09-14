@@ -20,7 +20,7 @@ export default function VitalsFields({ register, watch, errors }) {
 
   return (
     <Card title="Vital Signs">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 tab:grid-cols-2 lg:grid-cols-3">
         <Field label="Weight (kg)" htmlFor="weightKg" required error={errors.weightKg?.message}>
           <Input id="weightKg" type="number" step="0.1" {...register('weightKg')} />
         </Field>
