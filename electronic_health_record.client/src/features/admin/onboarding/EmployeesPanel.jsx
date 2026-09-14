@@ -105,15 +105,21 @@ export default function EmployeesPanel() {
       flush
       title="Employee Directory"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
           <SearchInput
             id="employees-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by name, employee ID, position, or username"
-            className="w-80"
+            className="w-full min-w-0 @2xl:flex-1"
           />
-          <Button type="button" variant="teal" size="md" onClick={() => setFormTarget('create')}>
+          <Button
+            type="button"
+            variant="teal"
+            size="md"
+            className="w-1/2 self-start @2xl:w-52 @2xl:self-auto"
+            onClick={() => setFormTarget('create')}
+          >
             <UserPlus size={16} />
             Add Employee
           </Button>

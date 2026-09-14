@@ -125,33 +125,41 @@ export default function DoctorsPanel() {
       flush
       title="Registered Doctors"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 @4xl:flex-row @4xl:items-center">
           <SearchInput
             id="doctors-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by name, licence, or username"
-            className="w-72"
+            className="w-full min-w-0 @4xl:flex-1"
           />
-          <Select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Stations' },
-              ...DOCTOR_STATIONS.map((s) => ({ value: s.value, label: s.label })),
-            ]}
-            className="w-52"
-          />
-          <Select
-            value={table.filter}
-            onChange={(e) => table.onFilter(e.target.value)}
-            options={STATUS_FILTER_OPTIONS}
-            className="w-44"
-          />
-          <Button type="button" variant="teal" size="md" onClick={() => setFormTarget('create')}>
-            <UserPlus size={16} />
-            Register Doctor
-          </Button>
+          <div className="flex w-full flex-wrap items-center gap-2 @4xl:w-auto @4xl:flex-nowrap">
+            <Select
+              value={stationFilter}
+              onChange={(e) => setStationFilter(e.target.value)}
+              options={[
+                { value: 'all', label: 'All Stations' },
+                ...DOCTOR_STATIONS.map((s) => ({ value: s.value, label: s.label })),
+              ]}
+              className="min-w-0 flex-1 @4xl:w-44 @4xl:flex-none"
+            />
+            <Select
+              value={table.filter}
+              onChange={(e) => table.onFilter(e.target.value)}
+              options={STATUS_FILTER_OPTIONS}
+              className="min-w-0 flex-1 @4xl:w-44 @4xl:flex-none"
+            />
+            <Button
+              type="button"
+              variant="teal"
+              size="md"
+              className="w-full @4xl:w-44"
+              onClick={() => setFormTarget('create')}
+            >
+              <UserPlus size={16} />
+              Register Doctor
+            </Button>
+          </div>
         </div>
       }
     >

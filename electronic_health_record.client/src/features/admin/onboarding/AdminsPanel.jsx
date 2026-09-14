@@ -83,24 +83,32 @@ export default function AdminsPanel() {
       flush
       title="Staff Accounts"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
           <SearchInput
             id="admins-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by name or username"
-            className="w-72"
+            className="w-full min-w-0 @2xl:flex-1"
           />
-          <Select
-            value={table.filter}
-            onChange={(e) => table.onFilter(e.target.value)}
-            options={ROLE_FILTER_OPTIONS}
-            className="w-44"
-          />
-          <Button type="button" variant="teal" size="md" onClick={() => setCreateOpen(true)}>
-            <UserPlus size={16} />
-            Register Admin
-          </Button>
+          <div className="flex w-full items-center gap-2 @2xl:w-auto">
+            <Select
+              value={table.filter}
+              onChange={(e) => table.onFilter(e.target.value)}
+              options={ROLE_FILTER_OPTIONS}
+              className="min-w-0 flex-1 @2xl:w-44 @2xl:flex-none"
+            />
+            <Button
+              type="button"
+              variant="teal"
+              size="md"
+              className="min-w-0 flex-1 @2xl:w-44 @2xl:flex-none"
+              onClick={() => setCreateOpen(true)}
+            >
+              <UserPlus size={16} />
+              Register Admin
+            </Button>
+          </div>
         </div>
       }
     >

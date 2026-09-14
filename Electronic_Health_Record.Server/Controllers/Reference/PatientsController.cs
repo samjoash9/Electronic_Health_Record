@@ -239,10 +239,10 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                     .Select(g => new { FormID = g.Key, Total = g.Sum(c => (c.UnitPrice ?? 0) * c.Quantity) })
                     .ToDictionaryAsync(g => g.FormID, g => g.Total);
 
-                var billingByForm = await _context.FormBillings
-                    .Where(b => formIds.Contains(b.FormID))
-                    .ToDictionaryAsync(b => b.FormID);
-
+                // No per-visit billing status: budget is scoped to a period
+                // (BillingForm), not to a form, so a visit is not individually
+                // approved or deducted. Its charges count toward whichever
+                // period covers its FormDate.
                 var rows = forms.Select(f => new
                 {
                     f.FormID,
@@ -253,7 +253,6 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                     f.RecommendedDiagnosticTest,
                     f.ManagementTreatment,
                     TotalCharged = chargeTotals.GetValueOrDefault(f.FormID, 0m),
-                    BillingStatus = billingByForm.GetValueOrDefault(f.FormID)?.Status ?? FormBillingStatus.Pending,
                 }).ToList();
 
                 return Ok(new { data = rows });

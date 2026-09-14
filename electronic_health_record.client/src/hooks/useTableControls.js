@@ -25,15 +25,25 @@ export function useTableControls(rows, {
 
   const allRows = rows ?? [];
   const q = query.trim().toLowerCase();
-
   const results = useMemo(() => {
     const byFilter = filterField && filter !== 'all'
       ? allRows.filter((row) => filterField(row) === filter)
       : allRows;
     if (!q || !searchFields) return byFilter;
-    return byFilter.filter((row) =>
-      searchFields(row).some((field) => String(field ?? '').toLowerCase().includes(q)),
-    );
+
+    // Each whitespace-separated term is matched independently, because a name
+    // the reader sees as one string is stored across several fields: searching
+    // "Christopher Rey Lademora" must find the row whose firstName is
+    // "Christopher Rey" and whose middleName is "Lademora". Requiring the whole
+    // query to sit inside a single field would miss it.
+    const terms = q.split(/\s+/);
+
+    return byFilter.filter((row) => {
+      const fields = searchFields(row).map((field) => String(field ?? '').toLowerCase());
+      // Every term must appear somewhere -- adding a word narrows the results
+      // rather than widening them.
+      return terms.every((term) => fields.some((field) => field.includes(term)));
+    });
     // allRows is a fresh array on every render when `rows` is undefined, so key
     // the memo on the incoming reference instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps

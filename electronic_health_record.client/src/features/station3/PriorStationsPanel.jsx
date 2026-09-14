@@ -57,14 +57,14 @@ function PreviousVisitsSection({ patientID, currentFormID }) {
                 <p className="mt-1 whitespace-pre-wrap text-xs text-ink-500">{visit.managementTreatment}</p>
               )}
             </div>
+            {/* Charge total only, no billing status: budget is scoped to a
+                period at Station 6, not approved per visit, so a single visit
+                is never "Billed" or "Pending" on its own. */}
             <div className="flex items-center gap-1.5 text-xs font-medium text-ink-600 sm:flex-col sm:items-end">
               <span className="inline-flex items-center gap-1">
                 <Receipt size={12} className="text-ink-400" />
                 {peso(visit.totalCharged)}
               </span>
-              <Badge tone={visit.billingStatus === 'Deducted' ? 'success' : 'warn'} dot>
-                {visit.billingStatus === 'Deducted' ? 'Billed' : 'Billing Pending'}
-              </Badge>
             </div>
           </div>
         ))}

@@ -33,8 +33,7 @@ namespace Electronic_Health_Record.Server.Data
         public DbSet<WellnessFormAuditLog> WellnessFormAuditLogs => Set<WellnessFormAuditLog>();
         public DbSet<ChargeItem> ChargeItems => Set<ChargeItem>();
         public DbSet<WellnessFormCharge> WellnessFormCharges => Set<WellnessFormCharge>();
-        public DbSet<BillingSettings> BillingSettings => Set<BillingSettings>();
-        public DbSet<FormBilling> FormBillings => Set<FormBilling>();
+        public DbSet<BillingForm> BillingForms => Set<BillingForm>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -454,67 +453,29 @@ namespace Electronic_Health_Record.Server.Data
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
-            modelBuilder.Entity<BillingSettings>(entity =>
+            modelBuilder.Entity<BillingForm>(entity =>
             {
-                entity.ToTable("BillingSettings", t =>
+                entity.ToTable("BillingForm", t =>
                 {
-                    // enforced as a singleton so a read never has to handle "no
-                    // settings row yet" -- the migration seeds the one row
-                    t.HasCheckConstraint("CK_BillingSettings_SingletonId", "BillingSettingsID = 1");
+                    t.HasCheckConstraint("CK_BillingForm_DateOrder", "EndDate >= StartDate");
+                    t.HasCheckConstraint("CK_BillingForm_Capital", "Capital >= 0");
                 });
-                entity.HasKey(b => b.BillingSettingsID);
-                entity.Property(b => b.DefaultAllotment).HasPrecision(12, 2);
-                entity.Property(b => b.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.HasKey(b => b.BillingFormID);
+                entity.Property(b => b.Title).HasMaxLength(100).IsRequired();
+                entity.Property(b => b.StartDate).HasColumnType("date");
+                entity.Property(b => b.EndDate).HasColumnType("date");
+                entity.Property(b => b.Capital).HasPrecision(14, 2);
+                entity.Property(b => b.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(b => b.RowVersion).IsRowVersion();
+
+                // Periods are listed and overlap-checked by date range; no
+                // unique index, because non-overlap spans rows and is enforced
+                // in BillingFormsController instead.
+                entity.HasIndex(b => b.StartDate).HasDatabaseName("IX_BillingForm_StartDate");
 
                 entity.HasOne<Admin>()
                     .WithMany()
-                    .HasForeignKey(b => b.UpdatedByAdminID)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                // The one row CK_BillingSettings_SingletonId requires. Seeded at
-                // 0 rather than a guessed figure -- an admin sets the real
-                // amount in the catalog/settings UI; 0 is visibly "not
-                // configured yet" rather than a plausible-looking default that
-                // could go unnoticed.
-                entity.HasData(new BillingSettings
-                {
-                    BillingSettingsID = 1,
-                    DefaultAllotment = 0,
-                    UpdatedAt = new DateTime(2026, 9, 13, 0, 0, 0, DateTimeKind.Utc),
-                });
-            });
-
-            modelBuilder.Entity<FormBilling>(entity =>
-            {
-                entity.ToTable("FormBilling", t =>
-                {
-                    t.HasCheckConstraint("CK_FormBilling_Status", "Status IN ('Pending', 'Deducted')");
-                    // a form only carries a total/approver once it has actually
-                    // been approved; a Pending row never has either
-                    t.HasCheckConstraint("CK_FormBilling_DeductedIsApproved",
-                        "Status <> 'Deducted' OR (TotalCharged IS NOT NULL AND ApprovedByAdminID IS NOT NULL AND ApprovedAt IS NOT NULL)");
-                });
-                entity.HasKey(f => f.FormBillingID);
-                entity.Property(f => f.AllotmentSnapshot).HasPrecision(12, 2);
-                entity.Property(f => f.TotalCharged).HasPrecision(12, 2);
-                entity.Property(f => f.Status)
-                    .HasMaxLength(20)
-                    .IsUnicode(false)
-                    .HasDefaultValue("Pending")
-                    .IsRequired();
-                entity.Property(f => f.RowVersion).IsRowVersion();
-
-                // one billing outcome per form
-                entity.HasIndex(f => f.FormID).IsUnique();
-
-                entity.HasOne<WellnessForm>()
-                    .WithMany()
-                    .HasForeignKey(f => f.FormID)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne<Admin>()
-                    .WithMany()
-                    .HasForeignKey(f => f.ApprovedByAdminID)
+                    .HasForeignKey(b => b.CreatedByAdminID)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 

@@ -55,28 +55,35 @@ export default function OnboardingPage() {
         </p>
       </div>
 
-      <div
-        role="tablist"
-        aria-label="Onboarding sections"
-        className="flex w-fit rounded-xl border border-line bg-surface p-1 shadow-sm"
-      >
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              tab === id
-                ? 'bg-[#129883] text-white shadow-sm'
-                : 'text-ink-600 hover:bg-[#e9fbf6] hover:text-[#0e7d6b]'
-            }`}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
-        ))}
+      <div className="@container">
+        <div
+          role="tablist"
+          aria-label="Onboarding sections"
+          // Below the threshold the strip is a grid so the tabs divide the row
+          // evenly instead of wrapping one orphan onto a second line; above it
+          // they sit inline at their natural widths.
+          className={`grid gap-1 rounded-xl border border-line bg-surface p-1 shadow-sm @3xl:flex @3xl:w-fit ${
+            tabs.length > 3 ? 'grid-cols-3 @lg:grid-cols-5' : 'grid-cols-3'
+          }`}
+        >
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors @3xl:justify-start @3xl:px-4 ${
+                tab === id
+                  ? 'bg-[#129883] text-white shadow-sm'
+                  : 'text-ink-600 hover:bg-[#e9fbf6] hover:text-[#0e7d6b]'
+              }`}
+            >
+              <Icon size={15} className="shrink-0" />
+              <span className="truncate">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <Panel />

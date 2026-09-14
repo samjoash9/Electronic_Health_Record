@@ -2,37 +2,48 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Electronic_Health_Record.Server.DTOs.Billing
 {
-    public class BillingSettingsResponseDto
+    // One row in the Station 6 table: a budget period with its consumption
+    // already computed server-side from the charges dated inside it.
+    public class BillingFormRowDto
     {
-        public decimal DefaultAllotment { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public int BillingFormID { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public decimal Capital { get; set; }
+        public decimal Consumed { get; set; }
+        public decimal Remaining { get; set; }
+        // Distinct patients with at least one charge in the window -- the
+        // "employees covered" figure, not a count of visits.
+        public int EmployeeCount { get; set; }
+        public int FormCount { get; set; }
+        // Charges whose UnitPrice is null. They contribute 0 to Consumed, so
+        // the count is surfaced rather than letting them vanish silently.
+        public int UnpricedCount { get; set; }
+        public bool IsOverBudget { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string RowVersion { get; set; } = string.Empty;
     }
 
-    public class UpdateBillingSettingsDto
+    // One employee's consumption within a period: the detail view's row.
+    public class BillingFormPatientDto
     {
-        [Required]
-        [Range(0, 99999999.99)]
-        public decimal DefaultAllotment { get; set; }
-    }
-
-    // One row in the Station 6 queue table. AgencyOffice rides along because
-    // the office is displayed prominently in the existing invoice UI.
-    public class BillingQueueRowDto
-    {
-        public int FormID { get; set; }
         public int PatientID { get; set; }
         public string PatientName { get; set; } = string.Empty;
         public string? AgencyOffice { get; set; }
-        public DateTime FormDate { get; set; }
+        public int FormCount { get; set; }
         public int ItemCount { get; set; }
-        public decimal TotalCharged { get; set; }
-        public decimal Allotment { get; set; }
-        public decimal Remaining { get; set; }
-        // "Pending" | "Deducted". A form with no FormBilling row yet reads as
-        // Pending against the current DefaultAllotment -- billing state is only
-        // created on approval, not the moment a form reaches the queue.
-        public string Status { get; set; } = string.Empty;
-        public bool IsOverBudget { get; set; }
+        public decimal Subtotal { get; set; }
+        public int UnpricedCount { get; set; }
+        public List<BillingFormVisitDto> Visits { get; set; } = new();
+    }
+
+    public class BillingFormVisitDto
+    {
+        public int FormID { get; set; }
+        public DateTime FormDate { get; set; }
+        public decimal Subtotal { get; set; }
+        public List<ChargeLineDto> Charges { get; set; } = new();
     }
 
     public class ChargeLineDto
@@ -50,47 +61,68 @@ namespace Electronic_Health_Record.Server.DTOs.Billing
         public decimal? LineTotal { get; set; }
     }
 
-    public class BillingInvoiceDto
+    // GET /api/billing/forms/{id}: the period plus everyone it covers.
+    public class BillingFormDetailDto
     {
-        public int FormID { get; set; }
-        public int PatientID { get; set; }
-        public string PatientName { get; set; } = string.Empty;
-        public string? AgencyOffice { get; set; }
-        public DateTime FormDate { get; set; }
-        public List<ChargeLineDto> Charges { get; set; } = new();
-        public decimal TotalCharged { get; set; }
-        public int UnpricedCount { get; set; }
-        public decimal Allotment { get; set; }
+        public int BillingFormID { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public decimal Capital { get; set; }
+        public decimal Consumed { get; set; }
         public decimal Remaining { get; set; }
         public bool IsOverBudget { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public string? OverrideReason { get; set; }
-        public string? ApprovedByAdminName { get; set; }
-        public DateTime? ApprovedAt { get; set; }
+        public int UnpricedCount { get; set; }
+        public string? CreatedByAdminName { get; set; }
+        public DateTime CreatedAt { get; set; }
         public string RowVersion { get; set; } = string.Empty;
+        public List<BillingFormPatientDto> Patients { get; set; } = new();
     }
 
-    public class ApproveBillingDto
+    public class CreateBillingFormDto
     {
         [Required]
-        public string RowVersion { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string Title { get; set; } = string.Empty;
 
-        // Present only on the resubmit after the client has shown the admin
-        // the overage and they chose to proceed anyway. Its absence is what
-        // makes the first attempt at an over-budget bill fail with 409 --
-        // decision 3's warning is enforced here, not just in the dialog.
-        [MaxLength(200)]
-        public string? OverrideReason { get; set; }
+        [Required]
+        public DateTime StartDate { get; set; }
+
+        [Required]
+        public DateTime EndDate { get; set; }
+
+        [Range(0, 999999999.99)]
+        public decimal Capital { get; set; }
     }
 
-    // Returned on 409 when TotalCharged exceeds the allotment and no
-    // OverrideReason was sent, so the client can show the exact excess in its
-    // confirm dialog rather than a generic error.
-    public class BillingOverageDto
+    public class UpdateBillingFormDto
     {
-        public string Message { get; set; } = "This bill exceeds the patient's allotment.";
-        public decimal TotalCharged { get; set; }
-        public decimal Allotment { get; set; }
-        public decimal Overage { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string Title { get; set; } = string.Empty;
+
+        [Required]
+        public DateTime StartDate { get; set; }
+
+        [Required]
+        public DateTime EndDate { get; set; }
+
+        [Range(0, 999999999.99)]
+        public decimal Capital { get; set; }
+
+        [Required]
+        public string RowVersion { get; set; } = string.Empty;
+    }
+
+    // Returned on 409 when a create or edit would make two periods cover the
+    // same date, so the client can name the period already holding it rather
+    // than showing a generic error.
+    public class BillingPeriodOverlapDto
+    {
+        public string Message { get; set; } = "This period overlaps an existing billing form.";
+        public int ConflictingBillingFormID { get; set; }
+        public string ConflictingTitle { get; set; } = string.Empty;
+        public DateTime ConflictingStartDate { get; set; }
+        public DateTime ConflictingEndDate { get; set; }
     }
 }

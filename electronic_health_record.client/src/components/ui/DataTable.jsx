@@ -21,7 +21,7 @@ import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
  */
 const VARIANTS = {
   tinted: {
-    frame: 'overflow-x-auto rounded-xl border border-line shadow-sm',
+    frame: 'min-w-0 overflow-x-auto rounded-xl border border-line shadow-sm',
     head: 'bg-[#e9fbf6] text-left',
     th: 'whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#0e7d6b]',
     thIcon: 'text-[#0e7d6b]/70',
@@ -31,7 +31,7 @@ const VARIANTS = {
     td: (first) => `px-4 py-3 tab:py-4 ${first ? 'font-medium text-ink-900' : 'text-ink-700'}`,
   },
   plain: {
-    frame: 'overflow-x-auto rounded-xl border border-[#eef0f4]',
+    frame: 'min-w-0 overflow-x-auto rounded-xl border border-[#eef0f4]',
     head: 'text-left',
     th: 'whitespace-nowrap border-b border-[#eef0f4] px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#8b95a7]',
     thIcon: 'text-[#b3bccb]',

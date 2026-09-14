@@ -2,22 +2,24 @@ import api from '../config/axios';
 import { toApiError } from './client';
 
 /**
- * Station 6: the global default allotment every patient's visit gets
- * (decision 2 -- one global default, no per-agency or per-patient override).
+ * Station 6. A billing form is a budget period: one capital allocation that
+ * every visit dated inside it draws down. Consumption is computed server-side
+ * from the period's charges on every read, so there is no approve/deduct call
+ * here -- recording a lab or medication at Station 3 is what spends the money.
  */
-export async function getBillingSettings() {
+export async function listBillingForms({ q = '' } = {}) {
   try {
-    const { data } = await api.get('/billing/settings');
+    const { data } = await api.get('/billing/forms', { params: { q } });
     return data;
   } catch (error) {
     throw toApiError(error);
   }
 }
 
-/** Superadmin only, enforced server-side. */
-export async function updateBillingSettings(defaultAllotment) {
+/** One period with every employee it covers, their visits and charge lines. */
+export async function getBillingForm(billingFormId) {
   try {
-    const { data } = await api.put('/billing/settings', { defaultAllotment });
+    const { data } = await api.get(`/billing/forms/${billingFormId}`);
     return data;
   } catch (error) {
     throw toApiError(error);
@@ -25,65 +27,64 @@ export async function updateBillingSettings(defaultAllotment) {
 }
 
 /**
- * Station 6 queue: one row per form that has reached billing, with the
- * patient's own allotment/total/remaining already computed server-side.
+ * A 409 carrying the period that already covers these dates. The bare
+ * status/message toApiError produces would lose the conflicting period's name
+ * and range, which is what makes the error actionable ("overlaps September
+ * 2026") rather than generic.
  */
-export async function getBillingQueue({ status = 'All', q = '', page = 1, pageSize = 25 } = {}) {
+function isOverlapConflict(error) {
+  return error?.response?.status === 409
+    && typeof error?.response?.data?.conflictingBillingFormID === 'number';
+}
+
+function toOverlapError(error) {
+  const body = error.response.data;
+  const overlapError = new Error(body.message ?? 'This period overlaps an existing billing form.');
+  overlapError.status = 409;
+  overlapError.isOverlap = true;
+  overlapError.conflictingBillingFormID = body.conflictingBillingFormID;
+  overlapError.conflictingTitle = body.conflictingTitle;
+  overlapError.conflictingStartDate = body.conflictingStartDate;
+  overlapError.conflictingEndDate = body.conflictingEndDate;
+  return overlapError;
+}
+
+/** Superadmin only, enforced server-side. 409 when the range overlaps. */
+export async function createBillingForm({ title, startDate, endDate, capital }) {
   try {
-    const { data } = await api.get('/billing/forms', {
-      params: { status, q, page, pageSize },
+    const { data } = await api.post('/billing/forms', { title, startDate, endDate, capital });
+    return data;
+  } catch (error) {
+    if (isOverlapConflict(error)) throw toOverlapError(error);
+    throw toApiError(error);
+  }
+}
+
+/**
+ * Editing a period's range moves which visits it covers and editing its
+ * capital re-prices it -- both intentional, since consumption is derived
+ * rather than snapshotted at creation.
+ */
+export async function updateBillingForm(billingFormId, { title, startDate, endDate, capital, rowVersion }) {
+  try {
+    const { data } = await api.put(`/billing/forms/${billingFormId}`, {
+      title, startDate, endDate, capital, rowVersion,
     });
     return data;
   } catch (error) {
-    throw toApiError(error);
-  }
-}
-
-/** The full invoice for one form: grouped charge lines, totals, billing status. */
-export async function getInvoice(formId) {
-  try {
-    const { data } = await api.get(`/billing/forms/${formId}`);
-    return data;
-  } catch (error) {
+    if (isOverlapConflict(error)) throw toOverlapError(error);
     throw toApiError(error);
   }
 }
 
 /**
- * A conflict carrying the exact overage (decision 3: warn, then allow).
- * The bare status/message a plain toApiError would give is not enough for
- * the override dialog to show "exceeds by ₱X" -- it needs the numbers off
- * the 409 body itself, so this reads the raw axios error before normalising.
+ * Removes the budget envelope only. The visits and charges inside the period
+ * are untouched -- they simply fall under whichever period covers them next.
  */
-function isOverageConflict(error) {
-  return error?.response?.status === 409 && typeof error?.response?.data?.overage === 'number';
-}
-
-/**
- * Approve a bill and deduct it from the patient's allotment.
- *
- * The first call omits overrideReason. If the total exceeds the allotment,
- * the server returns 409 with { totalCharged, allotment, overage } instead
- * of approving -- the caller shows that to the admin, then resubmits with a
- * reason to proceed (see BillingOverageDto / ApproveBillingDto server-side).
- */
-export async function approveBilling(formId, { rowVersion, overrideReason } = {}) {
+export async function deleteBillingForm(billingFormId) {
   try {
-    const { data } = await api.post(`/billing/forms/${formId}/approve`, {
-      rowVersion,
-      overrideReason,
-    });
-    return data;
+    await api.delete(`/billing/forms/${billingFormId}`);
   } catch (error) {
-    if (isOverageConflict(error)) {
-      const overageError = new Error(error.response.data.message ?? 'This bill exceeds the allotment.');
-      overageError.status = 409;
-      overageError.isOverage = true;
-      overageError.totalCharged = error.response.data.totalCharged;
-      overageError.allotment = error.response.data.allotment;
-      overageError.overage = error.response.data.overage;
-      throw overageError;
-    }
     throw toApiError(error);
   }
 }

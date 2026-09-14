@@ -265,24 +265,32 @@ export default function ChargeCatalogPanel() {
       flush
       title="Billing Catalog"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
           <SearchInput
             id="chargeitems-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by name or category"
-            className="w-72"
+            className="w-full min-w-0 @2xl:flex-1"
           />
-          <Select
-            value={table.filter}
-            onChange={(e) => table.onFilter(e.target.value)}
-            options={TYPE_FILTER_OPTIONS}
-            className="w-48"
-          />
-          <Button type="button" variant="teal" size="md" onClick={() => setCreateOpen(true)}>
-            <Plus size={16} />
-            Add Item
-          </Button>
+          <div className="flex w-full items-center gap-2 @2xl:w-auto">
+            <Select
+              value={table.filter}
+              onChange={(e) => table.onFilter(e.target.value)}
+              options={TYPE_FILTER_OPTIONS}
+              className="min-w-0 flex-1 @2xl:w-48 @2xl:flex-none"
+            />
+            <Button
+              type="button"
+              variant="teal"
+              size="md"
+              className="min-w-0 flex-1 @2xl:w-48 @2xl:flex-none"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus size={16} />
+              Add Item
+            </Button>
+          </div>
         </div>
       }
     >

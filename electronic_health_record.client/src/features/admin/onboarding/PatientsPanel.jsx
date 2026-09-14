@@ -93,19 +93,19 @@ export default function PatientsPanel() {
       flush
       title="Patient Accounts"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
           <SearchInput
             id="patients-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by name, employee ID, or username"
-            className="w-80"
+            className="w-full min-w-0 @2xl:flex-1"
           />
           <Select
             value={table.filter}
             onChange={(e) => table.onFilter(e.target.value)}
             options={STATUS_FILTER_OPTIONS}
-            className="w-52"
+            className="w-1/2 self-start @2xl:w-52 @2xl:self-auto"
           />
         </div>
       }
