@@ -11,21 +11,23 @@ const ACCOUNT_FIELDS = [
   { key: 'accountId', label: 'Account ID', icon: Hash },
 ];
 
-export default function Topbar({ collapsed, onToggleSidebar }) {
+export default function Topbar({ collapsed, canToggle = true, onToggleSidebar }) {
   const { user } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-black/10 bg-[#0A594D] px-4 text-white">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
-        >
-          {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
-        </button>
+        {canToggle && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
+          >
+            {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
+          </button>
+        )}
         <span className="hidden text-base font-bold text-white sm:block">Electronic Health Care Wellness Record</span>
       </div>
 
