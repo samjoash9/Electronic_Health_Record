@@ -5,6 +5,10 @@
 @theme {
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
+  /* Small-tablet floor, below Tailwind's default 640px `sm` — closes the gap
+     where a 600-767px Android tablet was falling back to phone layout. */
+  --breakpoint-tab: 600px;
+
   --color-brand-50:  #eef4fb;
   --color-brand-100: #d6e4f5;
   --color-brand-500: #2f6fb5;
