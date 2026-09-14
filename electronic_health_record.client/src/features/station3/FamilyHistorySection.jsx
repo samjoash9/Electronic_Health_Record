@@ -120,7 +120,7 @@ export default function FamilyHistorySection({ register, watch, setValue, contro
           Known conditions
         </p>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 tab:grid-cols-2 xl:grid-cols-3">
           {conditions.map((condition) => {
             const key = `familyHistory.conditions.${condition.conditionID}`;
             const checked = watch(`${key}.checked`);

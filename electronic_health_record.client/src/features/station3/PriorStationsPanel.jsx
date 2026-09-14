@@ -110,7 +110,7 @@ export default function PriorStationsPanel({ form, categories, upToStation = 2 }
         icon={HeartPulse}
         subtitle={`Recorded ${formatDateTime(form.station1SubmittedAt)}`}
       >
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 tab:grid-cols-4">
           <VitalRow label="Weight" value={form.weightKg ? `${form.weightKg} kg` : null} />
           <VitalRow label="Height" value={form.heightCm ? `${form.heightCm} cm` : null} />
           <div>
@@ -135,7 +135,7 @@ export default function PriorStationsPanel({ form, categories, upToStation = 2 }
       >
         {categories ? (
           <>
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mb-4 grid grid-cols-2 gap-3 tab:grid-cols-4">
               {scores.map((s) => (
                 <ScoreRing key={s.categoryID} label={s.name} percent={s.percent} total={s.total} max={s.max} />
               ))}

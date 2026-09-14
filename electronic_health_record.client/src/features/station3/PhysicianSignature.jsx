@@ -136,7 +136,7 @@ export default function PhysicianSignature({
         {/* Identity and attestation stay together: what is being certified, and
             by whom, reads as one statement rather than scattered labels. */}
         <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface/60 p-4 sm:p-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 tab:grid-cols-2">
             <Credential icon={BadgeCheck} label={`Name of ${roleLabel}`} value={physicianName}>
               {selectable && (
                 <>

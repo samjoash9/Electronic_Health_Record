@@ -210,7 +210,7 @@ function DiagnosticTestGrid({ watch, setValue }) {
           at every breakpoint without making them wider than the tiles above.
           It starts a fresh row (col-start-1) so the group is never split by
           whatever the preceding tests leave over. */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 tab:grid-cols-3 lg:grid-cols-4">
         {TESTS_BEFORE_PANEL.map(tile)}
 
         <div className="col-span-2 col-start-1 grid grid-cols-3 gap-2 sm:col-span-3 lg:col-span-3">

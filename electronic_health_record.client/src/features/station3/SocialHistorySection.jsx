@@ -224,7 +224,7 @@ export default function SocialHistorySection({ control, watch }) {
               jumping. Both may be checked: a patient can use either or both. */}
           {smokes === true && (
             <div className="mt-4 flex flex-col gap-4 border-t border-line pt-4 motion-safe:animate-[fade-in_150ms_ease-out]">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 tab:grid-cols-2">
                 <ToggleField
                   control={control}
                   name="socialHistory.smokesCigarette"
@@ -248,7 +248,7 @@ export default function SocialHistorySection({ control, watch }) {
                   as two full-height columns when both are checked, so neither
                   reads as the other's continuation; a lone block takes the
                   full width instead of leaving an empty half beside it. */}
-              <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 items-stretch gap-4 tab:grid-cols-2">
                 {smokesCigarette && (
                   <div
                     className={`overflow-hidden rounded-lg border border-amber-300/50 bg-amber-50/60 ${
@@ -392,7 +392,7 @@ export default function SocialHistorySection({ control, watch }) {
         </SubPanel>
 
         <SubPanel icon={Wine} title="Alcohol" subtitle="Alcohol consumption">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 tab:grid-cols-2 lg:grid-cols-3">
             <Field label="Type" htmlFor="alcoholType">
               <IconSelect icon={Beer} options={ALCOHOL_TYPES} {...selectProps('alcoholType')} />
             </Field>
