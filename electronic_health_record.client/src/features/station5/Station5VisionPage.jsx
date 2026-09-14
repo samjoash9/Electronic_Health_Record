@@ -212,7 +212,7 @@ export default function Station5VisionPage() {
             </div>
           </div>
 
-          <dl className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid grid-cols-1 gap-3 p-4 tab:grid-cols-2 xl:grid-cols-4">
             {PATIENT_FIELDS.map(({ key, label, icon: Icon, render }) => (
               <div key={key} className="flex items-start gap-3 rounded-lg border border-line bg-canvas p-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#e9fbf6] text-[#0e7d6b]">

@@ -141,7 +141,7 @@ export default function Station6BillingPage() {
         </div>
       )}
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 tab:grid-cols-4">
         <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-xs">
           <span className="text-xs font-medium text-gray-500">Station Queue</span>
           <div className="mt-1.5 flex items-baseline justify-between">
