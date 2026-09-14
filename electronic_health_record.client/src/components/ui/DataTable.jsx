@@ -28,7 +28,7 @@ const VARIANTS = {
     row: (i, clickable) => `border-t border-line transition-colors ${
       i % 2 === 1 ? 'bg-[#fafcfc]' : 'bg-white'
     } ${clickable ? 'cursor-pointer hover:bg-[#eafaf6]' : ''}`,
-    td: (first) => `px-4 py-3 ${first ? 'font-medium text-ink-900' : 'text-ink-700'}`,
+    td: (first) => `px-4 py-3 tab:py-4 ${first ? 'font-medium text-ink-900' : 'text-ink-700'}`,
   },
   plain: {
     frame: 'overflow-x-auto rounded-xl border border-[#eef0f4]',
@@ -38,7 +38,7 @@ const VARIANTS = {
     row: (i, clickable) => `${i > 0 ? 'border-t border-[#f2f4f7]' : ''} transition-colors ${
       clickable ? 'cursor-pointer hover:bg-[#f9fafc]' : ''
     }`,
-    td: (first) => `px-4 py-3.5 ${first ? 'font-medium text-[#1e293b]' : 'text-[#64748b]'}`,
+    td: (first) => `px-4 py-3.5 tab:py-4 ${first ? 'font-medium text-[#1e293b]' : 'text-[#64748b]'}`,
   },
 };
 
