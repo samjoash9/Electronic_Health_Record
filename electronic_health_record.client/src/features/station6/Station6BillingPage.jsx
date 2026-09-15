@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Receipt,
-  ShieldCheck,
   AlertCircle,
   AlertTriangle,
   Landmark,
@@ -172,34 +170,17 @@ export default function Station6BillingPage() {
   ];
 
   return (
-    <div className="flex h-full flex-col overflow-hidden font-['Geist',sans-serif]">
-      <div className="mb-4 flex flex-col justify-between gap-3 border-b border-gray-200/80 pb-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-[#0A594D] to-[#37AF9B] text-white shadow-sm">
-            <Receipt size={20} />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">Station 6: Billing</h1>
-            <p className="text-xs text-gray-500">
-              Budget periods and the labs and medications charged against them
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 rounded-full border border-[#37AF9B]/30 bg-[#e6f7f4] px-3 py-1 text-xs font-semibold text-[#0A594D]">
-          <ShieldCheck size={14} className="text-[#37AF9B]" />
-          <span>Admin Access</span>
-        </div>
-      </div>
+    <div className="flex h-full flex-col gap-4 overflow-hidden p-5 font-['Geist',sans-serif]">
+      <h1 className="text-lg font-semibold text-ink-900">Station 6: Billing</h1>
 
       {loadError && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <AlertCircle size={16} />
           <span>{loadError}</span>
         </div>
       )}
 
-      <div className="mb-5 grid grid-cols-1 gap-3 tab:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 tab:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-xs">
           <span className="text-xs font-medium text-gray-500">Billing Periods</span>
           <div className="mt-1.5 flex items-baseline justify-between">

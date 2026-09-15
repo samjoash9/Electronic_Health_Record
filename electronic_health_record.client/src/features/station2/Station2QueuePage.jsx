@@ -36,7 +36,10 @@ export default function Station2QueuePage() {
   const table = useTableControls(data, { searchFields });
 
   return (
-    <Card title="Waiting for Assessment">
+    <div className="flex flex-col gap-4 p-5">
+      <h1 className="text-lg font-semibold text-ink-900">Station 2: Assessment</h1>
+
+      <Card flush>
       {isLoading && <Skeleton />}
       {error && <ErrorState error={error} onRetry={refetch} />}
       {!isLoading && !error && (
@@ -71,6 +74,7 @@ export default function Station2QueuePage() {
         onClose={() => setPreviewRow(null)}
         onConfirm={() => navigate(`/station2/${previewRow.formID}/kiosk`)}
       />
-    </Card>
+      </Card>
+    </div>
   );
 }

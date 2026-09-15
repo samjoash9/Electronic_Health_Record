@@ -29,7 +29,11 @@ export function saveDraft(externalEmployeeId, { values, step }) {
   try {
     localStorage.setItem(
       keyFor(externalEmployeeId),
-      JSON.stringify({ version: VERSION, savedAt, values, step }),
+      // A draft only exists once an employee is selected, which means the user
+      // is past the search step -- so step 1 is never a meaningful thing to
+      // store. Autosave is debounced and can otherwise catch the render where
+      // the values have landed but the step change has not.
+      JSON.stringify({ version: VERSION, savedAt, values, step: Math.max(step ?? 2, 2) }),
     );
     return savedAt;
   } catch {

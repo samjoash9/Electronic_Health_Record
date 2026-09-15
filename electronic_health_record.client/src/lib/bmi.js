@@ -1,15 +1,20 @@
 /**
+ * BMI categories follow the WHO Western Pacific (WPRO) Asia-Pacific cutoffs,
+ * not the WHO international ones: the overweight and obese thresholds sit at
+ * 23 and 25 instead of 25 and 30, because cardiometabolic risk rises at a
+ * lower BMI in Asian populations.
+ *
  * Ideal BMI is stored on WellnessForm.IdealBMI as a decimal. It is the
- * midpoint of the WHO normal range (18.5-24.9), which is the same value for
- * every patient. calculateIdealWeightKg is the per-patient figure staff
- * actually read: the weight that would put this patient at IDEAL_BMI.
+ * midpoint of the Asia-Pacific normal range (18.5-22.9), which is the same
+ * value for every patient. calculateIdealWeightKg is the per-patient figure
+ * staff actually read: the weight that would put this patient at IDEAL_BMI.
  *
  * NOTE: confirm with the clinical stakeholders whether IdealBMI is meant to
  * hold this constant or the ideal body weight. See the plan's "Open question"
  * note. Changing it later touches only this file and the Station 1 vitals
  * component.
  */
-export const IDEAL_BMI = 22;
+export const IDEAL_BMI = 20.7;
 
 function toPositiveNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -40,7 +45,7 @@ export function calculateIdealWeightKg(heightCm) {
 export function bmiCategory(bmi) {
   if (bmi === null || bmi === undefined) return null;
   if (bmi < 18.5) return 'Underweight';
-  if (bmi < 25) return 'Normal';
-  if (bmi < 30) return 'Overweight';
+  if (bmi < 23) return 'Normal';
+  if (bmi < 25) return 'Overweight';
   return 'Obese';
 }

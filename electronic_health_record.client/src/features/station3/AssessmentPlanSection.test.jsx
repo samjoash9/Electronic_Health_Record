@@ -9,7 +9,7 @@ function Harness({ defaultValues }) {
     defaultValues: {
       recommendedDiagnosticTest: '',
       impressionClinical: '',
-      medications: [{ drug: '', dosage: '', frequency: '', price: '' }],
+      medications: [{ drug: '', dosage: '', frequency: '' }],
       lifestyleFollowUp: '',
       ...defaultValues,
     },
@@ -104,7 +104,7 @@ describe('AssessmentPlanSection', () => {
         defaultValues: {
           recommendedDiagnosticTest: '',
           impressionClinical: '',
-          medications: [{ drug: '', dosage: '', frequency: '', price: '' }],
+          medications: [{ drug: '', dosage: '', frequency: '' }],
           lifestyleFollowUp: '',
         },
       });
@@ -119,7 +119,6 @@ describe('AssessmentPlanSection', () => {
     await user.type(screen.getByRole('textbox', { name: 'Medication (Generic), row 1' }), 'Losartan');
     await user.type(screen.getByRole('textbox', { name: 'Dosage, row 1' }), '50 mg');
     await user.type(screen.getByRole('textbox', { name: 'Frequency, row 1' }), 'Once daily');
-    await user.type(screen.getByRole('spinbutton', { name: 'Price, row 1' }), '250');
     await user.type(
       screen.getByRole('textbox', { name: 'Lifestyle advice and follow-up' }),
       'Recheck BP in 4 weeks',
@@ -127,25 +126,15 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('button', { name: 'go' }));
 
     expect(submitted.medications[0]).toEqual({
-      drug: 'Losartan', dosage: '50 mg', frequency: 'Once daily', price: '250',
+      drug: 'Losartan', dosage: '50 mg', frequency: 'Once daily',
     });
     expect(submitted.lifestyleFollowUp).toBe('Recheck BP in 4 weeks');
   });
 
-  it('totals the medication prices, ignoring rows with no drug named', async () => {
-    const user = userEvent.setup();
+  it('offers no price field or total for medications', async () => {
     render(<Harness />);
-    await user.type(screen.getByRole('textbox', { name: 'Medication (Generic), row 1' }), 'Losartan');
-    await user.type(screen.getByRole('spinbutton', { name: 'Price, row 1' }), '250');
-    await user.click(screen.getByRole('button', { name: 'Add another medication' }));
-    await user.type(screen.getByRole('textbox', { name: 'Medication (Generic), row 2' }), 'Metformin');
-    await user.type(screen.getByRole('spinbutton', { name: 'Price, row 2' }), '150');
-
-    // A priced row with no drug named is not a prescription, so it is skipped.
-    await user.click(screen.getByRole('button', { name: 'Add another medication' }));
-    await user.type(screen.getByRole('spinbutton', { name: 'Price, row 3' }), '999');
-
-    expect(screen.getByText('Medication Total').parentElement).toHaveTextContent('₱400.00');
+    expect(screen.queryByRole('spinbutton', { name: 'Price, row 1' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Medication Total')).not.toBeInTheDocument();
   });
 
   it('adds and removes medication rows', async () => {

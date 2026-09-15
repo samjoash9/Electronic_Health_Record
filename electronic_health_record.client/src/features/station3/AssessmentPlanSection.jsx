@@ -301,28 +301,19 @@ function DiagnosticTestGrid({ watch, setValue }) {
   );
 }
 
-const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '', price: '' };
+const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '' };
 
 const MEDICATION_COLUMNS = [
-  { name: 'drug', label: 'Medication (Generic)', placeholder: 'e.g. Losartan', width: 'w-[32%]' },
-  { name: 'dosage', label: 'Dosage', placeholder: 'e.g. 50 mg', width: 'w-[22%]' },
-  { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[26%]' },
-  { name: 'price', label: 'Price', placeholder: 'e.g. 250', width: 'w-[20%]', type: 'number' },
+  { name: 'drug', label: 'Medication (Generic)', placeholder: 'e.g. Losartan', width: 'w-[40%]' },
+  { name: 'dosage', label: 'Dosage', placeholder: 'e.g. 50 mg', width: 'w-[28%]' },
+  { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[32%]' },
 ];
 
 // Same table shape as Past Medical History, so prescribing reads the way
-// recording an existing maintenance drug already does.
-function MedicationTable({ control, register, watch }) {
+// recording an existing maintenance drug already does. Medications carry no
+// price: they are not billed line items, so pricing happens at Station 6.
+function MedicationTable({ control, register }) {
   const { fields, append, remove } = useFieldArray({ control, name: 'medications' });
-
-  // Watched rather than read off `fields`, whose values are only the defaults
-  // captured when the array was built, so the total tracks what is typed.
-  const rows = watch('medications') ?? [];
-  const total = rows.reduce((sum, row) => {
-    if (!row?.drug?.trim()) return sum;
-    const price = Number(row.price);
-    return sum + (Number.isFinite(price) ? price : 0);
-  }, 0);
 
   // Keep at least one row on screen: emptying the last row resets it instead
   // of leaving the section with nothing to type into.
@@ -377,9 +368,6 @@ function MedicationTable({ control, register, watch }) {
                       id={`med-${index}-${column.name}`}
                       placeholder={column.placeholder}
                       className="w-full"
-                      {...(column.type === 'number'
-                        ? { type: 'number', min: '0', step: '0.01', inputMode: 'decimal' }
-                        : {})}
                       {...register(`medications.${index}.${column.name}`)}
                     />
                   </td>
@@ -408,11 +396,6 @@ function MedicationTable({ control, register, watch }) {
         <Plus size={14} />
         Add another medication
       </button>
-
-      <div className="mt-2 flex items-center justify-between rounded-lg border border-[#0e7d6b]/30 bg-[#f3fdfb] px-3 py-2.5">
-        <span className="text-sm font-semibold text-ink-900">Medication Total</span>
-        <span className="text-base font-extrabold tabular-nums text-[#0e7d6b]">{peso(total)}</span>
-      </div>
     </>
   );
 }
@@ -462,7 +445,7 @@ export default function AssessmentPlanSection({ register, watch, setValue, contr
               <p className="mb-2 text-[11px] font-semibold tracking-wide text-ink-500 uppercase">
                 Medication
               </p>
-              <MedicationTable control={control} register={register} watch={watch} />
+              <MedicationTable control={control} register={register} />
             </div>
 
             <div>

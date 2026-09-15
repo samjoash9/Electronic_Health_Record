@@ -143,7 +143,12 @@ export default function Station1Page() {
     const restoredDraft = loadDraft(employee.externalEmployeeId);
     if (restoredDraft) {
       reset(restoredDraft.values);
-      setStep(restoredDraft.step ?? 2);
+      // Never restore onto step 1: the user just left it by picking this
+      // employee, and the search step holds nothing worth returning to. A
+      // draft can legitimately carry step 1 because autosave debounces, so
+      // it can capture the render where the values are already populated
+      // but setStep(2) has not landed yet.
+      setStep(Math.max(restoredDraft.step ?? 2, 2));
       toast.info('Restored your saved draft.');
     } else {
       reset({ ...employee, username: '', ...BLANK_VITALS });
@@ -183,7 +188,10 @@ export default function Station1Page() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mb-4 border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
+    <div className="flex flex-col gap-4 p-5">
+      <h1 className="text-lg font-semibold text-ink-900">Station 1: Registration</h1>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
       <Card>
         <StationStepIndicator
           steps={STEPS}
@@ -308,6 +316,7 @@ export default function Station1Page() {
       >
         This will clear everything you&apos;ve entered and take you back to the first step. This cannot be undone.
       </Modal>
-    </form>
+      </form>
+    </div>
   );
 }

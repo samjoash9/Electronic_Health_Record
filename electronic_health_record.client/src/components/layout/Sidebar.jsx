@@ -14,7 +14,7 @@ const ACTIVITY_LOGS_LINK = { to: '/activity-logs', label: 'Activity Logs', icon:
 // each assigned exactly one station by an admin (`user.station`), so only
 // that assigned station belongs in the sidebar. Stations 1-2 are still a
 // per-device admin choice, gated on the device `station` from useStationChoice().
-// A superadmin is pushed all three below, bypassing that filter.
+// A superadmin gets all three from SUPERADMIN_LINKS, bypassing that filter.
 const STATION3_LINK = { to: '/station3', label: 'Station 3: Consultation', icon: Stethoscope, station: 3 };
 const STATION4_LINK = { to: '/station4', label: 'Station 4: Dental', icon: Smile, station: 4 };
 const STATION5_LINK = { to: '/station5', label: 'Station 5: Vision', icon: Eye, station: 5 };
@@ -27,20 +27,40 @@ const ONBOARDING_LINK = { to: '/onboarding', label: 'Onboarding', icon: UserPlus
 // precisely because their queue drops work once it is signed.
 const FORMS_LINK = { to: '/forms', label: 'Forms', icon: Sheet };
 
+const DASHBOARD_LINK = { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
+const STATION1_LINK = { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 };
+const STATION2_LINK = { to: '/station2', label: 'Station 2: Assessment', icon: ListChecks, station: 2 };
+
+// Desk-agnostic pages first, station desks after -- the stations are the part
+// of the list that varies per user (gated on `station` below), so keeping them
+// last means the top of the sidebar sits in the same place for everyone.
 const LINKS = {
   admin: [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    DASHBOARD_LINK,
     FORMS_LINK,
-    { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 },
-    { to: '/station2', label: 'Station 2: Assessment', icon: ListChecks, station: 2 },
-    // No `station`: onboarding is not a station desk, so it stays available
-    // whichever station an admin picked.
-    STATION6_LINK,
     ONBOARDING_LINK,
+    STATION1_LINK,
+    STATION2_LINK,
+    STATION6_LINK,
   ],
-  doctor: [STATION3_LINK, STATION4_LINK, STATION5_LINK, FORMS_LINK],
+  doctor: [FORMS_LINK, STATION3_LINK, STATION4_LINK, STATION5_LINK],
   patient: [{ to: '/my-record', label: 'My Record', icon: FileText }],
 };
+
+// A superadmin sees every desk, so the station links are listed outright
+// rather than gated on a station choice.
+const SUPERADMIN_LINKS = [
+  DASHBOARD_LINK,
+  FORMS_LINK,
+  ONBOARDING_LINK,
+  ACTIVITY_LOGS_LINK,
+  STATION1_LINK,
+  STATION2_LINK,
+  STATION3_LINK,
+  STATION4_LINK,
+  STATION5_LINK,
+  STATION6_LINK,
+];
 
 export default function Sidebar({ collapsed }) {
   const { user, signOut } = useAuth();
@@ -54,14 +74,11 @@ export default function Sidebar({ collapsed }) {
   // Doctors' station links are gated on their admin-assigned `user.station`;
   // admins' station links are still gated on the device choice from useStationChoice().
   const gateStation = user?.role === ROLES.DOCTOR ? user?.station : station;
-  // A superadmin drops the station-less links here and has them re-pushed below,
-  // so they land after the doctor desks instead of above them. Both must be
-  // excluded or they would render twice and collide on their `to` key.
-  const links = (LINKS[user?.role] ?? []).filter((link) => {
-    if (superAdmin) return link !== ONBOARDING_LINK && link !== STATION6_LINK;
-    return !link.station || link.station === gateStation;
-  });
-  if (superAdmin) links.push(STATION3_LINK, STATION4_LINK, STATION5_LINK, STATION6_LINK, ONBOARDING_LINK, ACTIVITY_LOGS_LINK);
+  const links = superAdmin
+    ? SUPERADMIN_LINKS
+    // A link carrying `station` is a desk, shown only at the station this user
+    // is at; the rest are desk-agnostic and always listed.
+    : (LINKS[user?.role] ?? []).filter((link) => !link.station || link.station === gateStation);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -92,7 +109,10 @@ export default function Sidebar({ collapsed }) {
 
   return (
     <nav
-      className={`flex flex-col gap-1 border-r border-black/10 bg-[#0A594D] p-3 transition-all duration-300 ${collapsed ? 'w-16' : 'w-72'
+      // h-full + min-h-0: without a height bound the nav grows to fit every
+      // link, which stretches the shell past the viewport and leaves blank
+      // space below the fold. Bounded, the link list below scrolls instead.
+      className={`flex h-full min-h-0 shrink-0 flex-col gap-1 border-r border-black/10 bg-[#0A594D] p-3 transition-all duration-300 ${collapsed ? 'w-16' : 'w-72'
         }`}
     >
       <div className={`flex items-center py-2 ${collapsed ? 'justify-center' : 'px-1'}`}>
@@ -109,7 +129,10 @@ export default function Sidebar({ collapsed }) {
 
       <div className="mb-2 border-t border-white/15" />
 
-      <div className="flex flex-1 flex-col gap-1">
+      {/* min-h-0 lets this shrink below its content height so the overflow
+          scrolls here, keeping the Settings/Log Out block below always
+          visible rather than pushed off the bottom of the screen. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} title={label} className={linkClass}>
             <Icon size={18} className="shrink-0" />

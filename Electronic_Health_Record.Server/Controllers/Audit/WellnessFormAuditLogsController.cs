@@ -1,4 +1,6 @@
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +8,12 @@ namespace Electronic_Health_Record.Server.Controllers.Audit
 {
     [ApiController]
     [Route("api/[controller]")]
+    // Superadmin only: these logs carry patient names alongside the full edit
+    // history of every form, and the client only ever opens this page behind a
+    // superadmin guard (see the /activity-logs route in routes.jsx). The API
+    // was previously anonymous, so the UI restriction was the only thing
+    // standing between an unauthenticated caller and that data.
+    [Authorize(Roles = AdminRoles.SuperAdmin)]
     public class WellnessFormAuditLogsController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;

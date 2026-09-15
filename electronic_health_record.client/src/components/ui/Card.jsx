@@ -15,7 +15,7 @@ export default function Card({
           }`}
         >
           {title && <h2 className="shrink-0 text-sm font-semibold tracking-wide whitespace-nowrap text-ink-900">{title}</h2>}
-          {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 @2xl:w-auto @2xl:flex-1 @2xl:justify-end">{actions}</div>}
+          {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 @2xl:flex-1 @2xl:justify-end">{actions}</div>}
         </header>
       )}
       <div className={`min-w-0 px-5 pb-5 ${dividedHeader ? 'pt-5' : 'pt-1'}`}>{children}</div>

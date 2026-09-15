@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,6 +7,7 @@
     <SpaRoot>..\electronic_health_record.client</SpaRoot>
     <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
     <SpaProxyServerUrl>https://localhost:53807</SpaProxyServerUrl>
+    <UserSecretsId>0caa0f10-8801-478b-b60e-a750e6d4f85a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

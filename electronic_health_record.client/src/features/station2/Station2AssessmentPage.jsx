@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { submitStation2 } from '../../api/forms.api';
@@ -12,7 +11,6 @@ import Card from '../../components/ui/Card';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import Button from '../../components/ui/Button';
-import Modal from '../../components/ui/Modal';
 import ConflictModal from '../../components/ui/ConflictModal';
 import HandoffConfirm from './HandoffConfirm';
 import AnswersReview from './AnswersReview';
@@ -31,7 +29,6 @@ export default function Station2AssessmentPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [conflictOpen, setConflictOpen] = useState(false);
-  const [redoOpen, setRedoOpen] = useState(false);
 
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories, isLoading: templateLoading } = useQuery({
@@ -84,17 +81,7 @@ export default function Station2AssessmentPage() {
         <AnswersReview categories={categories} answers={answersForReview} />
       </Card>
 
-      <div className="flex justify-between gap-2 rounded-lg bg-surface px-4 py-3">
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="lg" onClick={() => navigate('/station2')}>
-            <ArrowLeft size={16} strokeWidth={2.25} />
-            Back to Queue
-          </Button>
-          <Button type="button" variant="secondary" size="lg" onClick={() => setRedoOpen(true)}>
-            <RotateCcw size={16} strokeWidth={2.25} />
-            Redo Assessment
-          </Button>
-        </div>
+      <div className="flex justify-end gap-2 rounded-lg bg-surface px-4 py-3">
         <Button
           type="button"
           variant="teal"
@@ -109,32 +96,6 @@ export default function Station2AssessmentPage() {
       </div>
 
       <ConflictModal open={conflictOpen} onReload={handleReload} onClose={() => setConflictOpen(false)} />
-
-      <Modal
-        open={redoOpen}
-        title="Redo assessment?"
-        onClose={() => setRedoOpen(false)}
-        footer={
-          <>
-            <Button type="button" variant="secondary" size="lg" onClick={() => setRedoOpen(false)}>
-              Keep answers
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              size="lg"
-              onClick={() => {
-                clearDraft(formId);
-                navigate(`/station2/${formId}/kiosk`);
-              }}
-            >
-              Redo assessment
-            </Button>
-          </>
-        }
-      >
-        This will discard these answers and restart the assessment for this patient.
-      </Modal>
     </div>
   );
 }

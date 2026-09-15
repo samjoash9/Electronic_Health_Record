@@ -1,4 +1,5 @@
 using Electronic_Health_Record.Server.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +7,10 @@ namespace Electronic_Health_Record.Server.Controllers.Assessment
 {
     [ApiController]
     [Route("api/[controller]")]
+    // The template is clinical configuration rather than patient data, so any
+    // signed-in account may read it -- but it still describes the questionnaire
+    // this clinic runs and has no reason to be readable anonymously.
+    [Authorize]
     public class AssessmentController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;

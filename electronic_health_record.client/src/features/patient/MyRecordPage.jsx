@@ -21,7 +21,7 @@ import StatusTimeline from './StatusTimeline';
 // this page's table now carries the same search/filter/pagination controls, so
 // a narrower container here would make the identical table look different.
 function Page({ children }) {
-  return <div className="flex w-full flex-col gap-4 pb-8">{children}</div>;
+  return <div className="flex w-full flex-col gap-4 p-5 pb-8">{children}</div>;
 }
 
 // Only the statuses a patient's own visit can actually be in, so the dropdown
@@ -120,8 +120,9 @@ export default function MyRecordPage() {
 
   return (
     <Page>
+      <h1 className="text-lg font-semibold text-ink-900">My Record</h1>
+
       <Card
-        title="Your Visits"
         flush
         actions={
           <div className="flex items-center gap-2">

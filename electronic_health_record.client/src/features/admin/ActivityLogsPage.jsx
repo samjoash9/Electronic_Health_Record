@@ -57,22 +57,28 @@ export default function ActivityLogsPage() {
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
   return (
-    <Card
-      title="Activity Logs"
+    <div className="flex flex-col gap-4 p-5">
+      <h1 className="text-lg font-semibold text-ink-900">Activity Logs</h1>
+
+      <Card
+      flush
       actions={
-        <div className="flex items-center gap-2">
+        /* Both controls split the row evenly at every width, stacking only on a
+           phone-width card where an even split would leave each too narrow. */
+        <div className="grid w-full grid-cols-1 items-center gap-2 @md:grid-cols-2">
           <SearchInput
             id="activity-logs-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by actor, action, or patient"
-            className="w-72"
+            className="w-full min-w-0"
           />
           <Select
             value={table.filter}
             onChange={(e) => table.onFilter(e.target.value)}
             options={ACTION_FILTER_OPTIONS}
-            className="w-64"
+            className="w-full min-w-0"
+            triggerClassName="h-12 rounded-full px-4"
           />
         </div>
       }
@@ -102,6 +108,7 @@ export default function ActivityLogsPage() {
         actionLabel={ACTION_LABEL}
         onClose={() => setSelectedLog(null)}
       />
-    </Card>
+      </Card>
+    </div>
   );
 }

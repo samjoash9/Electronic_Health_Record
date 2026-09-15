@@ -47,13 +47,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex flex-col gap-4 p-5">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-semibold text-ink-900">Onboarding</h1>
-        <p className="text-sm text-ink-500">
-          Register the doctors who sign consultations, keep the employee directory current, and
-          look up the portal usernames issued to patients at Station 1.
-        </p>
-      </div>
+      <h1 className="text-lg font-semibold text-ink-900">Onboarding</h1>
 
       <div className="@container">
         <div

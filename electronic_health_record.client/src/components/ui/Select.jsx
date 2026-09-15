@@ -7,6 +7,23 @@ function normalizeOptions(options) {
   );
 }
 
+// Tailwind resolves competing utilities by their order in the generated
+// stylesheet, not by the order they appear in a class string, so appending
+// `rounded-full` after the base `rounded-lg` silently loses. Each default below
+// is therefore dropped entirely when the caller sets that same property.
+const TRIGGER_DEFAULTS = [
+  { className: 'h-10', overriddenBy: /(^|\s)h-/ },
+  { className: 'rounded-lg', overriddenBy: /(^|\s)rounded(-|\[|$|\s)/ },
+  { className: 'px-3', overriddenBy: /(^|\s)(px|p)-/ },
+];
+
+function triggerBaseClasses(triggerClassName) {
+  return TRIGGER_DEFAULTS
+    .filter(({ overriddenBy }) => !overriddenBy.test(triggerClassName))
+    .map(({ className }) => className)
+    .join(' ');
+}
+
 const Select = forwardRef(function Select(
   {
     error, options = [], className = '', triggerClassName = '',
@@ -15,6 +32,7 @@ const Select = forwardRef(function Select(
   ref
 ) {
   const normalized = useMemo(() => normalizeOptions(options), [options]);
+  const triggerDefaults = useMemo(() => triggerBaseClasses(triggerClassName), [triggerClassName]);
   const nativeRef = useRef(null);
   const rootRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -79,7 +97,7 @@ const Select = forwardRef(function Select(
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         onBlur={onBlur}
-        className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg border bg-surface px-3 text-left text-sm outline-none transition
+        className={`flex w-full items-center justify-between gap-2 border bg-surface text-left text-sm outline-none transition ${triggerDefaults}
           ${error ? 'border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10' : 'border-line focus:border-[#129883] focus:ring-4 focus:ring-[#129883]/10'}
           disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-ink-500 ${triggerClassName}`}
       >

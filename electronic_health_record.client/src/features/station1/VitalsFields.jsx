@@ -27,7 +27,7 @@ export default function VitalsFields({ register, watch, errors }) {
         <Field label="Height (cm)" htmlFor="heightCm" required error={errors.heightCm?.message}>
           <Input id="heightCm" type="number" step="0.1" {...register('heightCm')} />
         </Field>
-        <Field label="BMI">
+        <Field label="BMI" hint="Asia-Pacific (WPRO) cutoffs">
           <div className="flex h-8 items-center gap-2">
             <Input value={bmi ?? ''} disabled readOnly className="flex-1" />
             {category && <Badge tone={BMI_TONE[category]}>{category}</Badge>}

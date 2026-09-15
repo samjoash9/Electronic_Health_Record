@@ -122,48 +122,60 @@ export default function FormsPage() {
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
   return (
-    <Card
-      title="Forms"
+    <div className="flex flex-col gap-4 p-5">
+      <h1 className="text-lg font-semibold text-ink-900">Forms</h1>
+
+      <Card
+      flush
       actions={
-        <div className="flex flex-wrap items-center gap-2">
+        /*
+         * The three controls need ~780px to sit on one row (288 search + 224
+         * status + ~250 date + gaps), so the single-row layout starts at @4xl
+         * (56rem/896px) -- not @2xl (42rem/672px), which the card still clears
+         * with a collapsed sidebar and which therefore let the row engage at a
+         * width where it could only wrap, orphaning the date box on its own
+         * line. Below that: a 2-column grid, search spanning the full width on
+         * top, status and date range sharing the row beneath it.
+         */
+        <div className="grid w-full grid-cols-2 items-center gap-2 @4xl:flex @4xl:flex-wrap">
           <SearchInput
             id="forms-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by name or username"
-            className="w-72"
+            className="col-span-2 w-full @4xl:w-72"
           />
           <Select
             value={table.filter}
             onChange={(e) => table.onFilter(e.target.value)}
             options={STATUS_FILTER_OPTIONS}
-            className="w-56"
+            className="w-full @4xl:w-56"
           />
-          <div className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5">
-            <CalendarRange size={15} className="text-ink-400" />
+          <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5">
+            <CalendarRange size={15} className="shrink-0 text-ink-400" />
             <input
               type="date"
               aria-label="Visit date from"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               max={dateTo || undefined}
-              className="h-7 rounded border-none bg-transparent text-sm text-ink-900 outline-none"
+              className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
             />
-            <span className="text-ink-400">–</span>
+            <span className="shrink-0 text-ink-400">–</span>
             <input
               type="date"
               aria-label="Visit date to"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               min={dateFrom || undefined}
-              className="h-7 rounded border-none bg-transparent text-sm text-ink-900 outline-none"
+              className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
             />
             {hasDateFilter && (
               <button
                 type="button"
                 onClick={clearDateFilter}
                 aria-label="Clear date filter"
-                className="flex h-5 w-5 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
               >
                 <X size={12} />
               </button>
@@ -252,6 +264,7 @@ export default function FormsPage() {
         }}
       />
       )}
-    </Card>
+      </Card>
+    </div>
   );
 }

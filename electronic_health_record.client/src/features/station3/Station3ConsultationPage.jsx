@@ -11,7 +11,7 @@ import { useStationFormGuard } from '../../hooks/useStationFormGuard';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
-import { fullName, ageFrom, formatDate, formatDateTime, peso } from '../../lib/formatters';
+import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
 import { parseDiagnosticTests } from '../../lib/diagnosticTests';
 import { ROLES, STATIONS } from '../../lib/constants';
@@ -44,7 +44,7 @@ const BLANK_PMH_ROW = {
   maintenanceDrugGeneric: '', dosage: '', frequency: '',
 };
 
-const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '', price: '' };
+const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '' };
 
 const DEFAULT_VALUES = {
   familyHistory: {
@@ -75,28 +75,16 @@ const DEFAULT_VALUES = {
 function buildManagementTreatment(values) {
   const rows = (values.medications ?? []).filter((row) => row.drug?.trim());
 
-  const meds = rows.map((row) => {
-    const detail = [row.drug.trim(), row.dosage?.trim(), row.frequency?.trim()]
+  const meds = rows.map((row) =>
+    [row.drug.trim(), row.dosage?.trim(), row.frequency?.trim()]
       .filter(Boolean)
-      .join(' — ');
-    const price = Number(row.price);
-    return Number.isFinite(price) && row.price !== ''
-      ? `${detail} — ${peso(price)}`
-      : detail;
-  });
-
-  const total = rows.reduce((sum, row) => {
-    const price = Number(row.price);
-    return sum + (Number.isFinite(price) ? price : 0);
-  }, 0);
+      .join(' — '),
+  );
 
   const advice = values.lifestyleFollowUp?.trim();
 
   return [
-    meds.length
-      ? `Medications:\n${meds.map((m) => `• ${m}`).join('\n')}${
-        total > 0 ? `\nMedication total: ${peso(total)}` : ''}`
-      : '',
+    meds.length ? `Medications:\n${meds.map((m) => `• ${m}`).join('\n')}` : '',
     advice ? `Lifestyle advice and follow-up:\n${advice}` : '',
   ].filter(Boolean).join('\n\n') || null;
 }
@@ -114,33 +102,16 @@ function buildManagementTreatment(values) {
 // itself (see SubmitStation3's byNameLookup) rather than trusting whatever
 // price this parse found.
 //
-// Medications need no parsing at all -- they are already the structured rows
-// MedicationTable collects -- so this is a straight filter and map, exactly
-// mirroring the row-is-real test buildManagementTreatment() itself uses
-// (row.drug?.trim()).
+// Medications are prescribing detail only, not billed line items: they carry
+// no price at Station 3 and so contribute nothing here. They stay recorded in
+// ManagementTreatment for the physician-facing text.
 function buildCharges(values) {
-  const labs = parseDiagnosticTests(values.recommendedDiagnosticTest).map((row) => ({
+  return parseDiagnosticTests(values.recommendedDiagnosticTest).map((row) => ({
     itemType: 'Lab',
     name: row.name,
     unitPrice: row.price,
     quantity: 1,
   }));
-
-  const medications = (values.medications ?? [])
-    .filter((row) => row.drug?.trim())
-    .map((row) => {
-      const price = Number(row.price);
-      return {
-        itemType: 'Medication',
-        name: row.drug.trim(),
-        unitPrice: Number.isFinite(price) && row.price !== '' ? price : null,
-        quantity: 1,
-        dosage: row.dosage?.trim() || null,
-        frequency: row.frequency?.trim() || null,
-      };
-    });
-
-  return [...labs, ...medications];
 }
 
 function buildFamilyHistory(values) {

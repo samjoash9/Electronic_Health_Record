@@ -161,7 +161,9 @@ export default function DashboardPage() {
   const viewForm = (form) => navigate(`/forms/${form.formID}`);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4 p-5">
+      <h1 className="text-lg font-semibold text-ink-900">Dashboard</h1>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CARDS.map(({ key, label, icon, accent }) => (
           <StatCard key={key} label={label} value={counts[key] ?? 0} icon={icon} accent={accent} />

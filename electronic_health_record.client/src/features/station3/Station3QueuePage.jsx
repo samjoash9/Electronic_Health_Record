@@ -45,8 +45,11 @@ export default function Station3QueuePage() {
   const table = useTableControls(data, { searchFields });
 
   return (
-    <Card
-      title="Waiting for Consultation"
+    <div className="flex flex-col gap-4 p-5">
+      <h1 className="text-lg font-semibold text-ink-900">Station 3: Consultation</h1>
+
+      <Card
+      flush
       actions={!isLoading && !error && (
         <SearchInput
           id="station3-search"
@@ -79,6 +82,7 @@ export default function Station3QueuePage() {
           />
         </div>
       )}
-    </Card>
+      </Card>
+    </div>
   );
 }
