@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 
 using Electronic_Health_Record.Server.BackgroundJobs;
 using Electronic_Health_Record.Server.Data;
@@ -255,6 +256,45 @@ builder.Services.AddAuthorization(options =>
 
 
 // ============================================================
+// RATE LIMITING
+// ============================================================
+
+// AuthController's login action carries [EnableRateLimiting("login")]. Naming a
+// policy that was never registered throws when the endpoint is first hit, so
+// without this block the one anonymous endpoint in the app fails at runtime --
+// nobody can sign in.
+//
+// The limiter is partitioned per client IP rather than global: a single window
+// shared by every caller would let one attacker's guesses lock out the whole
+// office. Behind a reverse proxy RemoteIpAddress is the proxy unless forwarded
+// headers are configured, which would collapse every user into one partition --
+// check that before putting this behind one.
+builder.Services.AddRateLimiter(options =>
+{
+    // 429 rather than the default 503: the caller is being throttled, not
+    // meeting an unavailable service, and clients distinguish the two.
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey:
+                httpContext.Connection.RemoteIpAddress?.ToString()
+                ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                // Ten attempts a minute is far above what a person typing a
+                // password needs and far below what makes guessing practical.
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+
+                // No queue: a rejected login should fail immediately so the
+                // user sees an error, not hang waiting for a slot.
+                QueueLimit = 0
+            }));
+});
+
+
+// ============================================================
 // BUILD APPLICATION
 // ============================================================
 
@@ -328,6 +368,15 @@ app.UseHttpsRedirection();
 // ============================================================
 
 app.UseCors("AllowReactFrontend");
+
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+
+// Ahead of authentication so unauthenticated login floods are turned away
+// before they reach a password hash comparison, which is deliberately slow.
+app.UseRateLimiter();
 
 
 // ============================================================

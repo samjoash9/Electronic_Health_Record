@@ -17,7 +17,14 @@ const queryClient = new QueryClient({
 
 // createBrowserRouter (not <BrowserRouter>) so useBlocker (unsaved-changes
 // guards) has the data router it requires — see routes.jsx.
-const router = createBrowserRouter(routeElements);
+//
+// basename comes from Vite's BASE_URL (set by VITE_APP_BASE_URL) so the app
+// works both at the site root and under a sub-path. Vite's `base` only rewrites
+// asset URLs; without this the router would still match paths as if it were at
+// the root and every route would 404 under a sub-application.
+const router = createBrowserRouter(routeElements, {
+  basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/',
+});
 
 export default function App() {
   return (

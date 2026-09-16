@@ -35,4 +35,45 @@
     </ProjectReference>
   </ItemGroup>
 
+  <!--
+    The .esproj reference above sets ReferenceOutputAssembly=false, so a publish
+    carries none of the SPA's build output: without these targets the deployed
+    site serves the API but answers every page request with an empty shell.
+
+    Both targets run on publish only. A dev run is served by the Vite dev server
+    through SpaProxy, so building the bundle during an ordinary `dotnet build`
+    would cost a minute and produce files nothing reads.
+  -->
+  <Target Name="PublishSpaBuild" BeforeTargets="ComputeFilesToPublish">
+    <Message Importance="high" Text="Building the React client for publish..." />
+
+    <!-- `npm install`, not `npm ci`: ci deletes and recreates node_modules, and
+         on a synced or antivirus-scanned checkout that fails with EPERM on the
+         native .node binaries while they are locked. install honours the
+         lockfile the same way for an up-to-date tree without removing it.
+         A CI runner with a clean workspace can safely use `npm ci` instead. -->
+    <Exec Command="npm install --no-audit --no-fund" WorkingDirectory="$(SpaRoot)" />
+    <Exec Command="npm run build" WorkingDirectory="$(SpaRoot)" />
+  </Target>
+
+  <Target Name="PublishSpaFiles" AfterTargets="PublishSpaBuild">
+    <!-- Globbed inside the target, not in a top-level ItemGroup: dist/ does not
+         exist until PublishSpaBuild has run, and item groups outside a target
+         are evaluated before any target executes. -->
+    <ItemGroup>
+      <SpaPublishFiles Include="$(SpaRoot)\dist\**" />
+    </ItemGroup>
+
+    <Error
+      Condition="'@(SpaPublishFiles)' == ''"
+      Text="The client build produced no files in $(SpaRoot)\dist. Publishing would deploy an API with no UI, so the build is stopped here." />
+
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(SpaPublishFiles)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
 </Project>
