@@ -1,5 +1,8 @@
+using System.Text.Json;
+
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.WellnessForm;
+using Electronic_Health_Record.Server.Filters;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -1038,6 +1041,535 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        // PATCH /api/wellnessforms/{formID}
+        // Body: a sparse SuperAdminEditFormDto -- only the fields the operator
+        // actually changed, plus rowVersion and an optional reason.
+        //
+        // The correction path for a record that is already through the stations:
+        // a wrong vital typed at Station 1, a misspelled impression, a dental
+        // indicator picked on the wrong row. Superadmin only, same actor check
+        // as Cancel and Delete.
+        //
+        // Three things this deliberately cannot touch, and why:
+        //   Status / CurrentStation -- the stations own the workflow. Letting an
+        //     edit set these lets a form reach a state no station sequence can
+        //     produce (e.g. "Completed" with no vision row), which every queue
+        //     and the billing logic would then have to defend against.
+        //   Signature / SignedAt (and the dental/vision pairs) -- a signature is
+        //     a named practitioner's attestation. A superadmin correcting a typo
+        //     must never be able to forge one or silently re-date one.
+        //   PatientID -- moving a form to a different patient is not an edit, it
+        //     is two records being wrong. Cancel and re-register instead.
+        //
+        // A signed form stays editable on purpose: the common real correction is
+        // a transcription error noticed after signing, and forcing a cancel and
+        // re-entry there loses the clinical history. The audit row is what makes
+        // that safe -- every scalar change is logged old -> new, so the record
+        // still shows the physician's original values and who changed them.
+        [HttpPatch("{formID:int}")]
+        [EnableBufferedBody]
+        public async Task<IActionResult> EditForm(int formID, [FromBody] SuperAdminEditFormDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (_currentUser.AdminID is not { } adminID)
+                return Unauthorized(new { message = "No admin identity on this request." });
+
+            var actor = await _context.Admins.FindAsync(adminID);
+            if (actor == null || actor.Role != AdminRoles.SuperAdmin)
+                return Forbid();
+
+            var form = await _context.WellnessForms.FindAsync(formID);
+            if (form == null)
+                return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            // Which keys the client actually sent. A sparse patch has to tell
+            // "absent" (leave alone) apart from "null" (clear this field), and
+            // the deserialised DTO cannot express that difference on its own --
+            // both arrive as null. Re-reading the raw body is what recovers it.
+            var sentKeys = await ReadSentKeysAsync();
+
+            bool Sent(string key) => sentKeys.Contains(key);
+
+            // A practitioner can be corrected, but only to one who is still
+            // active -- the same rule the station submits enforce, so an edit
+            // cannot put a retired doctor's name onto a record.
+            foreach (var (key, id, label) in new[]
+                     {
+                         ("physicianID", dto.PhysicianID, "physician"),
+                         ("dentistID", dto.DentistID, "dentist"),
+                         ("optometristID", dto.OptometristID, "optometrist"),
+                     })
+            {
+                if (Sent(key) && id is { } practitionerId)
+                {
+                    var isActive = await _context.Physicians
+                        .AnyAsync(p => p.PhysicianID == practitionerId && p.IsActive);
+                    if (!isActive)
+                    {
+                        return UnprocessableEntity(new
+                        {
+                            message = $"That {label} is no longer registered as active.",
+                        });
+                    }
+                }
+            }
+
+            ApplyRowVersionToken(form, dto.RowVersion);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var now = DateTime.UtcNow;
+
+                // field -> "old -> new", built as each scalar is applied so the
+                // audit row names exactly what moved and nothing that did not.
+                var changes = new List<string>();
+
+                void Scalar<T>(string key, T current, T incoming, Action<T> apply)
+                {
+                    if (!Sent(key)) return;
+                    if (EqualityComparer<T>.Default.Equals(current, incoming)) return;
+
+                    changes.Add($"{key}: {Display(current)} -> {Display(incoming)}");
+                    apply(incoming);
+                }
+
+                Scalar("physicianID", form.PhysicianID, dto.PhysicianID, v => form.PhysicianID = v);
+                Scalar("dentistID", form.DentistID, dto.DentistID, v => form.DentistID = v);
+                Scalar("optometristID", form.OptometristID, dto.OptometristID, v => form.OptometristID = v);
+
+                // FormDate is non-nullable on the entity, so unlike every other
+                // scalar here it has no "clear it" case: a sent null is ignored
+                // rather than writing DateTime.MinValue onto the record.
+                if (dto.FormDate is { } formDate)
+                    Scalar("formDate", form.FormDate, formDate, v => form.FormDate = v);
+
+                Scalar("weightKg", form.WeightKg, dto.WeightKg, v => form.WeightKg = v);
+                Scalar("heightCm", form.HeightCm, dto.HeightCm, v => form.HeightCm = v);
+                Scalar("bmi", form.BMI, dto.BMI, v => form.BMI = v);
+                Scalar("idealBMI", form.IdealBMI, dto.IdealBMI, v => form.IdealBMI = v);
+                Scalar("bpSystolic", form.BPSystolic, dto.BPSystolic, v => form.BPSystolic = v);
+                Scalar("bpDiastolic", form.BPDiastolic, dto.BPDiastolic, v => form.BPDiastolic = v);
+                Scalar("tempCelsius", form.TempCelsius, dto.TempCelsius, v => form.TempCelsius = v);
+                Scalar("heartRate", form.HeartRate, dto.HeartRate, v => form.HeartRate = v);
+                Scalar("respRate", form.RespRate, dto.RespRate, v => form.RespRate = v);
+
+                Scalar("recommendedDiagnosticTest", form.RecommendedDiagnosticTest,
+                    dto.RecommendedDiagnosticTest, v => form.RecommendedDiagnosticTest = v);
+                Scalar("impressionClinical", form.ImpressionClinical,
+                    dto.ImpressionClinical, v => form.ImpressionClinical = v);
+                Scalar("managementTreatment", form.ManagementTreatment,
+                    dto.ManagementTreatment, v => form.ManagementTreatment = v);
+
+                // ---- child collections ----------------------------------
+                // Each is replaced wholesale, and only when its key was sent.
+                // The lists are logged by row count rather than field by field:
+                // the rows carry no stable client-visible identity to diff
+                // against, so "3 rows -> 2 rows" is the honest summary.
+
+                if (Sent("pastMedicalHistory") && dto.PastMedicalHistory is { } pmh)
+                {
+                    // Same blank-row filter as Station 3: the UI always renders
+                    // one empty row, and it must not be persisted.
+                    var rows = pmh
+                        .Where(p => p.ConditionID.HasValue
+                                 || !string.IsNullOrWhiteSpace(p.ConditionOther)
+                                 || p.YearDiagnosed.HasValue
+                                 || !string.IsNullOrWhiteSpace(p.MaintenanceDrugGeneric))
+                        .ToList();
+
+                    var before = await _context.PastMedicalHistories.CountAsync(p => p.FormID == formID);
+                    _context.PastMedicalHistories.RemoveRange(
+                        _context.PastMedicalHistories.Where(p => p.FormID == formID));
+
+                    foreach (var item in rows)
+                    {
+                        _context.PastMedicalHistories.Add(new PastMedicalHistory
+                        {
+                            FormID = formID,
+                            ConditionID = item.ConditionID,
+                            ConditionOther = item.ConditionOther,
+                            YearDiagnosed = item.YearDiagnosed,
+                            MaintenanceDrugGeneric = item.MaintenanceDrugGeneric,
+                            Dosage = item.Dosage,
+                            Frequency = item.Frequency,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                    }
+
+                    changes.Add($"pastMedicalHistory: {before} rows -> {rows.Count} rows");
+                }
+
+                if (Sent("familyMedicalHistory") && dto.FamilyMedicalHistory is { } fmh)
+                {
+                    var rows = fmh
+                        .Where(f => f.ConditionID.HasValue
+                                 || !string.IsNullOrWhiteSpace(f.ConditionOther)
+                                 || f.IsNone == true)
+                        .ToList();
+
+                    var before = await _context.FamilyMedicalHistories.CountAsync(f => f.FormID == formID);
+                    _context.FamilyMedicalHistories.RemoveRange(
+                        _context.FamilyMedicalHistories.Where(f => f.FormID == formID));
+
+                    foreach (var item in rows)
+                    {
+                        _context.FamilyMedicalHistories.Add(new FamilyMedicalHistory
+                        {
+                            FormID = formID,
+                            ConditionID = item.ConditionID,
+                            ConditionOther = item.ConditionOther,
+                            IsNone = item.IsNone ?? false,
+                            ConditionType = item.ConditionType,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                    }
+
+                    changes.Add($"familyMedicalHistory: {before} rows -> {rows.Count} rows");
+                }
+
+                if (Sent("exercise") && dto.Exercise is { } exercise)
+                {
+                    var rows = exercise
+                        .Where(e => !string.IsNullOrWhiteSpace(e.ExerciseType))
+                        .ToList();
+
+                    var before = await _context.Exercises.CountAsync(e => e.FormID == formID);
+                    _context.Exercises.RemoveRange(
+                        _context.Exercises.Where(e => e.FormID == formID));
+
+                    foreach (var item in rows)
+                    {
+                        _context.Exercises.Add(new Exercise
+                        {
+                            FormID = formID,
+                            ExerciseType = item.ExerciseType,
+                            ExerciseFrequency = item.ExerciseFrequency,
+                            ExerciseYearStarted = item.ExerciseYearStarted,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                    }
+
+                    changes.Add($"exercise: {before} rows -> {rows.Count} rows");
+                }
+
+                if (Sent("socialHistory"))
+                {
+                    _context.SocialHistories.RemoveRange(
+                        _context.SocialHistories.Where(s => s.FormID == formID));
+
+                    if (dto.SocialHistory is { } social)
+                    {
+                        _context.SocialHistories.Add(new SocialHistory
+                        {
+                            FormID = formID,
+                            Smokes = social.Smokes,
+                            SmokesCigarette = social.SmokesCigarette,
+                            CigaretteSticksPerDay = social.CigaretteSticksPerDay,
+                            CigaretteFrequency = social.CigaretteFrequency,
+                            CigaretteYearStarted = social.CigaretteYearStarted,
+                            CigarettePuffsPerDay = social.CigarettePuffsPerDay,
+                            SmokesEcig = social.SmokesEcig,
+                            EcigPodsPerMonth = social.EcigPodsPerMonth,
+                            EcigFrequency = social.EcigFrequency,
+                            EcigYearStarted = social.EcigYearStarted,
+                            EcigPuffsPerDay = social.EcigPuffsPerDay,
+                            AlcoholType = social.AlcoholType,
+                            DrinkFrequency = social.DrinkFrequency,
+                            DrinksPerSession = social.DrinksPerSession,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                        changes.Add("socialHistory: replaced");
+                    }
+                    else
+                    {
+                        changes.Add("socialHistory: cleared");
+                    }
+                }
+
+                if (Sent("assessmentAnswers") && dto.AssessmentAnswers is { } answers)
+                {
+                    var before = await _context.AssessmentAnswers.CountAsync(a => a.FormID == formID);
+                    _context.AssessmentAnswers.RemoveRange(
+                        _context.AssessmentAnswers.Where(a => a.FormID == formID));
+
+                    foreach (var answer in answers)
+                    {
+                        _context.AssessmentAnswers.Add(new AssessmentAnswer
+                        {
+                            FormID = formID,
+                            QuestionID = answer.QuestionID,
+                            OptionID = answer.OptionID,
+                            CreatedAt = now,
+                        });
+                    }
+
+                    changes.Add($"assessmentAnswers: {before} answers -> {answers.Count} answers");
+                }
+
+                if (Sent("dentalAssessment"))
+                {
+                    _context.DentalAssessments.RemoveRange(
+                        _context.DentalAssessments.Where(d => d.FormID == formID));
+
+                    if (dto.DentalAssessment is { } dental)
+                    {
+                        _context.DentalAssessments.Add(new DentalAssessment
+                        {
+                            FormID = formID,
+                            OralHygieneStatus = dental.OralHygieneStatus,
+                            OralHygieneStatusRemarks = dental.OralHygieneStatusRemarks,
+                            DentalCaries = dental.DentalCaries,
+                            DentalCariesRemarks = dental.DentalCariesRemarks,
+                            GumCondition = dental.GumCondition,
+                            GumConditionRemarks = dental.GumConditionRemarks,
+                            ToothStatus = dental.ToothStatus,
+                            ToothStatusRemarks = dental.ToothStatusRemarks,
+                            ToothachePain = dental.ToothachePain,
+                            ToothachePainRemarks = dental.ToothachePainRemarks,
+                            OralLesions = dental.OralLesions,
+                            OralLesionsRemarks = dental.OralLesionsRemarks,
+                            DentureUse = dental.DentureUse,
+                            DentureUseRemarks = dental.DentureUseRemarks,
+                            DentalTreatmentNeed = dental.DentalTreatmentNeed,
+                            DentalTreatmentNeedRemarks = dental.DentalTreatmentNeedRemarks,
+                            LastDentalVisit = dental.LastDentalVisit,
+                            LastDentalVisitRemarks = dental.LastDentalVisitRemarks,
+                            DentalReferral = dental.DentalReferral,
+                            DentalReferralRemarks = dental.DentalReferralRemarks,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                        changes.Add("dentalAssessment: replaced");
+                    }
+                    else
+                    {
+                        changes.Add("dentalAssessment: cleared");
+                    }
+                }
+
+                if (Sent("visionAssessment"))
+                {
+                    _context.VisionAssessments.RemoveRange(
+                        _context.VisionAssessments.Where(v => v.FormID == formID));
+
+                    if (dto.VisionAssessment is { } vision)
+                    {
+                        _context.VisionAssessments.Add(new VisionAssessment
+                        {
+                            FormID = formID,
+                            HistoryOfEyeProblems = vision.HistoryOfEyeProblems,
+                            HistoryOfEyeProblemsRemarks = vision.HistoryOfEyeProblemsRemarks,
+                            EyePainDiscomfort = vision.EyePainDiscomfort,
+                            EyePainDiscomfortRemarks = vision.EyePainDiscomfortRemarks,
+                            BlurredVision = vision.BlurredVision,
+                            BlurredVisionRemarks = vision.BlurredVisionRemarks,
+                            DifficultySeeingNear = vision.DifficultySeeingNear,
+                            DifficultySeeingNearRemarks = vision.DifficultySeeingNearRemarks,
+                            DifficultySeeingDistant = vision.DifficultySeeingDistant,
+                            DifficultySeeingDistantRemarks = vision.DifficultySeeingDistantRemarks,
+                            HeadacheEyeStrain = vision.HeadacheEyeStrain,
+                            HeadacheEyeStrainRemarks = vision.HeadacheEyeStrainRemarks,
+                            UsesEyeglassesContactLenses = vision.UsesEyeglassesContactLenses,
+                            UsesEyeglassesContactLensesRemarks = vision.UsesEyeglassesContactLensesRemarks,
+                            VisualAcuityRightEye = vision.VisualAcuityRightEye,
+                            VisualAcuityRightEyeRemarks = vision.VisualAcuityRightEyeRemarks,
+                            VisualAcuityLeftEye = vision.VisualAcuityLeftEye,
+                            VisualAcuityLeftEyeRemarks = vision.VisualAcuityLeftEyeRemarks,
+                            EyeConditionIdentified = vision.EyeConditionIdentified,
+                            EyeConditionOther = vision.EyeConditionOther,
+                            EyeConditionIdentifiedRemarks = vision.EyeConditionIdentifiedRemarks,
+                            CorrectiveLensesRecommended = vision.CorrectiveLensesRecommended,
+                            CorrectiveLensesRecommendedRemarks = vision.CorrectiveLensesRecommendedRemarks,
+                            ReferralToEyeSpecialist = vision.ReferralToEyeSpecialist,
+                            ReferralToEyeSpecialistRemarks = vision.ReferralToEyeSpecialistRemarks,
+                            FollowUpConsultationAdvised = vision.FollowUpConsultationAdvised,
+                            FollowUpConsultationAdvisedRemarks = vision.FollowUpConsultationAdvisedRemarks,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                        changes.Add("visionAssessment: replaced");
+                    }
+                    else
+                    {
+                        changes.Add("visionAssessment: cleared");
+                    }
+                }
+
+                if (Sent("charges") && dto.Charges is { } incomingCharges)
+                {
+                    var (chargeError, before, after) =
+                        await ReplaceChargesAsync(formID, incomingCharges, now);
+
+                    if (chargeError != null)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = chargeError });
+                    }
+
+                    changes.Add($"charges: {before} lines -> {after} lines");
+                }
+
+                // Nothing actually moved. Return the form unchanged rather than
+                // writing an audit row saying a superadmin edited nothing -- an
+                // audit log full of no-op edits is one nobody reads.
+                if (changes.Count == 0)
+                {
+                    await transaction.RollbackAsync();
+                    return Ok(await BuildFormResponseAsync(form));
+                }
+
+                form.UpdatedByAdminID = adminID;
+                form.UpdatedAt = now;
+
+                var details = string.Join("; ", changes);
+                if (!string.IsNullOrWhiteSpace(dto.Reason))
+                    details += $". Reason: {dto.Reason.Trim()}";
+
+                _context.WellnessFormAuditLogs.Add(new WellnessFormAuditLog
+                {
+                    FormID = formID,
+                    ActorType = "Admin",
+                    ActorID = adminID,
+                    Action = "FormEdited",
+                    Details = details,
+                    OccurredAt = now,
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Wellness form {FormID} edited by superadmin {AdminID}: {Details}",
+                    formID, adminID, details);
+
+                return Ok(await BuildFormResponseAsync(form));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync();
+                return Conflict(new { message = "This record was changed at another station." });
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        // The top-level property names the client actually sent, so a sparse
+        // patch can tell an omitted field from one explicitly set to null.
+        // Rewinds the body first: model binding has already read it, and the
+        // buffering middleware in Program.cs is what makes a second read legal.
+        private async Task<HashSet<string>> ReadSentKeysAsync()
+        {
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            Request.Body.Position = 0;
+            using var document = await JsonDocument.ParseAsync(Request.Body);
+
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in document.RootElement.EnumerateObject())
+                    keys.Add(property.Name);
+            }
+
+            return keys;
+        }
+
+        // Renders a value for the audit trail. Null reads as "(empty)" rather
+        // than as nothing at all, so "(empty) -> 120" is legible as a field
+        // being filled in rather than looking like a truncated log line.
+        private static string Display<T>(T value) =>
+            value is null ? "(empty)" : value.ToString() ?? "(empty)";
+
+        // Replaces a form's billing lines, repricing every one from the catalog.
+        // Mirrors the charge handling in SubmitStation3 -- the catalog's price
+        // and name win over whatever the client sent, and only a free-text row
+        // or a null-priced catalog item takes the client's own amount.
+        private async Task<(string? Error, int Before, int After)> ReplaceChargesAsync(
+            int formID,
+            List<ChargeItemSubmitDto> incoming,
+            DateTime now)
+        {
+            var charges = incoming
+                .Where(c => c.ChargeItemID.HasValue || !string.IsNullOrWhiteSpace(c.Name))
+                .ToList();
+
+            var chargeItemIds = charges.Where(c => c.ChargeItemID.HasValue)
+                .Select(c => c.ChargeItemID!.Value).Distinct().ToList();
+
+            var catalogItems = chargeItemIds.Count > 0
+                ? await _context.ChargeItems
+                    .Where(c => chargeItemIds.Contains(c.ChargeItemID))
+                    .ToDictionaryAsync(c => c.ChargeItemID)
+                : new Dictionary<int, ChargeItem>();
+
+            var unknownChargeItemIds = chargeItemIds.Except(catalogItems.Keys).ToList();
+            if (unknownChargeItemIds.Count > 0)
+                return ($"Unknown charge item ID(s): {string.Join(", ", unknownChargeItemIds)}.", 0, 0);
+
+            var namedByType = charges
+                .Where(c => !c.ChargeItemID.HasValue && !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => (c.ItemType, c.Name!))
+                .Distinct()
+                .ToList();
+
+            var byNameLookup = new Dictionary<(string ItemType, string Name), ChargeItem>();
+            foreach (var (itemType, name) in namedByType)
+            {
+                var match = await _context.ChargeItems
+                    .Where(c => c.ItemType == itemType && c.Name == name)
+                    .FirstOrDefaultAsync();
+                if (match != null)
+                    byNameLookup[(itemType, name)] = match;
+            }
+
+            foreach (var charge in charges)
+            {
+                var itemType = charge.ChargeItemID.HasValue
+                    ? catalogItems[charge.ChargeItemID.Value].ItemType
+                    : charge.ItemType;
+
+                if (!ChargeItemType.IsValid(itemType))
+                    return ("Each charge must be a Lab or a Medication.", 0, 0);
+            }
+
+            var before = await _context.WellnessFormCharges.CountAsync(c => c.FormID == formID);
+            _context.WellnessFormCharges.RemoveRange(
+                _context.WellnessFormCharges.Where(c => c.FormID == formID));
+
+            foreach (var charge in charges)
+            {
+                ChargeItem? catalogItem = charge.ChargeItemID.HasValue
+                    ? catalogItems[charge.ChargeItemID.Value]
+                    : (!string.IsNullOrWhiteSpace(charge.Name)
+                        ? byNameLookup.GetValueOrDefault((charge.ItemType, charge.Name!))
+                        : null);
+
+                _context.WellnessFormCharges.Add(new WellnessFormCharge
+                {
+                    FormID = formID,
+                    ChargeItemID = charge.ChargeItemID ?? catalogItem?.ChargeItemID,
+                    ItemType = catalogItem?.ItemType ?? charge.ItemType,
+                    Name = catalogItem?.Name ?? charge.Name ?? string.Empty,
+                    UnitPrice = catalogItem?.UnitPrice ?? charge.UnitPrice,
+                    Quantity = charge.Quantity,
+                    Dosage = charge.Dosage,
+                    Frequency = charge.Frequency,
+                    CreatedAt = now,
+                });
+            }
+
+            return (null, before, charges.Count);
         }
 
         // Sets EF's row-version original-value token from the client's opaque

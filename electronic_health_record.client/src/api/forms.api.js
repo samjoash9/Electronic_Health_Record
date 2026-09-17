@@ -222,6 +222,41 @@ export async function cancelForm({
 
 
 /**
+ * Superadmin: correct fields on an existing form.
+ *
+ * A sparse PATCH -- `changes` carries only the fields the operator actually
+ * edited, so correcting one blood pressure reading leaves the other forty
+ * fields untouched. A key present with a null value clears that field; a key
+ * left out is not touched at all, which is why callers must omit unchanged
+ * fields rather than sending them as null.
+ *
+ * Cannot change status, station routing, or any signature -- the server
+ * rejects those outright. Every change is written to the form's audit log.
+ */
+export async function editForm({
+    formID,
+    changes,
+    reason,
+    rowVersion,
+}) {
+    try {
+        const { data } = await api.patch(
+            `/wellnessforms/${formID}`,
+            {
+                ...changes,
+                reason,
+                rowVersion,
+            }
+        );
+
+        return data.data ?? data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
+
+/**
  * Hard delete a wellness form. Unlike cancelForm, this permanently removes
  * the form and everything that points at it (assessment answers, station
  * 1/4/5 detail rows, the form's own audit log). Superadmin only.
