@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -7,9 +6,7 @@ import {
   Cigarette, Dumbbell, Wine, BadgeCheck, Smile, Eye, Pencil,
 } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
-import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
-import { useEditForm } from '../../hooks/useEditForm';
 import { useAuth } from '../../auth/useAuth';
 import { FORM_STATUS, DENTAL_INDICATORS, VISION_INDICATORS, isSuperAdmin } from '../../lib/constants';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
@@ -20,7 +17,6 @@ import Button from '../../components/ui/Button';
 import PriorStationsPanel from '../station3/PriorStationsPanel';
 import SectionCard, { SubPanel } from '../station3/SectionCard';
 import StationGroup from './StationGroup';
-import FormEditPanel from './FormEditPanel';
 import DiagnosticTestList from '../../components/ui/DiagnosticTestList';
 
 const STATUS_LABEL = {
@@ -74,7 +70,6 @@ export default function FormDetailPage() {
   const { formId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories } = useQuery({
     queryKey: ['assessment-template'],
@@ -82,30 +77,9 @@ export default function FormDetailPage() {
     staleTime: Infinity,
   });
 
+  // Correction happens on its own route (/forms/:formId/edit), which is itself
+  // superadmin-gated -- this only decides whether the button is worth showing.
   const canEdit = isSuperAdmin(user);
-
-  // Only fetched once the operator opens the editor: the read-only view names
-  // its practitioners from the form's own embedded copies, so the roster is
-  // dead weight until there is a dropdown to fill.
-  const { data: physicians } = useQuery({
-    queryKey: ['physicians'],
-    queryFn: listPhysicians,
-    enabled: isEditing,
-  });
-
-  const editMutation = useEditForm(formId);
-
-  const handleSave = ({ changes, reason }) => {
-    editMutation.mutate(
-      { changes, reason, rowVersion: form.rowVersion },
-      { onSuccess: () => setIsEditing(false) }
-    );
-  };
-
-  const handleCancelEdit = () => {
-    editMutation.reset();
-    setIsEditing(false);
-  };
 
   const backButton = (
     <Button
@@ -137,13 +111,13 @@ export default function FormDetailPage() {
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex flex-wrap items-center gap-3">
         {backButton}
-        {canEdit && !isEditing && (
+        {canEdit && (
           <Button
             type="button"
             variant="secondary"
             size="md"
             className="ml-auto"
-            onClick={() => setIsEditing(true)}
+            onClick={() => navigate(`/forms/${formId}/edit`)}
           >
             <Pencil size={16} strokeWidth={2.25} />
             Edit form
@@ -191,21 +165,6 @@ export default function FormDetailPage() {
           ))}
         </dl>
       </div>
-
-      {isEditing && (
-        <FormEditPanel
-          // Remounts when the server hands back a new row version, so a saved
-          // edit leaves the draft holding the persisted values rather than the
-          // ones the operator started from.
-          key={form.rowVersion}
-          form={form}
-          physicians={(physicians ?? []).filter((p) => p.isActive)}
-          onSave={handleSave}
-          onCancel={handleCancelEdit}
-          isPending={editMutation.isPending}
-          error={editMutation.error}
-        />
-      )}
 
       <PriorStationsPanel form={form} categories={categories} />
 

@@ -9,6 +9,7 @@ import NoStationPage from './features/auth/NoStationPage';
 import DashboardPage from './features/admin/DashboardPage';
 import FormsPage from './features/admin/FormsPage';
 import FormDetailPage from './features/admin/FormDetailPage';
+import FormEditPage from './features/admin/FormEditPage';
 import ActivityLogsPage from './features/admin/ActivityLogsPage';
 import OnboardingPage from './features/admin/onboarding/OnboardingPage';
 import Station1Page from './features/station1/Station1Page';
@@ -75,6 +76,10 @@ export const routeElements = createRoutesFromElements(
 
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} requireSuperAdmin />}>
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
+        {/* Correcting a signed record is a superadmin act, so the editor is a
+            superadmin route rather than a button the detail page hides. The
+            detail view itself stays open to admins and doctors. */}
+        <Route path="/forms/:formId/edit" element={<FormEditPage />} />
       </Route>
 
       {/* RequireStation pins each desk to the station assigned to this doctor's
