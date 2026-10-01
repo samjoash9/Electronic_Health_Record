@@ -81,6 +81,24 @@ export async function submitStation1({
 
 
 /**
+ * Stations 2-5:
+ * Mark the form as opened at this desk, so every queue for the station
+ * shows it in progress. Idempotent; only the first call writes.
+ */
+export async function startStation(formID, station) {
+    try {
+        const { data } = await api.post(
+            `/wellnessforms/${formID}/station${station}/start`
+        );
+
+        return data.data ?? data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
+
+/**
  * Station 2:
  * Submit assessment answers.
  */

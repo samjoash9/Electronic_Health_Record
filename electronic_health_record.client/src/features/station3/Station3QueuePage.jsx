@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getQueue } from '../../api/forms.api';
-import { FORM_STATUS, STATUS_LABEL, STATUS_TONE } from '../../lib/constants';
+import { FORM_STATUS } from '../../lib/constants';
 import { fullName, formatDateTime, ageFrom } from '../../lib/formatters';
 import { useTableControls } from '../../hooks/useTableControls';
 import Badge from '../../components/ui/Badge';
@@ -15,10 +15,15 @@ import TableFooter from '../../components/ui/TableFooter';
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (row) => fullName(row.patient) },
   { key: 'age', header: 'Age', render: (row) => ageFrom(row.patient?.birthdate) },
+  // station3StartedAt is stamped when the consultation page first opens this form
+  // (useMarkStationStarted), so other desks can tell who is already being seen.
+  // Every row shares one form status here, so this replaces that badge.
   {
     key: 'status',
     header: 'Status',
-    render: (row) => <Badge tone={STATUS_TONE[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>,
+    render: (row) => (row.station3StartedAt
+      ? <Badge tone="warn" dot>Consulting</Badge>
+      : <Badge dot>Not yet consulted</Badge>),
   },
   { key: 'assessed', header: 'Assessed', render: (row) => formatDateTime(row.station2SubmittedAt) },
 ];

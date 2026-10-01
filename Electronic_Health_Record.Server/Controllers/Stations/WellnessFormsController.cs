@@ -309,6 +309,72 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             }
         }
 
+        // POST /api/wellnessforms/{formID}/station{2-5}/start
+        // No body. Called when a station first opens the form (the Station 2
+        // kiosk, or the Station 3/4/5 page), to mark it in progress in every
+        // queue for that station. Idempotent: only the first open stamps the
+        // time, and later calls write nothing, so reopening does not bump
+        // RowVersion. Takes no rowVersion because this is a status hint, not an
+        // edit -- it must not fail just because the caller's copy of the form
+        // is stale. The caller still has to re-read the form after the first
+        // call, since that write does bump RowVersion.
+        [HttpPost("{formID:int}/station{station:int}/start")]
+        public async Task<IActionResult> StartStation(int formID, byte station)
+        {
+            // Any staff member; never a patient reading their own record.
+            if (_currentUser.AdminID is null && _currentUser.PhysicianID is null)
+                return Unauthorized(new { message = "No staff identity on this request." });
+
+            if (station < 2 || !StationEntryStatus.TryGetValue(station, out var openStatus))
+                return BadRequest(new { message = $"Station {station} has no in-progress marker." });
+
+            var form = await _context.WellnessForms.FindAsync(formID);
+            if (form == null)
+                return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            if (form.Status != openStatus)
+                return Conflict(new { message = $"This form is no longer waiting for Station {station}." });
+
+            if (StationStartedAt(form, station) == null)
+            {
+                SetStationStartedAt(form, station, DateTime.UtcNow);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // Another request changed the row between the read and the
+                    // write -- most likely a second open of the same page that
+                    // stamped it first. Either way the hint is best-effort.
+                    return Conflict(new { message = "This record was changed at another station." });
+                }
+            }
+
+            return Ok(new { form.FormID, Station = station, StartedAt = StationStartedAt(form, station) });
+        }
+
+        private static DateTime? StationStartedAt(WellnessForm form, byte station) => station switch
+        {
+            2 => form.Station2StartedAt,
+            3 => form.Station3StartedAt,
+            4 => form.Station4StartedAt,
+            5 => form.Station5StartedAt,
+            _ => throw new ArgumentOutOfRangeException(nameof(station)),
+        };
+
+        private static void SetStationStartedAt(WellnessForm form, byte station, DateTime? value)
+        {
+            switch (station)
+            {
+                case 2: form.Station2StartedAt = value; break;
+                case 3: form.Station3StartedAt = value; break;
+                case 4: form.Station4StartedAt = value; break;
+                case 5: form.Station5StartedAt = value; break;
+                default: throw new ArgumentOutOfRangeException(nameof(station));
+            }
+        }
+
         // POST /api/wellnessforms/{formID}/station2
         // Body: { answers: [{questionID, optionID}], rowVersion }. Replaces the
         // form's answer set wholesale so a resubmit cannot accumulate duplicates,
@@ -1092,6 +1158,15 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.UpdatedByAdminID = adminID;
                 form.UpdatedAt = now;
 
+                // Every station from the target onward has to redo its work, and
+                // nobody has it open yet; keeping the old timestamps would show
+                // the form as in progress until someone opens it again.
+                for (byte s = 2; s <= 5; s++)
+                {
+                    if (s >= dto.TargetStation)
+                        SetStationStartedAt(form, s, null);
+                }
+
                 _context.WellnessFormAuditLogs.Add(new WellnessFormAuditLog
                 {
                     FormID = formID,
@@ -1870,22 +1945,26 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.Station1AdminID,
                 form.Station1SubmittedAt,
                 form.Station2AdminID,
+                form.Station2StartedAt,
                 form.Station2SubmittedAt,
                 form.RecommendedDiagnosticTest,
                 form.ImpressionClinical,
                 form.ManagementTreatment,
+                form.Station3StartedAt,
                 form.Station3SubmittedAt,
                 form.DentistID,
                 form.DentalSignature,
                 form.DentalSignedAt,
                 form.DentalSignedByName,
                 form.DentalSignedByLicenseNo,
+                form.Station4StartedAt,
                 form.Station4SubmittedAt,
                 form.OptometristID,
                 form.VisionSignature,
                 form.VisionSignedAt,
                 form.VisionSignedByName,
                 form.VisionSignedByLicenseNo,
+                form.Station5StartedAt,
                 form.Station5SubmittedAt,
                 form.CreatedAt,
                 form.UpdatedAt,
@@ -1950,11 +2029,19 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.Station1AdminID,
                 form.Station1SubmittedAt,
                 form.Station2AdminID,
+                form.Station2StartedAt,
                 form.Station2SubmittedAt,
                 form.RecommendedDiagnosticTest,
                 form.ImpressionClinical,
                 form.ManagementTreatment,
+                form.Station3StartedAt,
                 form.Station3SubmittedAt,
+                // Station 5's queue shows when dental finished; it read as "—" while
+                // this list projection left the field out.
+                form.Station4StartedAt,
+                form.Station4SubmittedAt,
+                form.Station5StartedAt,
+                form.Station5SubmittedAt,
                 form.CreatedAt,
                 form.UpdatedAt,
                 Patient = patient,

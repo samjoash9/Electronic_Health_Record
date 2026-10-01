@@ -69,7 +69,9 @@ export const station1Schema = identitySchema.merge(vitalsObjectSchema)
 
 // Applied on top of station1Schema only when the selected employee needs a
 // new account -- requires username, since the base schema leaves it optional
-// for the (more common) returning-patient case.
+// for the (more common) returning-patient case. Whitespace-only counts as
+// missing; checked with a regex, not .trim(), because a transform here makes
+// zod's .and() throw "Unmergable intersection" against station1Schema.
 export const newAccountUsernameSchema = z.object({
-  username: z.string().min(1, 'Ask the patient what username they want').max(30, 'Too long'),
+  username: z.string().regex(/\S/, 'Ask the patient what username they want').max(30, 'Too long'),
 });

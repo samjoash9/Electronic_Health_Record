@@ -5,6 +5,7 @@ import { getQueue } from '../../api/forms.api';
 import { FORM_STATUS } from '../../lib/constants';
 import { fullName, formatDateTime } from '../../lib/formatters';
 import { useTableControls } from '../../hooks/useTableControls';
+import Badge from '../../components/ui/Badge';
 import Card from '../../components/ui/Card';
 import DataTable from '../../components/ui/DataTable';
 import TableFooter from '../../components/ui/TableFooter';
@@ -17,6 +18,15 @@ const COLUMNS = [
   { key: 'name', header: 'Name', render: (row) => fullName(row.patient) },
   { key: 'agency', header: 'Agency', render: (row) => row.patient?.agencyOffice },
   { key: 'submitted', header: 'Submitted', render: (row) => formatDateTime(row.station1SubmittedAt) },
+  // station2StartedAt is stamped when the kiosk first opens for this form
+  // (see KioskPage), so other desks can tell who already has a tablet.
+  {
+    key: 'status',
+    header: 'Status',
+    render: (row) => (row.station2StartedAt
+      ? <Badge tone="warn" dot>Answering</Badge>
+      : <Badge dot>Not yet answered</Badge>),
+  },
 ];
 
 const searchFields = (row) => {

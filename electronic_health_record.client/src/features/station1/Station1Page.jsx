@@ -72,14 +72,13 @@ export default function Station1Page() {
   };
 
   const {
-    register, handleSubmit, watch, reset, control, formState: { errors, isSubmitting, isDirty },
+    register, handleSubmit, watch, reset, trigger, control, formState: { errors, isSubmitting, isDirty },
   } = useForm({
     resolver: debugResolver,
     defaultValues: BLANK_VALUES,
   });
 
   const hasSelectedEmployee = Boolean(watch('externalEmployeeId'));
-  const unlockedUpTo = hasSelectedEmployee ? STEPS.length : 1;
 
   // Once an employee is picked, find out whether they already have a patient
   // portal account. If not, the admin must ask them for a desired username
@@ -93,6 +92,10 @@ export default function Station1Page() {
   });
   const needsUsername = hasSelectedEmployee && hasAccount === false;
   needsUsernameRef.current = needsUsername;
+  // Greys out Next and locks Vital Signs on the step indicator until the admin
+  // types something; trimmed to match newAccountUsernameSchema's /\S/ check.
+  const usernameMissing = needsUsername && !watch('username')?.trim();
+  const unlockedUpTo = !hasSelectedEmployee ? 1 : usernameMissing ? 2 : STEPS.length;
 
   const mutation = useMutation({
     mutationFn: submitStation1,
@@ -183,15 +186,31 @@ export default function Station1Page() {
 
   const blocker = useUnsavedChangesGuard(isDirty && !mutation.isSuccess);
 
-  const goToStep = (target) => {
-    if (target <= unlockedUpTo) setStep(target);
+  // An empty username is already blocked by unlockedUpTo; this catches the rest
+  // of newAccountUsernameSchema (e.g. too long) while the field is still on
+  // screen -- on Vital Signs the resulting error has nowhere to render.
+  const usernameReady = async () => !needsUsername || trigger('username', { shouldFocus: true });
+
+  const goToStep = async (target) => {
+    if (target > unlockedUpTo) return;
+    if (target === 3 && !(await usernameReady())) {
+      setStep(2);
+      return;
+    }
+    setStep(target);
+  };
+
+  // Catches the paths that reach Vital Signs without passing the guard above
+  // (a draft restored onto step 3, or the account lookup resolving late).
+  const onInvalid = (formErrors) => {
+    if (formErrors.username) setStep(2);
   };
 
   return (
     <div className="flex flex-col gap-4 p-5">
       <h1 className="text-lg font-semibold text-ink-900">Station 1: Registration</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)}className="border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
       <Card>
         <StationStepIndicator
           steps={STEPS}
@@ -241,8 +260,8 @@ export default function Station1Page() {
               type="button"
               variant="teal"
               size="lg"
-              disabled={!hasSelectedEmployee}
-              onClick={() => setStep(step + 1)}
+              disabled={step + 1 > unlockedUpTo}
+              onClick={() => goToStep(step + 1)}
             >
               Next
             </Button>

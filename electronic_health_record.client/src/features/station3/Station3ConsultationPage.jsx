@@ -8,6 +8,7 @@ import { submitStation3 } from '../../api/forms.api';
 import { listPhysicians } from '../../api/onboarding.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useStationFormGuard } from '../../hooks/useStationFormGuard';
+import { useMarkStationStarted } from '../../hooks/useMarkStationStarted';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
@@ -201,6 +202,8 @@ export default function Station3ConsultationPage() {
   // A form this desk has already finished is read-only: bounce a typed or
   // bookmarked URL to the Forms view rather than reopening the editable page.
   const formDone = useStationFormGuard(form, STATIONS.THREE);
+  // Shows this form as in progress in every Station 3 queue.
+  useMarkStationStarted(form, STATIONS.THREE);
   const selectedPhysician = findPhysician(physicians, physicianID);
 
   const {
