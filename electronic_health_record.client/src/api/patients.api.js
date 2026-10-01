@@ -132,6 +132,90 @@ export async function listPatientAccounts() {
 }
 
 /**
+ * Suspends or restores a patient's portal sign-in. Reversible, and it touches
+ * nothing but the login: the person and their visit history are untouched.
+ *
+ * "Active" and "Suspended" are the vocabulary the login check already uses --
+ * AuthController rejects any status that is not "Active".
+ */
+export async function setPatientAccountActive(patientID, isActive) {
+  if (USE_MOCK) {
+    await delay(250);
+    return db.write((state) => {
+      const account = state.patientAccounts.find((a) => a.patientID === patientID);
+      if (!account) {
+        throw Object.assign(
+          new Error(`Patient with ID ${patientID} has no portal account.`),
+          { status: 404 },
+        );
+      }
+      account.status = isActive ? 'Active' : 'Suspended';
+      account.updatedAt = new Date().toISOString();
+      return toPatientAccount(account);
+    });
+  }
+  try {
+    const { data } = await client.patch(`/patients/${patientID}/account`, { isActive });
+    return toPatientAccount(data);
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/**
+ * Permanently deletes a patient AND their entire medical history -- every
+ * wellness form, the assessments and charges on those forms, the audit trail,
+ * the portal login and its sessions. Superadmin only, enforced server-side.
+ *
+ * There is no soft-delete fallback here: use setPatientAccountActive to block
+ * sign-in while keeping the records.
+ */
+export async function deletePatient(patientID) {
+  if (USE_MOCK) {
+    await delay(250);
+    return db.write((state) => {
+      const index = state.patients.findIndex((p) => p.patientID === patientID);
+      if (index === -1) {
+        throw Object.assign(
+          new Error(`Patient with ID ${patientID} was not found.`),
+          { status: 404 },
+        );
+      }
+      const formIds = (state.forms ?? [])
+        .filter((f) => f.patientID === patientID)
+        .map((f) => f.formID);
+      // Mirrors DeletePatient on the server: the history goes with the person,
+      // so nothing is left pointing at a patient that no longer exists.
+      const dropByForm = (key) => {
+        if (Array.isArray(state[key])) {
+          state[key] = state[key].filter((row) => !formIds.includes(row.formID));
+        }
+      };
+      // Collection names as the mock seed spells them -- several are singular
+      // there (exercise, socialHistory) and it has no charges or sessions.
+      ['assessmentAnswers', 'socialHistory', 'exercise', 'dentalAssessments',
+        'visionAssessments', 'familyMedicalHistory', 'pastMedicalHistory',
+        'wellnessFormAuditLogs'].forEach(dropByForm);
+      if (Array.isArray(state.forms)) {
+        state.forms = state.forms.filter((f) => f.patientID !== patientID);
+      }
+      if (Array.isArray(state.patientAccounts)) {
+        state.patientAccounts = state.patientAccounts
+          .filter((a) => a.patientID !== patientID);
+      }
+      const [removed] = state.patients.splice(index, 1);
+      return { patientID: removed.patientID };
+    });
+  }
+  try {
+    await client.delete(`/patients/${patientID}`);
+    return { patientID };
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/**
  * A patient's full visit history, newest first -- one row per WellnessForm,
  * since a patient now goes through the station workflow repeatedly (monthly,
  * six-monthly; the cadence is an operational decision this call does not

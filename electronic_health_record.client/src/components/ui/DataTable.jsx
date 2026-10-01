@@ -2,8 +2,10 @@ import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 /**
  * Columns may carry an `icon` (a lucide component) shown beside the header
- * label. `rowActions` renders a trailing, header-less cell per row — clicks
- * inside it do not trigger `onRowClick`, so a row menu cannot also navigate.
+ * label. `rowActions` renders a trailing cell per row — clicks inside it do not
+ * trigger `onRowClick`, so a row menu cannot also navigate. That column's
+ * header is blank unless `rowActionsHeader` names it, which suits a single
+ * icon but leaves a row of several unlabelled.
  *
  * A column is sortable when it has `sortable: true`; clicking its header
  * calls `onSort(key)` and the caller owns the actual sort state/logic (via
@@ -43,8 +45,8 @@ const VARIANTS = {
 };
 
 export default function DataTable({
-  columns, rows, onRowClick, rowActions, variant = 'tinted', empty = 'Nothing here yet.',
-  sortKey, sortDirection, onSort,
+  columns, rows, onRowClick, rowActions, rowActionsHeader, variant = 'tinted',
+  empty = 'Nothing here yet.', sortKey, sortDirection, onSort,
 }) {
   const skin = VARIANTS[variant] ?? VARIANTS.tinted;
   const hasWidths = columns.some((c) => c.width);
@@ -92,7 +94,14 @@ export default function DataTable({
                 </th>
               );
             })}
-            {rowActions && <th className={skin.th} />}
+            {/* Centered over the action buttons, which the cell below also
+                centers, so the label sits above the icon row rather than
+                drifting to one end of it. */}
+            {rowActions && (
+              <th className={`${skin.th} ${rowActionsHeader ? 'text-center' : ''}`}>
+                {rowActionsHeader}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -122,7 +131,7 @@ export default function DataTable({
               {rowActions && (
                 // Stop propagation so the menu does not also fire onRowClick.
                 <td
-                  className={`${skin.td(false)} w-12 text-right`}
+                  className={`${skin.td(false)} ${rowActionsHeader ? 'w-px whitespace-nowrap text-center' : 'w-12 text-right'}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {rowActions(row)}

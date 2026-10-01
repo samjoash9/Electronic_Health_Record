@@ -7,6 +7,9 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station2Draft';
+import { ZOOM_LEVELS, readZoomIndex, writeZoomIndex } from '../../lib/kioskZoom';
+import { DEFAULT_LANGUAGE } from '../../i18n/assessmentTranslations';
+import { uiText } from '../../lib/assessmentText';
 import { scoreCategory, totalAnswered, totalQuestions } from '../../lib/scoring';
 import { fullName } from '../../lib/formatters';
 import KioskShell from '../../components/layout/KioskShell';
@@ -16,6 +19,8 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import StationStepIndicator from '../../components/ui/StationStepIndicator';
 import CategoryCard from './CategoryCard';
+import TextSizeControl from './TextSizeControl';
+import LanguageToggle from './LanguageToggle';
 
 export default function KioskPage() {
   const { formId } = useParams();
@@ -26,6 +31,14 @@ export default function KioskPage() {
   const [restoredDraft] = useState(() => loadDraft(formId));
   const [answers, setAnswers] = useState(restoredDraft?.answers ?? {});
   const [step, setStep] = useState(restoredDraft?.step ?? 0);
+  // Text size is a device preference, not a per-form one: it survives
+  // handoff to the next patient and is untouched by Reset.
+  const [zoomIndex, setZoomIndex] = useState(readZoomIndex);
+  // Language is deliberately NOT persisted the way the text size is: the
+  // kiosk is shared, and the next patient should be handed a tablet in
+  // English rather than in a dialect the previous patient chose. Plain
+  // state, so it resets whenever the kiosk is opened for a new assessment.
+  const [lang, setLang] = useState(DEFAULT_LANGUAGE);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   // Stops autosave from resurrecting a just-cleared draft once the
@@ -77,6 +90,7 @@ export default function KioskPage() {
   }
   unlockedUpTo = Math.min(unlockedUpTo, categories.length);
 
+  const t = uiText(lang);
   const category = categories[step];
   const catScore = scoreCategory(category, answers);
   const categoryComplete = catScore.answered === catScore.questionCount;
@@ -86,10 +100,20 @@ export default function KioskPage() {
     setAnswers((prev) => ({ ...prev, [questionID]: optionID }));
   };
 
+  const handleZoomChange = (next) => {
+    const clamped = Math.min(Math.max(next, 0), ZOOM_LEVELS.length - 1);
+    setZoomIndex(clamped);
+    writeZoomIndex(clamped);
+  };
+
   const handleReset = () => {
     clearDraft(formId);
     setAnswers({});
     setStep(0);
+    // Reset is how staff hand the tablet to the next patient, so the
+    // language goes back to English with the answers. The text size does
+    // not: that is a property of the device, not of the patient.
+    setLang(DEFAULT_LANGUAGE);
   };
 
   const goToStep = (target) => {
@@ -118,6 +142,8 @@ export default function KioskPage() {
       subtitle={form?.patient ? fullName(form.patient) : undefined}
       headerActions={
         <>
+          <LanguageToggle value={lang} onChange={setLang} />
+          <TextSizeControl index={zoomIndex} onChange={handleZoomChange} />
           <Button type="button" variant="ghost" size="md" onClick={() => navigate('/station2')}>
             <ArrowLeft size={16} strokeWidth={2.25} />
             Back
@@ -139,15 +165,14 @@ export default function KioskPage() {
                 onClick={() => setStep((s) => s - 1)}
                 className="md:w-full"
               >
-                Previous
+                {t.previous}
               </Button>
             )}
           </div>
           <div className="flex flex-1 flex-col items-end gap-1">
             {!categoryComplete && (
               <p className="text-xs font-medium text-ink-500">
-                {catScore.questionCount - catScore.answered} question
-                {catScore.questionCount - catScore.answered === 1 ? '' : 's'} left in this section
+                {t.questionsLeft(catScore.questionCount - catScore.answered)}
               </p>
             )}
             <Button
@@ -158,7 +183,7 @@ export default function KioskPage() {
               onClick={goNext}
               className="w-full sm:w-auto sm:min-w-40 md:w-full"
             >
-              {isLastCategory ? 'Done' : 'Next'}
+              {isLastCategory ? t.done : t.next}
             </Button>
           </div>
         </div>
@@ -174,7 +199,7 @@ export default function KioskPage() {
       </div>
 
       <p className="mb-4 text-center text-sm font-semibold text-[#0e7d6b]" role="status">
-        {answered} of {total} answered overall
+        {t.answeredOverall(answered, total)}
       </p>
 
       <CategoryCard
@@ -182,6 +207,8 @@ export default function KioskPage() {
         category={category}
         answers={answers}
         onAnswer={handleAnswer}
+        scale={ZOOM_LEVELS[zoomIndex]}
+        lang={lang}
       />
 
       <Modal

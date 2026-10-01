@@ -205,7 +205,149 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
         // PATCH  /api/patients/:id → partial update
 
+        // PATCH /api/patients/:id/account
+        // Suspends or restores the portal login without touching the person or
+        // their records. Reversible, and the counterpart to DELETE below: this
+        // is what "the patient should not be able to sign in" means.
+        [Authorize(Roles = AdminRoles.SuperAdmin)]
+        [HttpPatch("{patientId:int}/account")]
+        public async Task<IActionResult> SetPatientAccountStatus(
+            int patientId,
+            [FromBody] SetPatientAccountStatusDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var account = await _context.PatientAccounts
+                .FirstOrDefaultAsync(a => a.PatientID == patientId);
+            if (account == null)
+                return NotFound($"Patient with ID {patientId} has no portal account.");
+
+            // Status is free text in the schema; these are the only two values
+            // this endpoint writes, and AuthController treats anything other
+            // than an active status as unable to sign in.
+            account.Status = dto.IsActive ? "Active" : "Suspended";
+            account.UpdatedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException e)
+            {
+                _logger.LogError(e, "Failed to update account status for patient {PatientID}", patientId);
+                return StatusCode(500, "An error occurred while updating the account.");
+            }
+
+            return Ok(new
+            {
+                account.PatientAccountID,
+                account.PatientID,
+                account.Username,
+                account.Status,
+                account.MustChangePassword,
+                account.ProvisionedAt,
+                account.ActivatedAt,
+                account.LastLoginAt,
+            });
+        }
+
         // DELETE /api/patients/:id → delete/deactivate patient
+        //
+        // Superadmin only, and genuinely destructive: it removes the person AND
+        // their entire medical history -- every wellness form, the assessments
+        // and charges hanging off those forms, the audit trail, the portal
+        // login and its sessions.
+        //
+        // The alternative considered was detaching the forms (nulling
+        // PatientID). That was rejected: a wellness form's PatientID is the
+        // *subject* of the record, not an attribution, so an orphaned form is
+        // vitals and diagnoses belonging to nobody -- unlinkable and clinically
+        // meaningless. Deleting the history outright at least leaves nothing
+        // misleading behind.
+        //
+        // Every FK below is Restrict except WellnessFormCharge, so the rows are
+        // removed explicitly, children before parents, inside one transaction.
+        [Authorize(Roles = AdminRoles.SuperAdmin)]
+        [HttpDelete("{patientId:int}")]
+        public async Task<IActionResult> DeletePatient(int patientId)
+        {
+            var patient = await _context.Patients.FindAsync(patientId);
+            if (patient == null)
+                return NotFound($"Patient with ID {patientId} was not found.");
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var formIds = await _context.WellnessForms
+                    .Where(f => f.PatientID == patientId)
+                    .Select(f => f.FormID)
+                    .ToListAsync();
+
+                if (formIds.Count > 0)
+                {
+                    // Per-form children first. WellnessFormCharge cascades from
+                    // WellnessForm, but is removed here too so the delete does
+                    // not depend on which FKs happen to cascade.
+                    _context.WellnessFormCharges.RemoveRange(
+                        await _context.WellnessFormCharges.Where(c => formIds.Contains(c.FormID)).ToListAsync());
+                    _context.AssessmentAnswers.RemoveRange(
+                        await _context.AssessmentAnswers.Where(a => formIds.Contains(a.FormID)).ToListAsync());
+                    _context.SocialHistories.RemoveRange(
+                        await _context.SocialHistories.Where(x => formIds.Contains(x.FormID)).ToListAsync());
+                    _context.Exercises.RemoveRange(
+                        await _context.Exercises.Where(x => formIds.Contains(x.FormID)).ToListAsync());
+                    _context.DentalAssessments.RemoveRange(
+                        await _context.DentalAssessments.Where(x => formIds.Contains(x.FormID)).ToListAsync());
+                    _context.VisionAssessments.RemoveRange(
+                        await _context.VisionAssessments.Where(x => formIds.Contains(x.FormID)).ToListAsync());
+                    _context.FamilyMedicalHistories.RemoveRange(
+                        await _context.FamilyMedicalHistories.Where(x => formIds.Contains(x.FormID)).ToListAsync());
+                    _context.PastMedicalHistories.RemoveRange(
+                        await _context.PastMedicalHistories.Where(x => formIds.Contains(x.FormID)).ToListAsync());
+                    _context.WellnessFormAuditLogs.RemoveRange(
+                        await _context.WellnessFormAuditLogs.Where(l => formIds.Contains(l.FormID)).ToListAsync());
+
+                    await _context.SaveChangesAsync();
+
+                    _context.WellnessForms.RemoveRange(
+                        await _context.WellnessForms.Where(f => f.PatientID == patientId).ToListAsync());
+                    await _context.SaveChangesAsync();
+                }
+
+                // Login and its sessions.
+                var account = await _context.PatientAccounts
+                    .FirstOrDefaultAsync(a => a.PatientID == patientId);
+                if (account != null)
+                {
+                    _context.PatientSessions.RemoveRange(
+                        await _context.PatientSessions
+                            .Where(s => s.PatientAccountID == account.PatientAccountID)
+                            .ToListAsync());
+                    await _context.SaveChangesAsync();
+
+                    _context.PatientAccounts.Remove(account);
+                    await _context.SaveChangesAsync();
+                }
+
+                _context.Patients.Remove(patient);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                _logger.LogWarning(
+                    "Deleted patient {PatientID} ({Surname}, {FirstName}) and {FormCount} wellness form(s) with all dependent records",
+                    patientId, patient.Surname, patient.FirstName, formIds.Count);
+            }
+            catch (DbUpdateException e)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(e, "Failed to delete patient {PatientID}", patientId);
+                return Conflict("Unable to delete this patient. Something still references their records; suspend the account instead.");
+            }
+
+            return NoContent();
+        }
 
         // GET /api/patients/{id}/forms
         // A patient's full visit history, newest first: one row per

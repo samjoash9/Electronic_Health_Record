@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917130000_UseUtcTimestampDefaults")]
+    partial class UseUtcTimestampDefaults
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3184,15 +3186,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<DateTime?>("DentalSignedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("DentalSignedByLicenseNo")
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("DentalSignedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<int?>("DentistID")
                         .HasColumnType("int");
 
@@ -3244,31 +3237,14 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<DateTime?>("SignedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("SignedByLicenseNo")
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("SignedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<int?>("Station1AdminID")
                         .HasColumnType("int");
-
-                    b.Property<string>("Station1AdminName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("Station1SubmittedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("Station2AdminID")
                         .HasColumnType("int");
-
-                    b.Property<string>("Station2AdminName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("Station2SubmittedAt")
                         .HasColumnType("datetime2");
@@ -3308,15 +3284,6 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<DateTime?>("VisionSignedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("VisionSignedByLicenseNo")
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("VisionSignedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<decimal?>("WeightKg")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
@@ -3345,11 +3312,11 @@ namespace Electronic_Health_Record.Server.Data.Migrations
 
                     b.ToTable("WellnessForm", null, t =>
                         {
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR CurrentStation < 4 OR ((DentistID IS NOT NULL OR DentalSignedByName IS NOT NULL) AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned", "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned", "Status <> 'Completed' OR ((PhysicianID IS NOT NULL OR SignedByName IS NOT NULL) AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned", "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsVisionSigned", "Status <> 'Completed' OR CurrentStation < 5 OR ((OptometristID IS NOT NULL OR VisionSignedByName IS NOT NULL) AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
+                            t.HasCheckConstraint("CK_WellnessForm_CompletedIsVisionSigned", "Status <> 'Completed' OR CurrentStation < 5 OR (OptometristID IS NOT NULL AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_WellnessForm_CurrentStation", "CurrentStation IN (1, 2, 3, 4, 5)");
 

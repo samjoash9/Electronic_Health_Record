@@ -1,7 +1,9 @@
 const VARIANTS = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-gray-300',
   secondary: 'border border-line bg-surface text-ink-700 hover:bg-gray-50',
-  ghost: 'text-ink-700 hover:bg-gray-100',
+  // A disabled ghost button keeps no background to grey out, so it dims and
+  // drops its hover instead -- otherwise it still reads as clickable.
+  ghost: 'text-ink-700 hover:bg-gray-100 disabled:text-ink-300 disabled:opacity-60 disabled:hover:bg-transparent',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 disabled:bg-gray-300',
   teal: 'bg-[#129883] text-white hover:bg-[#0e7d6b] disabled:bg-gray-300 shadow-md hover:shadow-lg',
 };

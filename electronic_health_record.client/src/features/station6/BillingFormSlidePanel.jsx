@@ -11,14 +11,8 @@ import {
   Users,
   Pencil,
 } from 'lucide-react';
-import { peso } from '../../lib/formatters';
+import { peso, formatDate } from '../../lib/formatters';
 import ChargeLineItems from './ChargeLineItems';
-
-function formatDate(value) {
-  return new Date(value).toLocaleDateString('en-PH', {
-    year: 'numeric', month: 'short', day: 'numeric',
-  });
-}
 
 /**
  * One employee's consumption inside the period, collapsed by default: a

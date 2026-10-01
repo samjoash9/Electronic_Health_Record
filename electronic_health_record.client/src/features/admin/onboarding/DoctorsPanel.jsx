@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { UserPlus, Pencil, KeyRound, UserX, UserCheck } from 'lucide-react';
+import { UserPlus, Pencil, KeyRound, UserX, UserCheck, Trash2 } from 'lucide-react';
 import {
   listPhysicians, createPhysician, updatePhysician,
-  setPhysicianActive, resetPhysicianPassword,
+  setPhysicianActive, resetPhysicianPassword, deletePhysician,
 } from '../../../api/onboarding.api';
 import { useTableControls } from '../../../hooks/useTableControls';
 import Card from '../../../components/ui/Card';
@@ -17,9 +17,12 @@ import TableFooter from '../../../components/ui/TableFooter';
 import SearchInput from '../../../components/ui/SearchInput';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
+import Input from '../../../components/ui/Input';
+import Field from '../../../components/ui/Field';
 import DoctorFormModal from './DoctorFormModal';
 import ResetPasswordModal from './ResetPasswordModal';
-import { DOCTOR_STATIONS } from '../../../lib/constants';
+import { DOCTOR_STATIONS, isSuperAdmin } from '../../../lib/constants';
+import { useAuth } from '../../../auth/useAuth';
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All Doctors' },
@@ -53,11 +56,20 @@ const filterField = (d) => (d.isActive ? 'active' : 'inactive');
 
 export default function DoctorsPanel() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  // Deleting an account is destructive and irreversible, so it is offered only
+  // to a superadmin -- matching the server, which authorises DELETE /physicians
+  // for that role alone.
+  const canDelete = isSuperAdmin(user);
   // Which dialog is open: 'create' | { doctor } for edit, plus the two
   // credential dialogs, which each act on one doctor.
   const [formTarget, setFormTarget] = useState(null);
   const [resetTarget, setResetTarget] = useState(null);
   const [activeTarget, setActiveTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  // Typing the surname is what arms the delete button: the row actions sit next
+  // to Deactivate, and the two are one icon apart.
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   const { data: doctors, isLoading, error, refetch } = useQuery({
     queryKey: ['physicians'],
@@ -101,6 +113,21 @@ export default function DoctorsPanel() {
       toast.success(doctor.isActive
         ? `Dr. ${doctor.surname} can sign in again.`
         : `Dr. ${doctor.surname} can no longer sign in.`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const closeDelete = () => {
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ physicianID }) => deletePhysician(physicianID),
+    onSuccess: (_result, { doctor }) => {
+      invalidate();
+      closeDelete();
+      toast.success(`Dr. ${doctor.surname}'s account was deleted. Records they signed are unchanged.`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -167,8 +194,9 @@ export default function DoctorsPanel() {
         <DataTable
           columns={COLUMNS}
           rows={table.pageRows.map((d) => ({ ...d, id: d.physicianID }))}
+          rowActionsHeader="Actions"
           rowActions={(row) => (
-            <div className="flex items-center justify-end gap-1">
+            <div className="flex items-center justify-center gap-1">
               <Button
                 type="button"
                 variant="ghost"
@@ -194,6 +222,20 @@ export default function DoctorsPanel() {
               >
                 {row.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
               </Button>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-rose-600 hover:bg-rose-50"
+                  title="Delete account permanently"
+                  onClick={() => {
+                    setDeleteConfirmation('');
+                    setDeleteTarget(row);
+                  }}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              )}
             </div>
           )}
           empty={table.isSearching || table.isFiltered
@@ -281,6 +323,58 @@ export default function DoctorsPanel() {
             their existing password and will appear in the Station 3 physician list again.
           </>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        title="Delete this doctor permanently?"
+        onClose={closeDelete}
+        footer={
+          <>
+            <Button type="button" variant="secondary" size="md" onClick={closeDelete}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="md"
+              disabled={
+                deleteMutation.isPending
+                || deleteConfirmation.trim().toLowerCase() !== (deleteTarget?.surname ?? '').toLowerCase()
+              }
+              onClick={() => deleteMutation.mutate({
+                physicianID: deleteTarget.physicianID,
+                doctor: deleteTarget,
+              })}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete permanently'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p>
+            Dr. {deleteTarget?.firstName} {deleteTarget?.surname}&apos;s account and login will be
+            removed. <strong>This cannot be undone.</strong>
+          </p>
+          <p className="text-ink-600">
+            Medical records they signed are kept, and continue to show their name and PRC licence
+            as the signer. Only the account is deleted. To block sign-in while keeping the
+            account, use Deactivate instead.
+          </p>
+          <Field
+            label={`Type "${deleteTarget?.surname ?? ''}" to confirm`}
+            htmlFor="delete-doctor-confirm"
+          >
+            <Input
+              id="delete-doctor-confirm"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder={deleteTarget?.surname ?? ''}
+              autoComplete="off"
+            />
+          </Field>
+        </div>
       </Modal>
     </Card>
   );

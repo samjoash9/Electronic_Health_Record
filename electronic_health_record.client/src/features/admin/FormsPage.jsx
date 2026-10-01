@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Ban, Trash2, CalendarRange, X } from 'lucide-react';
-import { getAllForms, cancelForm, deleteForm } from '../../api/forms.api';
+import { Ban, Trash2, Undo2, CalendarRange, X } from 'lucide-react';
+import { getAllForms, cancelForm, deleteForm, revertStation } from '../../api/forms.api';
 import { FORM_STATUS, STATUS_LABEL, STATUS_TONE, isSuperAdmin } from '../../lib/constants';
 import { fullName, formatDate } from '../../lib/formatters';
 import { useAuth } from '../../auth/useAuth';
@@ -18,6 +18,7 @@ import SearchInput from '../../components/ui/SearchInput';
 import Select from '../../components/ui/Select';
 import CancelFormModal from './CancelFormModal';
 import DeleteFormModal from './DeleteFormModal';
+import RevertFormModal from './RevertFormModal';
 
 // This file used to keep its own STATUS_LABEL/STATUS_TONE, copied before
 // Station 4 and 5 existed -- they never gained PendingDental/PendingVision,
@@ -65,6 +66,7 @@ export default function FormsPage() {
   const canCancel = isSuperAdmin(user);
   const [formToCancel, setFormToCancel] = useState(null);
   const [formToDelete, setFormToDelete] = useState(null);
+  const [formToRevert, setFormToRevert] = useState(null);
   // A patient now goes through the station workflow repeatedly (monthly,
   // six-monthly), so "every visit on this date" is a real question this
   // list needs to answer -- these two dates are inclusive on both ends.
@@ -103,6 +105,18 @@ export default function FormsPage() {
       queryClient.invalidateQueries({ queryKey: ['forms'] });
       queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
       setFormToCancel(null);
+    },
+  });
+
+  const revertMutation = useMutation({
+    mutationFn: ({ formID, targetStation, reason, rowVersion }) =>
+      revertStation({ formID, targetStation, reason, rowVersion }),
+    onSuccess: () => {
+      // the station queues read the same ['forms'] query, and the form is
+      // moving between two of them; the revert is audited too
+      queryClient.invalidateQueries({ queryKey: ['forms'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+      setFormToRevert(null);
     },
   });
 
@@ -191,6 +205,23 @@ export default function FormsPage() {
           onRowClick={(row) => navigate(`/forms/${row.formID}`)}
           rowActions={canCancel ? (row) => (
             <div className="flex items-center gap-1">
+              {/*
+                * Hidden at Station 1 as well as on cancelled forms: there is no
+                * earlier station to send those back to, so the modal would open
+                * with an empty destination list.
+                */}
+              {row.status !== FORM_STATUS.CANCELLED && row.currentStation > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-amber-700 hover:bg-amber-50"
+                  title={`Send form #${row.formID} back to an earlier station`}
+                  onClick={() => setFormToRevert(row)}
+                >
+                  <Undo2 size={16} />
+                  Send back
+                </Button>
+              )}
               {row.status !== FORM_STATUS.CANCELLED && (
                 <Button
                   type="button"
@@ -243,6 +274,25 @@ export default function FormsPage() {
         onClose={() => {
           cancelMutation.reset();
           setFormToCancel(null);
+        }}
+      />
+      )}
+
+      {formToRevert && (
+      <RevertFormModal
+        key={formToRevert.formID}
+        form={formToRevert}
+        isPending={revertMutation.isPending}
+        error={revertMutation.error}
+        onConfirm={({ targetStation, reason }) => revertMutation.mutate({
+          formID: formToRevert.formID,
+          targetStation,
+          reason,
+          rowVersion: formToRevert.rowVersion,
+        })}
+        onClose={() => {
+          revertMutation.reset();
+          setFormToRevert(null);
         }}
       />
       )}

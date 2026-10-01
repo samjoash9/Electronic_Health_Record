@@ -336,16 +336,77 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             if (physician == null)
                 return NotFound($"Physician with ID {physicianId} was not found.");
 
+            var middle = string.IsNullOrWhiteSpace(physician.MiddleName)
+                ? string.Empty
+                : $"{physician.MiddleName} ";
+            var signerName = $"Dr. {physician.FirstName} {middle}{physician.Surname}";
+
+            // Signed records outlive the account. Every form this physician signed
+            // keeps its signature, and the signer's name is written into the
+            // *SignedByName columns before the id is detached, so a completed form
+            // still says who signed it. Forms signed after the snapshot columns
+            // shipped already carry the name; the coalesce covers older rows.
+            //
+            // The three roles are independent: the same form can have this
+            // physician as consultant, dentist and optometrist, so each is
+            // handled separately.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                var asPhysician = await _context.WellnessForms
+                    .Where(f => f.PhysicianID == physicianId)
+                    .ToListAsync();
+                foreach (var form in asPhysician)
+                {
+                    form.SignedByName ??= signerName;
+                    form.SignedByLicenseNo ??= physician.PRCLicenseNo;
+                    form.PhysicianID = null;
+                }
+
+                var asDentist = await _context.WellnessForms
+                    .Where(f => f.DentistID == physicianId)
+                    .ToListAsync();
+                foreach (var form in asDentist)
+                {
+                    form.DentalSignedByName ??= signerName;
+                    form.DentalSignedByLicenseNo ??= physician.PRCLicenseNo;
+                    form.DentistID = null;
+                }
+
+                var asOptometrist = await _context.WellnessForms
+                    .Where(f => f.OptometristID == physicianId)
+                    .ToListAsync();
+                foreach (var form in asOptometrist)
+                {
+                    form.VisionSignedByName ??= signerName;
+                    form.VisionSignedByLicenseNo ??= physician.PRCLicenseNo;
+                    form.OptometristID = null;
+                }
+
+                // Sessions are not records of care, so they go with the account.
+                var sessions = await _context.PhysicianSessions
+                    .Where(s => s.PhysicianID == physicianId)
+                    .ToListAsync();
+                _context.PhysicianSessions.RemoveRange(sessions);
+
+                // Detach before the delete: the FKs stay Restrict as a backstop,
+                // so the physician row cannot go while anything still points at it.
+                await _context.SaveChangesAsync();
+
                 _context.Physicians.Remove(physician);
                 await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Deleted physician {PhysicianID} ({SignerName}); detached {Consult} consultation, {Dental} dental and {Vision} vision signatures",
+                    physicianId, signerName, asPhysician.Count, asDentist.Count, asOptometrist.Count);
             }
             catch (DbUpdateException e)
             {
+                await transaction.RollbackAsync();
                 _logger.LogError(e, "Failed to delete physician {PhysicianID}", physicianId);
-                // Most likely an FK constraint (physician referenced by appointments, prescriptions, etc.)
-                return Conflict("Unable to delete physician. This physician may have associated records (appointments, prescriptions, etc.).");
+                return Conflict("Unable to delete this doctor. Their records could not be detached; deactivate the account instead.");
             }
 
             return NoContent();

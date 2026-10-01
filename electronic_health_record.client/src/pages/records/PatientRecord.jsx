@@ -5,6 +5,7 @@ import WellnessRecordForm from '../../components/forms/WellnessRecordForm';
 import Toast from '../../components/common/Toast';
 import ArchivedTabs from '../../pages/records/ArchivedTabs';
 import { ROLES, useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../lib/formatters';
 
 // --- SUB-COMPONENT: PATIENT SELECTOR MODAL ---
 function PatientSelectModal({ isOpen, onClose, patients, onSelectPatient }) {
@@ -480,12 +481,12 @@ export default function PatientRecord({ userRole: propUserRole }) {
                                                     <td className="py-4 px-4"><p className="text-sm font-medium text-gray-700">{contactInfo}</p></td>
                                                     <td className="py-4 px-4">
                                                         <span className="text-sm font-medium text-gray-600">
-                                                            {createdDate ? new Date(createdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                            {createdDate ? formatDate(createdDate) : 'N/A'}
                                                         </span>
                                                     </td>
                                                     <td className="py-4 px-4">
                                                         <span className="text-sm font-medium text-gray-600">
-                                                            {updatedDate ? new Date(updatedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                            {updatedDate ? formatDate(updatedDate) : 'N/A'}
                                                         </span>
                                                     </td>
                                                     <td className="py-4 px-4">

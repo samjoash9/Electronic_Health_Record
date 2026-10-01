@@ -194,6 +194,51 @@ export async function resetPhysicianPassword(physicianID, password) {
   }
 }
 
+/**
+ * Permanently removes a doctor's account. Superadmin only, enforced server-side.
+ *
+ * Signed records are kept: the server copies the signer's name and licence onto
+ * every form this doctor signed before detaching the account, so completed
+ * records still say who signed them. Deactivation is the reversible option --
+ * this one is not.
+ */
+export async function deletePhysician(physicianID) {
+  if (USE_MOCK) {
+    await delay(250);
+    return db.write((state) => {
+      const index = state.physicians.findIndex((p) => p.physicianID === physicianID);
+      if (index === -1) throw notFound(`Physician with ID ${physicianID} was not found.`);
+      const [removed] = state.physicians.splice(index, 1);
+      const signerName = `Dr. ${removed.firstName} ${removed.middleName ? `${removed.middleName} ` : ''}${removed.surname}`;
+      // Mirrors DeletePhysician on the server: preserve the signer, drop the id.
+      state.forms?.forEach((form) => {
+        if (form.physicianID === physicianID) {
+          form.signedByName ??= signerName;
+          form.signedByLicenseNo ??= removed.prcLicenseNo;
+          form.physicianID = null;
+        }
+        if (form.dentistID === physicianID) {
+          form.dentalSignedByName ??= signerName;
+          form.dentalSignedByLicenseNo ??= removed.prcLicenseNo;
+          form.dentistID = null;
+        }
+        if (form.optometristID === physicianID) {
+          form.visionSignedByName ??= signerName;
+          form.visionSignedByLicenseNo ??= removed.prcLicenseNo;
+          form.optometristID = null;
+        }
+      });
+      return toPhysician(removed);
+    });
+  }
+  try {
+    await client.delete(`/physicians/${physicianID}`);
+    return { physicianID };
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 // ----------------------------------------------------------------- employees
 
 export async function listEmployees() {

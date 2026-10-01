@@ -1,8 +1,11 @@
 import * as Icons from 'lucide-react';
 import { categoryStyle } from '../../lib/constants';
+import { categoryName, questionText } from '../../lib/assessmentText';
 import OptionPills from './OptionPills';
 
-export default function CategoryCard({ category, answers, onAnswer }) {
+export default function CategoryCard({ category, answers, onAnswer, scale = 1, lang = 'en' }) {
+  // Styling stays keyed on the English name -- CATEGORY_STYLES looks it up
+  // by that, so only the displayed label is translated.
   const style = categoryStyle(category.name);
   const Icon = Icons[style.icon] ?? Icons.ClipboardList;
   const answeredCount = category.questions.filter((q) => answers[q.questionID] != null).length;
@@ -17,7 +20,7 @@ export default function CategoryCard({ category, answers, onAnswer }) {
             <Icon size={17} strokeWidth={2.25} />
           </span>
           <h2 className={`text-sm font-bold uppercase tracking-wider ${style.title}`}>
-            {category.name}
+            {categoryName(category.name, lang)}
           </h2>
         </div>
         <span
@@ -28,16 +31,24 @@ export default function CategoryCard({ category, answers, onAnswer }) {
           {answeredCount}/{total}
         </span>
       </header>
-      <div className="flex flex-col divide-y divide-line">
+      {/* The one place the text size is applied. Everything inside sizes in
+          `em`, so question text and answer pills grow together off this
+          single font-size -- the card header, step dots and footer button
+          keep their own size and the layout stays where the patient left it. */}
+      <div
+        className="flex flex-col divide-y divide-line"
+        style={{ fontSize: `${scale}rem` }}
+      >
         {category.questions.map((question, index) => (
-          <div key={question.questionID} className="flex flex-col gap-3 px-5 py-5">
-            <p className="text-base font-medium text-ink-900">
-              {index + 1}. {question.questionText}
+          <div key={question.questionID} className="flex flex-col gap-[0.75em] px-5 py-5">
+            <p className="text-[1em] font-medium leading-snug text-ink-900">
+              {index + 1}. {questionText(question, lang)}
             </p>
             <OptionPills
               question={question}
               value={answers[question.questionID]}
               onChange={(optionID) => onAnswer(question.questionID, optionID)}
+              lang={lang}
             />
           </div>
         ))}

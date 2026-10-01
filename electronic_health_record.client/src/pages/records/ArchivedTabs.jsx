@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../config/axios';
 import { Loader2, Search, ArchiveRestore, ShieldAlert, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import Toast from '../../components/common/Toast';
+import { formatDate } from '../../lib/formatters';
 
 export default function ArchivedTabs() {
     const [archivedRecords, setArchivedRecords] = useState([]);
@@ -155,7 +156,7 @@ export default function ArchivedTabs() {
                                             </td>
                                             <td className="py-4 px-4">
                                                 <span className="text-sm font-medium text-slate-600">
-                                                    {archivedDate ? new Date(archivedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                                    {archivedDate ? formatDate(archivedDate) : 'N/A'}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4">

@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917140000_PreserveSignerOnPhysicianDelete")]
+    partial class PreserveSignerOnPhysicianDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3256,19 +3258,11 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<int?>("Station1AdminID")
                         .HasColumnType("int");
 
-                    b.Property<string>("Station1AdminName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<DateTime?>("Station1SubmittedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("Station2AdminID")
                         .HasColumnType("int");
-
-                    b.Property<string>("Station2AdminName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("Station2SubmittedAt")
                         .HasColumnType("datetime2");

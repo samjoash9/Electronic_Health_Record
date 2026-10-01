@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Electronic_Health_Record.Server.BackgroundJobs;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Filters;
+using Electronic_Health_Record.Server.Serialization;
 using Electronic_Health_Record.Server.Services;
 
 using Microsoft.AspNetCore.Authentication;
@@ -22,7 +23,15 @@ var builder = WebApplication.CreateBuilder(args);
 // SERVICES
 // ============================================================
 
-builder.Services.AddControllers();
+// All DateTime columns are datetime2 (offset-less) holding UTC values, so the
+// converters tag them with "Z" on the way out -- without it the client parses
+// them as local time and every timestamp renders 8 hours behind in Manila.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeConverter());
+    });
 
 
 // ============================================================

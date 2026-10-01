@@ -222,6 +222,37 @@ export async function cancelForm({
 
 
 /**
+ * Superadmin: send a form back to a station it has already passed.
+ *
+ * Only moves backwards -- the server rejects a target at or ahead of the
+ * form's current station. Nothing the stations captured is cleared: the
+ * station's own re-submit overwrites its fields and signature, so the previous
+ * values stand until it does. Written to the form's audit log.
+ */
+export async function revertStation({
+    formID,
+    targetStation,
+    reason,
+    rowVersion,
+}) {
+    try {
+        const { data } = await api.post(
+            `/wellnessforms/${formID}/revert`,
+            {
+                targetStation,
+                reason,
+                rowVersion,
+            }
+        );
+
+        return data.data ?? data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
+
+/**
  * Superadmin: correct fields on an existing form.
  *
  * A sparse PATCH -- `changes` carries only the fields the operator actually

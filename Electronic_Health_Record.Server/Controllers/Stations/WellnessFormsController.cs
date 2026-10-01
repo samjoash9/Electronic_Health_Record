@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.WellnessForm;
@@ -78,7 +78,9 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 .Select(f => new { f.Status, f.CurrentStation, f.PatientID, f.FormDate })
                 .ToListAsync();
 
-            var today = DateTime.Now.Date;
+            // FormDate is a calendar date, so "today" is the clinic's day in
+            // Manila -- not the host's day and not UTC's.
+            var today = PhilippineTime.Today;
 
             var stats = new
             {
@@ -256,7 +258,10 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     PatientID = patient.PatientID,
                     Status = "PendingAssessment",
                     CurrentStation = 2,
-                    FormDate = now.Date,
+                    // now is UTC; FormDate is the clinic's calendar day, so it
+                    // comes from Manila time or forms filed before 8 AM PHT would
+                    // be dated to the day before.
+                    FormDate = PhilippineTime.Today,
                     WeightKg = dto.Vitals.WeightKg,
                     HeightCm = dto.Vitals.HeightCm,
                     BMI = dto.Vitals.BMI,
@@ -267,6 +272,9 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     HeartRate = dto.Vitals.HeartRate,
                     RespRate = dto.Vitals.RespRate,
                     Station1AdminID = adminID,
+                    // Name as well as id: the record has to stay attributable if
+                    // this account is deleted later.
+                    Station1AdminName = await AdminNameAsync(adminID),
                     Station1SubmittedAt = now,
                     CreatedByAdminID = adminID,
                     CreatedAt = now,
@@ -364,6 +372,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.Status = "PendingConsultation";
                 form.CurrentStation = 3;
                 form.Station2AdminID = adminID;
+                // see Station1AdminName: attribution kept as text
+                form.Station2AdminName = await AdminNameAsync(adminID);
                 form.Station2SubmittedAt = now;
                 form.UpdatedByAdminID = adminID;
                 form.UpdatedAt = now;
@@ -410,9 +420,13 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             if (dto.PhysicianID is not { } physicianID)
                 return BadRequest(new { message = "An attending physician is required before submitting." });
 
-            var signerIsActive = await _context.Physicians
-                .AnyAsync(p => p.PhysicianID == physicianID && p.IsActive);
-            if (!signerIsActive)
+            // The row itself, not just its existence: the signer's name and
+            // licence are copied onto the form so the record stays attributable
+            // if the account is deleted later.
+            var signer = await _context.Physicians
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PhysicianID == physicianID && p.IsActive);
+            if (signer == null)
             {
                 return UnprocessableEntity(new
                 {
@@ -650,6 +664,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.ManagementTreatment = dto.ManagementTreatment;
                 form.Signature = dto.Signature;
                 form.SignedAt = now;
+                form.SignedByName = SignerName(signer);
+                form.SignedByLicenseNo = signer.PRCLicenseNo;
                 // Station 4 (Dental) owns the transition to Completed now; this
                 // hands the form to the dental queue still carrying the
                 // physician's signature.
@@ -701,9 +717,12 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             if (dto.DentistID is not { } dentistID)
                 return BadRequest(new { message = "An examining dentist is required before submitting." });
 
-            var dentistIsActive = await _context.Physicians
-                .AnyAsync(p => p.PhysicianID == dentistID && p.IsActive);
-            if (!dentistIsActive)
+            // The row itself: the signer's name is copied onto the form so the
+            // record survives deletion of the account.
+            var dentist = await _context.Physicians
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PhysicianID == dentistID && p.IsActive);
+            if (dentist == null)
             {
                 return UnprocessableEntity(new
                 {
@@ -758,6 +777,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.DentistID = dentistID;
                 form.DentalSignature = dto.DentalSignature;
                 form.DentalSignedAt = now;
+                form.DentalSignedByName = SignerName(dentist);
+                form.DentalSignedByLicenseNo = dentist.PRCLicenseNo;
                 // Station 5 (Vision) owns the transition to Completed now; this
                 // hands the form to the vision queue still carrying the
                 // dentist's signature.
@@ -809,9 +830,12 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             if (dto.OptometristID is not { } optometristID)
                 return BadRequest(new { message = "An examining optometrist is required before submitting." });
 
-            var optometristIsActive = await _context.Physicians
-                .AnyAsync(p => p.PhysicianID == optometristID && p.IsActive);
-            if (!optometristIsActive)
+            // The row itself: the signer's name is copied onto the form so the
+            // record survives deletion of the account.
+            var optometrist = await _context.Physicians
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PhysicianID == optometristID && p.IsActive);
+            if (optometrist == null)
             {
                 return UnprocessableEntity(new
                 {
@@ -873,6 +897,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.OptometristID = optometristID;
                 form.VisionSignature = dto.VisionSignature;
                 form.VisionSignedAt = now;
+                form.VisionSignedByName = SignerName(optometrist);
+                form.VisionSignedByLicenseNo = optometrist.PRCLicenseNo;
                 form.Status = "Completed";
                 form.Station5SubmittedAt = now;
                 form.UpdatedByAdminID = null;
@@ -953,6 +979,127 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     ActorID = adminID,
                     Action = "FormCancelled",
                     Details = $"Cancelled from {previousStatus} (Station {form.CurrentStation}). Reason: {dto.Reason}",
+                    OccurredAt = now,
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(await BuildFormResponseAsync(form));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync();
+                return Conflict(new { message = "This record was changed at another station." });
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        // The status each station's queue reads. Reverting to a station has to
+        // put the form back into the status that station picks up, otherwise it
+        // lands on a station number no queue is filtering for and disappears
+        // from every screen. Station 1 and 2 share "PendingAssessment": Station
+        // 1 creates the form already at station 2 (see SubmitStation1), so that
+        // status covers both ends of the hand-off.
+        private static readonly Dictionary<byte, string> StationEntryStatus = new()
+        {
+            [1] = "PendingAssessment",
+            [2] = "PendingAssessment",
+            [3] = "PendingConsultation",
+            [4] = "PendingDental",
+            [5] = "PendingVision",
+        };
+
+        // POST /api/wellnessforms/{formID}/revert
+        // Body: { targetStation, reason, rowVersion }. Superadmin only, same
+        // actor check as Cancel and Delete.
+        //
+        // Sends a form back to a station it has already been through, for the
+        // case the correction PATCH above cannot serve: not a wrong value, but
+        // a station that needs to redo its work -- a consultation recorded
+        // against the wrong complaint, a dental exam that has to be repeated.
+        //
+        // EditForm deliberately refuses to touch Status and CurrentStation
+        // because an arbitrary pair can name a state no station sequence could
+        // produce. Moving *backwards* is not that: every state this reaches is
+        // one the form has already occupied, so it stays on the path the
+        // stations define. That is the whole reason this is a separate endpoint
+        // with a target instead of a writable field on the patch -- the
+        // direction is what keeps it safe, so the direction is enforced here.
+        //
+        // What this deliberately does NOT do is clear the reverted stations'
+        // data. The station submits all overwrite their own fields and
+        // signatures unconditionally (see SubmitStation3/4/5), so re-submitting
+        // replaces the stale values and re-attests with a fresh signature. The
+        // form keeps its previous values in the meantime, which is what makes
+        // the revert recoverable: a revert performed by mistake can be undone by
+        // walking the stations forward again, and nothing is lost in between.
+        [HttpPost("{formID:int}/revert")]
+        public async Task<IActionResult> RevertStation(int formID, [FromBody] RevertStationDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (_currentUser.AdminID is not { } adminID)
+                return Unauthorized(new { message = "No admin identity on this request." });
+
+            var actor = await _context.Admins.FindAsync(adminID);
+            if (actor == null || actor.Role != AdminRoles.SuperAdmin)
+                return Forbid();
+
+            var form = await _context.WellnessForms.FindAsync(formID);
+            if (form == null)
+                return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            // A cancelled form is out of the workflow entirely. Reverting one
+            // would quietly resurrect it into a station queue, which is a
+            // different action than the operator asked for.
+            if (form.Status == "Cancelled")
+            {
+                return Conflict(new
+                {
+                    message = "This form is cancelled and cannot be sent back to a station."
+                });
+            }
+
+            if (dto.TargetStation >= form.CurrentStation)
+            {
+                return BadRequest(new
+                {
+                    message = $"This form is at Station {form.CurrentStation}. "
+                            + "A revert can only send it to an earlier station."
+                });
+            }
+
+            if (!StationEntryStatus.TryGetValue(dto.TargetStation, out var newStatus))
+                return BadRequest(new { message = $"Station {dto.TargetStation} is not a valid station." });
+
+            ApplyRowVersionToken(form, dto.RowVersion);
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var now = DateTime.UtcNow;
+                var previousStatus = form.Status;
+                var previousStation = form.CurrentStation;
+
+                form.Status = newStatus;
+                form.CurrentStation = dto.TargetStation;
+                form.UpdatedByAdminID = adminID;
+                form.UpdatedAt = now;
+
+                _context.WellnessFormAuditLogs.Add(new WellnessFormAuditLog
+                {
+                    FormID = formID,
+                    ActorType = "Admin",
+                    ActorID = adminID,
+                    Action = "FormReverted",
+                    Details = $"Reverted from Station {previousStation} ({previousStatus}) "
+                            + $"to Station {dto.TargetStation} ({newStatus}). Reason: {dto.Reason}",
                     OccurredAt = now,
                 });
 
@@ -1491,6 +1638,28 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         private static string Display<T>(T value) =>
             value is null ? "(empty)" : value.ToString() ?? "(empty)";
 
+        // The signer's name as it is frozen onto a signed record. Stored as text
+        // so deleting the practitioner's account cannot make a completed form
+        // unattributable -- see the *SignedByName columns on WellnessForm.
+        private static string SignerName(Models.Physician physician)
+        {
+            var middle = string.IsNullOrWhiteSpace(physician.MiddleName)
+                ? string.Empty
+                : $"{physician.MiddleName} ";
+            return $"Dr. {physician.FirstName} {middle}{physician.Surname}";
+        }
+
+        // The station admin's name as it is frozen onto the record they filled.
+        // Same reason as SignerName: Station1AdminName/Station2AdminName have to
+        // survive deletion of the account. AsNoTracking, because the caller only
+        // wants the name and must not pick up the Admin row for saving.
+        private async Task<string?> AdminNameAsync(int adminID) =>
+            await _context.Admins
+                .AsNoTracking()
+                .Where(a => a.AdminID == adminID)
+                .Select(a => a.FullName)
+                .FirstOrDefaultAsync();
+
         // Replaces a form's billing lines, repricing every one from the catalog.
         // Mirrors the charge handling in SubmitStation3 -- the catalog's price
         // and name win over whatever the client sent, and only a free-text row
@@ -1683,6 +1852,11 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 RowVersion = Convert.ToBase64String(form.RowVersion ?? Array.Empty<byte>()),
                 form.Signature,
                 form.SignedAt,
+                // Who signed, as frozen at signing time. Outlives the physician
+                // account, so a record stays attributable after a delete nulls
+                // PhysicianID.
+                form.SignedByName,
+                form.SignedByLicenseNo,
                 form.FormDate,
                 form.WeightKg,
                 form.HeightCm,
@@ -1704,10 +1878,14 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.DentistID,
                 form.DentalSignature,
                 form.DentalSignedAt,
+                form.DentalSignedByName,
+                form.DentalSignedByLicenseNo,
                 form.Station4SubmittedAt,
                 form.OptometristID,
                 form.VisionSignature,
                 form.VisionSignedAt,
+                form.VisionSignedByName,
+                form.VisionSignedByLicenseNo,
                 form.Station5SubmittedAt,
                 form.CreatedAt,
                 form.UpdatedAt,
@@ -1754,6 +1932,11 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 RowVersion = Convert.ToBase64String(form.RowVersion ?? Array.Empty<byte>()),
                 form.Signature,
                 form.SignedAt,
+                // Who signed, as frozen at signing time. Outlives the physician
+                // account, so a record stays attributable after a delete nulls
+                // PhysicianID.
+                form.SignedByName,
+                form.SignedByLicenseNo,
                 form.FormDate,
                 form.WeightKg,
                 form.HeightCm,

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Electronic_Health_Record.Server.Models;
 
 namespace Electronic_Health_Record.Server.Data
@@ -55,9 +55,9 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.AgencyOffice).HasMaxLength(200);
                 entity.Property(p => p.Position).HasMaxLength(400);
                 entity.Property(p => p.ContactNo).HasMaxLength(150).IsUnicode(false);
-                entity.Property(p => p.LastSyncedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(p => p.LastSyncedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 // Station 1 employee search by name
                 entity.HasIndex(p => new { p.Surname, p.FirstName });
             });
@@ -121,8 +121,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.ContactNo).HasMaxLength(20).IsUnicode(false);
                 entity.Property(p => p.Station).IsRequired();
                 entity.Property(p => p.IsActive).HasDefaultValue(true).IsRequired();
-                entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
             });
 
             modelBuilder.Entity<Admin>(entity =>
@@ -150,8 +150,8 @@ namespace Electronic_Health_Record.Server.Data
                     .IsRequired();
                 entity.Property(a => a.IsActive).HasDefaultValue(true).IsRequired();
                 entity.Property(a => a.MustChangePassword).HasDefaultValue(false).IsRequired();
-                entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(a => a.Username).IsUnique();
             });
 
@@ -162,7 +162,7 @@ namespace Electronic_Health_Record.Server.Data
                 // char(64) is the exact width of SHA-256 rendered as lowercase hex
                 entity.Property(s => s.TokenHash).HasColumnType("char(64)").IsRequired();
                 entity.Property(s => s.ExpiresAt).IsRequired();
-                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(s => s.TokenHash).IsUnique();
 
                 entity.HasOne<Admin>()
@@ -179,7 +179,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(s => s.SessionID);
                 entity.Property(s => s.TokenHash).HasColumnType("char(64)").IsRequired();
                 entity.Property(s => s.ExpiresAt).IsRequired();
-                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(s => s.TokenHash).IsUnique();
 
                 entity.HasOne<Physician>()
@@ -216,9 +216,9 @@ namespace Electronic_Health_Record.Server.Data
                     .IsUnicode(false)
                     .HasDefaultValue("Provisioned")
                     .IsRequired();
-                entity.Property(a => a.ProvisionedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(a => a.ProvisionedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(a => a.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 // one account per employee, reused across every visit
                 entity.HasOne<Patient>()
@@ -233,7 +233,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(s => s.SessionID);
                 entity.Property(s => s.TokenHash).HasColumnType("char(64)").IsRequired();
                 entity.Property(s => s.ExpiresAt).IsRequired();
-                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(s => s.TokenHash).IsUnique();
 
                 entity.HasOne<PatientAccount>()
@@ -250,9 +250,13 @@ namespace Electronic_Health_Record.Server.Data
                         "Status IN ('PendingAssessment', 'PendingConsultation', 'PendingDental', 'PendingVision', 'Completed', 'Cancelled')");
                     t.HasCheckConstraint("CK_WellnessForm_CurrentStation",
                         "CurrentStation IN (1, 2, 3, 4, 5)");
-                    // a completed form must be signed by a named physician
+                    // A completed form must be signed by a named physician. The
+                    // signer may be identified by the live FK *or* by the name
+                    // snapshot taken at signing time: a superadmin can delete a
+                    // physician account, which nulls PhysicianID, and the record
+                    // must stay attributable after that.
                     t.HasCheckConstraint("CK_WellnessForm_CompletedIsSigned",
-                        "Status <> 'Completed' OR (PhysicianID IS NOT NULL AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
+                        "Status <> 'Completed' OR ((PhysicianID IS NOT NULL OR SignedByName IS NOT NULL) AND Signature IS NOT NULL AND SignedAt IS NOT NULL)");
                     // Station 4 owns the transition to Completed, so a completed
                     // form carries the dentist's signature as well as the
                     // physician's. CK_WellnessForm_CompletedIsSigned above still
@@ -261,14 +265,14 @@ namespace Electronic_Health_Record.Server.Data
                     // dental station existed (Station 3 used to complete the
                     // form directly) -- those rows can never gain dental data.
                     t.HasCheckConstraint("CK_WellnessForm_CompletedIsDentalSigned",
-                        "Status <> 'Completed' OR CurrentStation < 4 OR (DentistID IS NOT NULL AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
+                        "Status <> 'Completed' OR CurrentStation < 4 OR ((DentistID IS NOT NULL OR DentalSignedByName IS NOT NULL) AND DentalSignature IS NOT NULL AND DentalSignedAt IS NOT NULL)");
                     // Station 5 now owns the transition to Completed, so a
                     // completed form carries the optometrist's signature too.
                     // CurrentStation < 5 exempts forms completed before the
                     // vision station existed (Station 4 used to complete the
                     // form directly) -- those rows can never gain vision data.
                     t.HasCheckConstraint("CK_WellnessForm_CompletedIsVisionSigned",
-                        "Status <> 'Completed' OR CurrentStation < 5 OR (OptometristID IS NOT NULL AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
+                        "Status <> 'Completed' OR CurrentStation < 5 OR ((OptometristID IS NOT NULL OR VisionSignedByName IS NOT NULL) AND VisionSignature IS NOT NULL AND VisionSignedAt IS NOT NULL)");
                 });
                 entity.HasKey(w => w.FormID);
                 entity.Property(w => w.Status)
@@ -280,7 +284,24 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(w => w.RowVersion).IsRowVersion();
                 entity.Property(w => w.FormDate)
                     .HasColumnType("date")
-                    .HasDefaultValueSql("CAST(SYSDATETIME() AS date)");
+                    // FormDate is a calendar date, so it follows the clinic's day in
+                    // Manila (UTC+8, no DST) -- a UTC-derived date would file
+                    // everything submitted before 8 AM PHT under the previous day.
+                    .HasDefaultValueSql("CAST(SYSUTCDATETIME() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time' AS date)");
+                // Signer identity preserved as text so a completed record stays
+                // attributable after the practitioner's account is deleted.
+                entity.Property(w => w.SignedByName).HasMaxLength(200);
+                entity.Property(w => w.SignedByLicenseNo).HasMaxLength(50).IsUnicode(false);
+                entity.Property(w => w.DentalSignedByName).HasMaxLength(200);
+                entity.Property(w => w.DentalSignedByLicenseNo).HasMaxLength(50).IsUnicode(false);
+                entity.Property(w => w.VisionSignedByName).HasMaxLength(200);
+                entity.Property(w => w.VisionSignedByLicenseNo).HasMaxLength(50).IsUnicode(false);
+                // Same idea for the two staffed stations: the admin who took the
+                // vitals and ran the assessment is part of the record, so the name
+                // is kept as text and outlives the account.
+                entity.Property(w => w.Station1AdminName).HasMaxLength(200);
+                entity.Property(w => w.Station2AdminName).HasMaxLength(200);
+
                 entity.Property(w => w.WeightKg).HasPrecision(5, 2);
                 entity.Property(w => w.HeightCm).HasPrecision(5, 2);
                 entity.Property(w => w.BMI).HasPrecision(5, 2);
@@ -290,21 +311,33 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(w => w.RecommendedDiagnosticTest);
                 entity.Property(w => w.ImpressionClinical);
                 entity.Property(w => w.ManagementTreatment);
-                entity.Property(w => w.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(w => w.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(w => w.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(w => w.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<Patient>()
                     .WithMany()
                     .HasForeignKey(w => w.PatientID)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // optional: a draft may not have a physician assigned yet
+                // optional: a draft may not have a physician assigned yet.
+                // Stays Restrict: three columns on this table point at Physician,
+                // and SQL Server refuses more than one SET NULL path between the
+                // same pair of tables. DeletePhysician in PhysiciansController
+                // detaches all three explicitly -- copying the signer's name into
+                // the *SignedByName columns first -- and the constraint stays as
+                // a backstop against a delete that skips that step.
                 entity.HasOne<Physician>()
                     .WithMany()
                     .HasForeignKey(w => w.PhysicianID)
                     .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                // Restrict, even though DeleteAdmin does null these: SQL Server
+                // allows only one SET NULL path from WellnessForm to Admin, and
+                // CreatedByAdminID already holds it (error 1785 otherwise). The
+                // cascade is redundant anyway -- DeleteAdmin nulls all four admin
+                // ids inside its own transaction, and the constraint staying
+                // Restrict is the backstop that stops the row going any other way.
                 entity.HasOne<Admin>()
                     .WithMany()
                     .HasForeignKey(w => w.Station1AdminID)
@@ -334,6 +367,8 @@ namespace Electronic_Health_Record.Server.Data
                     .HasForeignKey(w => w.CreatedByAdminID)
                     .OnDelete(DeleteBehavior.SetNull);
 
+                // see Station1AdminID: DeleteAdmin nulls this, the constraint stays
+                // Restrict so only that path can remove the admin row.
                 entity.HasOne<Admin>()
                     .WithMany()
                     .HasForeignKey(w => w.UpdatedByAdminID)
@@ -359,8 +394,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(c => c.Category).HasMaxLength(50);
                 entity.Property(c => c.UnitPrice).HasPrecision(10, 2);
                 entity.Property(c => c.IsActive).HasDefaultValue(true);
-                entity.Property(c => c.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(c => c.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(c => c.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(c => c.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 // one entry per name within a type; a retired row keeps its slot
                 // so a re-seed or backfill can still resolve an old alias to it
@@ -377,7 +412,7 @@ namespace Electronic_Health_Record.Server.Data
                 // the client before this table existed, same order, same null
                 // prices for the tests with no fixed office rate (decision 6b).
                 // HasData requires a literal value for every non-nullable
-                // column -- SYSDATETIME() above is a column default, which
+                // column -- SYSUTCDATETIME() above is a column default, which
                 // HasData's generated INSERT does not go through -- so
                 // CreatedAt/UpdatedAt use a fixed constant rather than
                 // DateTime.UtcNow, which would make the migration
@@ -432,7 +467,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(c => c.Quantity).HasDefaultValue(1);
                 entity.Property(c => c.Dosage).HasMaxLength(50);
                 entity.Property(c => c.Frequency).HasMaxLength(50);
-                entity.Property(c => c.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(c => c.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 // every read is "the charges for this form"; a resubmit replaces
                 // them wholesale (same pattern as PastMedicalHistory etc.), and
@@ -465,7 +500,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(b => b.StartDate).HasColumnType("date");
                 entity.Property(b => b.EndDate).HasColumnType("date");
                 entity.Property(b => b.Capital).HasPrecision(14, 2);
-                entity.Property(b => b.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(b => b.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.Property(b => b.RowVersion).IsRowVersion();
 
                 // Periods are listed and overlap-checked by date range; no
@@ -526,8 +561,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(s => s.AlcoholType).HasMaxLength(50);
                 entity.Property(s => s.DrinkFrequency).HasMaxLength(50);
                 entity.Property(s => s.DrinksPerSession).HasMaxLength(20);
-                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(s => s.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(s => s.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(s => s.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithOne()
@@ -542,8 +577,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(e => e.ExerciseType).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ExerciseFrequency).HasMaxLength(50);
                 entity.Property(e => e.ExerciseYearStarted).HasMaxLength(4);
-                entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithMany()
@@ -607,8 +642,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(d => d.LastDentalVisitRemarks).HasMaxLength(300);
                 entity.Property(d => d.DentalReferralRemarks).HasMaxLength(300);
 
-                entity.Property(d => d.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(d => d.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(d => d.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(d => d.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 // one dental screening per form, same shape as SocialHistory
                 entity.HasOne<WellnessForm>()
@@ -682,8 +717,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(v => v.ReferralToEyeSpecialistRemarks).HasMaxLength(300);
                 entity.Property(v => v.FollowUpConsultationAdvisedRemarks).HasMaxLength(300);
 
-                entity.Property(v => v.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(v => v.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(v => v.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(v => v.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 // one vision screening per form, same shape as SocialHistory / DentalAssessment
                 entity.HasOne<WellnessForm>()
@@ -699,8 +734,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(f => f.ConditionOther).HasMaxLength(100);
                 entity.Property(f => f.IsNone).HasDefaultValue(false);
                 entity.Property(f => f.ConditionType).HasMaxLength(300);
-                entity.Property(f => f.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(f => f.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(f => f.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(f => f.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithMany()
@@ -721,8 +756,8 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(p => p.MaintenanceDrugGeneric).HasMaxLength(100);
                 entity.Property(p => p.Dosage).HasMaxLength(20);
                 entity.Property(p => p.Frequency).HasMaxLength(50);
-                entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
-                entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(p => p.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(p => p.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithMany()
@@ -765,7 +800,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.HasKey(q => q.QuestionID);
                 entity.Property(q => q.QuestionText).HasMaxLength(300).IsRequired();
                 entity.Property(q => q.IsActive).HasDefaultValue(true).IsRequired();
-                entity.Property(q => q.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(q => q.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<AssessmentCategory>()
                     .WithMany()
@@ -1024,7 +1059,7 @@ namespace Electronic_Health_Record.Server.Data
             {
                 entity.ToTable("AssessmentAnswer");
                 entity.HasKey(a => a.AnswerID);
-                entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(a => a.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithMany()
@@ -1060,7 +1095,7 @@ namespace Electronic_Health_Record.Server.Data
                 entity.Property(l => l.ActorType).HasMaxLength(20).IsUnicode(false).IsRequired();
                 entity.Property(l => l.Action).HasMaxLength(50).IsUnicode(false).IsRequired();
                 entity.Property(l => l.Details).HasMaxLength(500);
-                entity.Property(l => l.OccurredAt).HasDefaultValueSql("SYSDATETIME()");
+                entity.Property(l => l.OccurredAt).HasDefaultValueSql("SYSUTCDATETIME()");
 
                 entity.HasOne<WellnessForm>()
                     .WithMany()

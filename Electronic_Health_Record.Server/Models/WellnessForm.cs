@@ -1,4 +1,4 @@
-namespace Electronic_Health_Record.Server.Models
+﻿namespace Electronic_Health_Record.Server.Models
 {
     public class WellnessForm
     {
@@ -28,6 +28,12 @@ namespace Electronic_Health_Record.Server.Models
         public string? Signature { get; set; }
         // when the signature was captured
         public DateTime? SignedAt { get; set; }
+        // Who signed, captured as text at signing time. PhysicianID can be
+        // nulled out when a superadmin deletes the account, so the FK alone
+        // cannot answer "who signed this record" for the lifetime of the form.
+        // These are written alongside the signature and never updated after.
+        public string? SignedByName { get; set; }
+        public string? SignedByLicenseNo { get; set; }
         public DateTime FormDate { get; set; }
         public decimal? WeightKg { get; set; }
         public decimal? HeightCm { get; set; }
@@ -39,11 +45,17 @@ namespace Electronic_Health_Record.Server.Models
         public short? HeartRate { get; set; }
         public short? RespRate { get; set; }
         public int? Station1AdminID { get; set; }
+        // Who took the vitals, kept as text so the attribution survives deletion
+        // of that admin's account -- same reason as SignedByName below. Written
+        // at submit time; the delete backfills it for older rows.
+        public string? Station1AdminName { get; set; }
         public DateTime? Station1SubmittedAt { get; set; }
 
         // Station 2 answers are rows in AssessmentAnswer; only the station's
         // attribution and hand-off timestamp live here
         public int? Station2AdminID { get; set; }
+        // see Station1AdminName: survives deletion of the admin's account
+        public string? Station2AdminName { get; set; }
         public DateTime? Station2SubmittedAt { get; set; }
         public string? RecommendedDiagnosticTest { get; set; }
         public string? ImpressionClinical { get; set; }
@@ -56,6 +68,9 @@ namespace Electronic_Health_Record.Server.Models
         public int? DentistID { get; set; }
         public string? DentalSignature { get; set; }
         public DateTime? DentalSignedAt { get; set; }
+        // see SignedByName: survives deletion of the dentist's account
+        public string? DentalSignedByName { get; set; }
+        public string? DentalSignedByLicenseNo { get; set; }
         public DateTime? Station4SubmittedAt { get; set; }
 
         // Station 5 (Vision). Same pattern as DentistID: the optometrist is a
@@ -64,6 +79,9 @@ namespace Electronic_Health_Record.Server.Models
         public int? OptometristID { get; set; }
         public string? VisionSignature { get; set; }
         public DateTime? VisionSignedAt { get; set; }
+        // see SignedByName: survives deletion of the optometrist's account
+        public string? VisionSignedByName { get; set; }
+        public string? VisionSignedByLicenseNo { get; set; }
         public DateTime? Station5SubmittedAt { get; set; }
         public int? CreatedByAdminID { get; set; }
         public int? UpdatedByAdminID { get; set; }
