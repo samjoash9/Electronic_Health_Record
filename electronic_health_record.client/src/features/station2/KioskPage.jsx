@@ -6,12 +6,14 @@ import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
+import { useMarkStationStarted } from '../../hooks/useMarkStationStarted';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station2Draft';
 import { ZOOM_LEVELS, readZoomIndex, writeZoomIndex } from '../../lib/kioskZoom';
 import { DEFAULT_LANGUAGE } from '../../i18n/assessmentTranslations';
 import { uiText } from '../../lib/assessmentText';
 import { scoreCategory, totalAnswered, totalQuestions } from '../../lib/scoring';
 import { fullName } from '../../lib/formatters';
+import { STATIONS } from '../../lib/constants';
 import KioskShell from '../../components/layout/KioskShell';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -70,6 +72,10 @@ export default function KioskPage() {
     { answers, step },
     { stoppedRef: doneRef },
   );
+
+  // Flags the form "Answering" in every Station 2 queue once the tablet is in
+  // the patient's hands.
+  useMarkStationStarted(form, STATIONS.TWO);
 
   if (formLoading || templateLoading) return <Skeleton rows={10} />;
   if (formError) return <ErrorState error={formError} onRetry={refetchForm} />;

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { saveDraft } from '../../lib/station1Draft';
+import { hasPatientAccount } from '../../api/patients.api';
 
 const EMPLOYEE = {
   externalEmployeeId: 'EMP-1',
@@ -57,6 +58,7 @@ describe('Station1Page draft restore', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    hasPatientAccount.mockResolvedValue(true);
   });
 
   it('advances to Confirm Information when the restored draft was left on step 1', async () => {
@@ -81,5 +83,55 @@ describe('Station1Page draft restore', () => {
     await waitFor(() => {
       expect(screen.getByText('Confirm Information')).toHaveClass('font-bold');
     });
+  });
+});
+
+describe('Station1Page username guard', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    hasPatientAccount.mockResolvedValue(false);
+  });
+
+  it('disables Next and the Vital Signs step until a username is entered', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+    await screen.findByLabelText(/desired username/i);
+
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByText('Vital Signs').closest('button')).toBeDisabled();
+  });
+
+  it('treats a whitespace-only username as missing', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+    await user.type(await screen.findByLabelText(/desired username/i), '   ');
+
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
+  it('stays on Confirm Information when the username is too long', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+    await user.type(await screen.findByLabelText(/desired username/i), 'a'.repeat(31));
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(await screen.findByText('Too long')).toBeInTheDocument();
+    expect(screen.getByText('Confirm Information')).toHaveClass('font-bold');
+  });
+
+  it('advances to Vital Signs once a username is entered', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+    await user.type(await screen.findByLabelText(/desired username/i), 'juandelacruz');
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(await screen.findByRole('heading', { name: 'Vital Signs' })).toBeInTheDocument();
   });
 });

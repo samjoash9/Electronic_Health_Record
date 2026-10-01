@@ -56,10 +56,18 @@
         public int? Station2AdminID { get; set; }
         // see Station1AdminName: survives deletion of the admin's account
         public string? Station2AdminName { get; set; }
+        // When the kiosk was first opened for this form, i.e. the tablet was
+        // handed to the patient. Lets every Station 2 desk tell "answering" from
+        // "not yet answered" -- the in-progress answers themselves live only in
+        // that tablet's localStorage. Cleared by a revert back to Station 2.
+        // Station3/4/5StartedAt below are the same marker for those desks.
+        public DateTime? Station2StartedAt { get; set; }
         public DateTime? Station2SubmittedAt { get; set; }
         public string? RecommendedDiagnosticTest { get; set; }
         public string? ImpressionClinical { get; set; }
         public string? ManagementTreatment { get; set; }
+        // first open of the consultation page; see Station2StartedAt
+        public DateTime? Station3StartedAt { get; set; }
         public DateTime? Station3SubmittedAt { get; set; }
 
         // Station 4 (Dental). The dentist is a Physician row -- the schema has no
@@ -71,6 +79,8 @@
         // see SignedByName: survives deletion of the dentist's account
         public string? DentalSignedByName { get; set; }
         public string? DentalSignedByLicenseNo { get; set; }
+        // first open of the dental page; see Station2StartedAt
+        public DateTime? Station4StartedAt { get; set; }
         public DateTime? Station4SubmittedAt { get; set; }
 
         // Station 5 (Vision). Same pattern as DentistID: the optometrist is a
@@ -82,6 +92,8 @@
         // see SignedByName: survives deletion of the optometrist's account
         public string? VisionSignedByName { get; set; }
         public string? VisionSignedByLicenseNo { get; set; }
+        // first open of the vision page; see Station2StartedAt
+        public DateTime? Station5StartedAt { get; set; }
         public DateTime? Station5SubmittedAt { get; set; }
         public int? CreatedByAdminID { get; set; }
         public int? UpdatedByAdminID { get; set; }

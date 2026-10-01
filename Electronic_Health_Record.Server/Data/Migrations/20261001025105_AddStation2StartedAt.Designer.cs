@@ -4,6 +4,7 @@ using Electronic_Health_Record.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Electronic_Health_Record.Server.Data.Migrations
 {
     [DbContext(typeof(ElectronicHealthRecordDbContext))]
-    partial class ElectronicHealthRecordDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001025105_AddStation2StartedAt")]
+    partial class AddStation2StartedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3276,19 +3279,10 @@ namespace Electronic_Health_Record.Server.Data.Migrations
                     b.Property<DateTime?>("Station2SubmittedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("Station3StartedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime?>("Station3SubmittedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("Station4StartedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime?>("Station4SubmittedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("Station5StartedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("Station5SubmittedAt")

@@ -9,6 +9,9 @@
 import {
   CATEGORY_NAMES, QUESTION_TEXT, OPTION_TEXT, UI_TEXT, DEFAULT_LANGUAGE,
 } from '../i18n/assessmentTranslations';
+import {
+  RESULTS_TEXT, SECTION_TEXT, OVERALL_TEXT, GENERIC_SECTION_TEXT,
+} from '../i18n/resultsTranslations';
 
 /** @returns {boolean} true when `lang` needs no lookup at all. */
 export function isSourceLanguage(lang) {
@@ -52,4 +55,33 @@ export function uiText(lang) {
   };
   if (isSourceLanguage(lang)) return fallback;
   return { ...fallback, ...(UI_TEXT[lang] ?? {}) };
+}
+
+// The results wording has its English in the translations module too (there
+// is no database source for it), so these look up `lang` and fall back to
+// the `en` entry rather than to a source string.
+const pick = (table, lang) => table[lang] ?? table[DEFAULT_LANGUAGE];
+
+/** Results screen chrome and band labels. */
+export function resultsText(lang) {
+  return { ...RESULTS_TEXT[DEFAULT_LANGUAGE], ...(RESULTS_TEXT[lang] ?? {}) };
+}
+
+/**
+ * What a section measures and what its band means.
+ * @returns {{ about: string|null, message: string|null }} `about` is null for
+ * a section with no tailored wording (its message falls back to a general
+ * one for the band); `message` is null when there is no band to explain.
+ */
+export function sectionInterpretation(categoryName, band, lang) {
+  const section = pick(SECTION_TEXT, lang)[categoryName?.trim()];
+  return {
+    about: section?.about ?? null,
+    message: band ? section?.[band] ?? pick(GENERIC_SECTION_TEXT, lang)[band] ?? null : null,
+  };
+}
+
+/** @returns {string|null} the verdict on the overall average. */
+export function overallInterpretation(band, lang) {
+  return band ? pick(OVERALL_TEXT, lang)[band] ?? null : null;
 }
