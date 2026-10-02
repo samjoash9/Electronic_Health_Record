@@ -326,7 +326,7 @@ export default function EmployeeFormModal({ employee, isPending, error, onSubmit
         formState: { errors },
     } = useForm({
         defaultValues: {
-            externalEmployeeId: employee?.externalEmployeeId ?? '',
+            
             surname: employee?.surname ?? '',
             firstName: employee?.firstName ?? '',
             middleName: employee?.middleName ?? '',

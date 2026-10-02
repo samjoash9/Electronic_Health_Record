@@ -10,9 +10,7 @@ namespace Electronic_Health_Record.Server.DTOs.Employee
     /// </summary>
     public class UpsertEmployeeDto
     {
-        [Required]
-        [MaxLength(50)]
-        public string ExternalEmployeeId { get; set; } = string.Empty;
+       
 
         [Required]
         [MaxLength(50)]

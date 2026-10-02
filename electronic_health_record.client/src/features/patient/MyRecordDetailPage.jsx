@@ -1,7 +1,7 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
+  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
   Users, Stethoscope, Activity, ClipboardList, FlaskConical, Pill,
   Cigarette, Dumbbell, Wine, BadgeCheck, Smile, Eye,
 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { FORM_STATUS, DENTAL_INDICATORS, VISION_INDICATORS } from '../../lib/constants';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
+import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import PriorStationsPanel from '../station3/PriorStationsPanel';
@@ -46,6 +47,7 @@ function StaticAnswer({ value, placeholder }) {
 
 export default function MyRecordDetailPage() {
   const { formId } = useParams();
+  const navigate = useNavigate();
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories } = useQuery({
     queryKey: ['assessment-template'],
@@ -53,8 +55,27 @@ export default function MyRecordDetailPage() {
     staleTime: Infinity,
   });
 
-  if (isLoading) return <Skeleton />;
-  if (error) return <ErrorState error={error} onRetry={refetch} />;
+  const backButton = (
+    <Button
+      type="button"
+      variant="secondary"
+      size="md"
+      className="self-start"
+      onClick={() => navigate('/my-record')}
+    >
+      <ArrowLeft size={16} strokeWidth={2.25} />
+      Back to My Record
+    </Button>
+  );
+
+  if (isLoading || error) {
+    return (
+      <div className="flex flex-col gap-3 pb-6">
+        {backButton}
+        {isLoading ? <Skeleton /> : <ErrorState error={error} onRetry={refetch} />}
+      </div>
+    );
+  }
 
   if (form.status !== FORM_STATUS.COMPLETED) {
     return <Navigate to="/my-record" replace />;
@@ -65,6 +86,8 @@ export default function MyRecordDetailPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-10">
+      {backButton}
+
       <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-xl font-bold text-white shadow-sm ring-4 ring-white">

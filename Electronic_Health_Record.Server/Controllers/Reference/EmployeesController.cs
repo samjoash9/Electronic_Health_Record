@@ -1,14 +1,15 @@
+
 using Electronic_Health_Record.Server.DTOs.Employee;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Electronic_Health_Record.Server.Controllers.Reference
 {
     // The employee directory is personal data (names, birthdates, addresses),
-    // so reads require a signed-in account and writes an admin. It previously
-    // served and accepted anonymous requests.
+    // so reads require a signed-in account and writes an admin.
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -34,11 +35,14 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             try
             {
                 var employees = await _employeeService.GetLocalEmployeesAsync();
+
                 return Ok(employees);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error while retrieving employees.");
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while retrieving employees.");
 
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
@@ -51,23 +55,28 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         {
             if (string.IsNullOrWhiteSpace(externalEmployeeId))
             {
-                return BadRequest(new { message = "Employee ID is required." });
+                return BadRequest(
+                    new { message = "Employee ID is required." });
             }
 
             try
             {
-                var employee = await _employeeService.GetLocalEmployeeByIdAsync(externalEmployeeId);
+                var employee =
+                    await _employeeService.GetLocalEmployeeByIdAsync(
+                        externalEmployeeId);
 
                 if (employee == null)
                 {
-                    return NotFound(new { message = "Employee not found." });
+                    return NotFound(
+                        new { message = "Employee not found." });
                 }
 
                 return Ok(employee);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,
+                _logger.LogError(
+                    ex,
                     "Unexpected error while retrieving employee {ExternalEmployeeId}.",
                     externalEmployeeId);
 
@@ -78,20 +87,21 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         // GET /api/employees/search?q=
-        // Directory search backing the Onboarding page's employee picker -- case-insensitive
-        // substring over name or employee id. Distinct from GetEmployees: this reads through
-        // IEmployeeDirectory (writable, HR-swappable) rather than the HR-sync read models.
+        // Directory search backing the Onboarding page's employee picker.
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string? q)
         {
             try
             {
                 var employees = await _directory.SearchAsync(q);
+
                 return Ok(employees);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error while searching the employee directory.");
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while searching the employee directory.");
 
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
@@ -100,38 +110,62 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         // POST /api/employees
-        // Adds someone the HR feed has not synced yet, from the Onboarding page.
-        // Not a sign-in account: a patient account is provisioned at Station 1.
+        // Adds an employee who has not been synced from the HR feed yet.
+        // ExternalEmployeeId is generated automatically by the server.
         [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPost("")]
-        public async Task<IActionResult> Create([FromBody] UpsertEmployeeDto dto)
+        public async Task<IActionResult> Create(
+            [FromBody] UpsertEmployeeDto dto)
         {
             if (!ModelState.IsValid)
+            {
                 return BadRequest(ModelState);
-
-            var externalId = dto.ExternalEmployeeId.Trim();
-            if (await _directory.FindByExternalIdAsync(externalId) is not null)
-                return Conflict($"Employee ID {externalId} already exists in the directory.");
-
-            var employee = new Models.Employee { IsLocallyAdded = true };
-            Apply(dto, employee);
+            }
 
             try
             {
+                // Generate the next External Employee ID.
+                var externalId = await GenerateExternalEmployeeIdAsync();
+
+                var employee = new Models.Employee
+                {
+                    IsLocallyAdded = true,
+                    ExternalEmployeeId = externalId
+                };
+
+                Apply(dto, employee);
+
                 var created = await _directory.AddAsync(employee);
-                return CreatedAtAction(nameof(Search), new { q = created.ExternalEmployeeId }, created);
+
+                return CreatedAtAction(
+                    nameof(Search),
+                    new { q = created.ExternalEmployeeId },
+                    created);
             }
             catch (NotSupportedException)
             {
-                // A read-only HR directory implementation. Nothing the caller can fix.
-                _logger.LogWarning("The configured employee directory does not accept writes.");
-                return StatusCode(501, "This employee directory is read-only.");
+                // A read-only HR directory implementation.
+                _logger.LogWarning(
+                    "The configured employee directory does not accept writes.");
+
+                return StatusCode(
+                    StatusCodes.Status501NotImplemented,
+                    "This employee directory is read-only.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while creating an employee.");
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { message = "An unexpected error occurred." });
             }
         }
 
         // PUT /api/employees/{externalEmployeeId}
-        // Keyed on the HR id rather than the local EmployeeID: that is the handle
-        // the Onboarding page and Station 1 both hold.
+        // The existing ExternalEmployeeId is used to identify the employee.
         [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPut("{externalEmployeeId}")]
         public async Task<IActionResult> Update(
@@ -139,47 +173,156 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             [FromBody] UpsertEmployeeDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var employee = await _directory.FindByExternalIdAsync(externalEmployeeId);
-            if (employee == null)
-                return NotFound($"Employee {externalEmployeeId} was not found.");
-
-            var nextId = dto.ExternalEmployeeId.Trim();
-            if (nextId != externalEmployeeId
-                && await _directory.FindByExternalIdAsync(nextId) is not null)
             {
-                return Conflict($"Employee ID {nextId} already exists in the directory.");
+                return BadRequest(ModelState);
             }
 
+            if (string.IsNullOrWhiteSpace(externalEmployeeId))
+            {
+                return BadRequest(
+                    new { message = "Employee ID is required." });
+            }
+
+            var employee =
+                await _directory.FindByExternalIdAsync(
+                    externalEmployeeId);
+
+            if (employee == null)
+            {
+                return NotFound(
+                    $"Employee {externalEmployeeId} was not found.");
+            }
+
+            // Do not allow the Employee ID to be changed during update.
             Apply(dto, employee);
 
             try
             {
-                return Ok(await _directory.UpdateAsync(employee));
+                return Ok(
+                    await _directory.UpdateAsync(employee));
             }
             catch (NotSupportedException)
             {
-                _logger.LogWarning("The configured employee directory does not accept writes.");
-                return StatusCode(501, "This employee directory is read-only.");
+                _logger.LogWarning(
+                    "The configured employee directory does not accept writes.");
+
+                return StatusCode(
+                    StatusCodes.Status501NotImplemented,
+                    "This employee directory is read-only.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while updating employee {ExternalEmployeeId}.",
+                    externalEmployeeId);
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { message = "An unexpected error occurred." });
             }
         }
 
-        // IsLocallyAdded is deliberately not copied from the DTO: it records where
-        // a row came from, which the client does not get to assert.
-        private static void Apply(UpsertEmployeeDto dto, Models.Employee employee)
+        // Generates the next ExternalEmployeeId.
+        //
+        // Example:
+        // EMP-0001
+        // EMP-0002
+        // EMP-0003
+        //
+        // This checks the existing directory records and finds
+        // the highest numeric employee ID before incrementing it.
+        private async Task<string> GenerateExternalEmployeeIdAsync()
         {
-            employee.ExternalEmployeeId = dto.ExternalEmployeeId.Trim();
-            employee.Surname = dto.Surname.Trim();
-            employee.FirstName = dto.FirstName.Trim();
-            employee.MiddleName = string.IsNullOrWhiteSpace(dto.MiddleName) ? null : dto.MiddleName.Trim();
-            employee.Birthdate = dto.Birthdate.Date;
-            employee.Sex = dto.Sex;
-            employee.CivilStatus = dto.CivilStatus;
-            employee.Address = string.IsNullOrWhiteSpace(dto.Address) ? null : dto.Address.Trim();
-            employee.AgencyOffice = string.IsNullOrWhiteSpace(dto.AgencyOffice) ? null : dto.AgencyOffice.Trim();
-            employee.Position = string.IsNullOrWhiteSpace(dto.Position) ? null : dto.Position.Trim();
-            employee.ContactNo = string.IsNullOrWhiteSpace(dto.ContactNo) ? null : dto.ContactNo.Trim();
+            var employees = await _directory.SearchAsync(null);
+
+            var highestNumber = 0;
+
+            foreach (var employee in employees)
+            {
+                if (string.IsNullOrWhiteSpace(employee.ExternalEmployeeId))
+                {
+                    continue;
+                }
+
+                const string prefix = "EMP-";
+
+                if (!employee.ExternalEmployeeId.StartsWith(
+                        prefix,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var numberPart =
+                    employee.ExternalEmployeeId
+                        .Substring(prefix.Length);
+
+                if (int.TryParse(numberPart, out var number))
+                {
+                    if (number > highestNumber)
+                    {
+                        highestNumber = number;
+                    }
+                }
+            }
+
+            var nextNumber = highestNumber + 1;
+
+            return $"EMP-{nextNumber:D4}";
+        }
+
+        // IsLocallyAdded is deliberately not copied from the DTO.
+        // It records where the employee row came from.
+        private static void Apply(
+            UpsertEmployeeDto dto,
+            Models.Employee employee)
+        {
+            // ExternalEmployeeId is intentionally NOT assigned here.
+            //
+            // It is generated by the server during Create()
+            // and preserved during Update().
+
+            employee.Surname =
+                dto.Surname.Trim();
+
+            employee.FirstName =
+                dto.FirstName.Trim();
+
+            employee.MiddleName =
+                string.IsNullOrWhiteSpace(dto.MiddleName)
+                    ? null
+                    : dto.MiddleName.Trim();
+
+            employee.Birthdate =
+                dto.Birthdate.Date;
+
+            employee.Sex =
+                dto.Sex;
+
+            employee.CivilStatus =
+                dto.CivilStatus;
+
+            employee.Address =
+                string.IsNullOrWhiteSpace(dto.Address)
+                    ? null
+                    : dto.Address.Trim();
+
+            employee.AgencyOffice =
+                string.IsNullOrWhiteSpace(dto.AgencyOffice)
+                    ? null
+                    : dto.AgencyOffice.Trim();
+
+            employee.Position =
+                string.IsNullOrWhiteSpace(dto.Position)
+                    ? null
+                    : dto.Position.Trim();
+
+            employee.ContactNo =
+                string.IsNullOrWhiteSpace(dto.ContactNo)
+                    ? null
+                    : dto.ContactNo.Trim();
         }
     }
 }
+
