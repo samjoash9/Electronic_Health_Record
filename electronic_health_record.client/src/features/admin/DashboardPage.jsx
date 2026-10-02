@@ -396,7 +396,7 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold tracking-wider uppercase text-ink-400">Total Patient</p>
+                <p className="text-xs font-semibold tracking-wider uppercase text-ink-400">Total Patient Entry</p>
                 <p className="mt-1 text-2xl font-bold tracking-tight text-ink-900 tabular-nums">2000</p>
               </div>
               <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-ink-600">

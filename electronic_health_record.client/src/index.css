@@ -38,7 +38,10 @@
 }
 
 /* Dense admin defaults. The kiosk questionnaire opts out via its own classes. */
-html { font-size: 14px; }
+html {
+  font-size: 14px;
+  scroll-behavior: smooth;
+}
 body {
   @apply font-sans text-body antialiased;
   -webkit-font-smoothing: antialiased;
