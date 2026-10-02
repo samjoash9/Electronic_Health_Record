@@ -129,7 +129,8 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
 
             // Checked up front for a clear 409 rather than letting the unique
             // indexes surface as an opaque DbUpdateException.
-            if (await _context.Physicians.AnyAsync(p => p.Username == username || p.Email == email))
+            if (await _context.IsUsernameTakenAsync(username)
+                || await _context.Physicians.AnyAsync(p => p.Email == email))
                 return Conflict($"The username \"{username}\" is already taken.");
 
             if (await _context.Physicians.AnyAsync(p => p.PRCLicenseNo == dto.PRCLicenseNo))

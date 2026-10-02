@@ -136,6 +136,30 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
             }
         }
 
+        // GET /api/patients/username-available?username=...
+        // Lets Station 1 flag a taken username while the admin is still on the
+        // field, instead of only at submit. Free means free across every kind
+        // of login (see IsUsernameTakenAsync). Staff only: it reveals whether
+        // an account exists, which a patient has no reason to probe.
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
+        [HttpGet("username-available")]
+        public async Task<IActionResult> UsernameAvailable([FromQuery] string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return BadRequest(new { message = "Username is required." });
+
+            try
+            {
+                var available = !await _context.IsUsernameTakenAsync(username);
+                return Ok(new { available });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to check username availability.");
+                return StatusCode(500, "An error occurred while checking the username.");
+            }
+        }
+
         // GET /api/patients/accounts
         // Every patient with the portal account Station 1 provisioned for them,
         // for the admin Patients panel. Staff-only: a patient must never be able

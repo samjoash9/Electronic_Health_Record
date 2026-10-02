@@ -1,21 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchEmployees } from '../../api/patients.api';
 import { fullName } from '../../lib/formatters';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import Card from '../../components/ui/Card';
 import DataTable from '../../components/ui/DataTable';
 import Pagination from '../../components/ui/Pagination';
 import PatientPreviewModal from '../../components/ui/PatientPreviewModal';
 import SearchInput from '../../components/ui/SearchInput';
-
-function useDebouncedValue(value, delayMs) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-  return debounced;
-}
 
 const COLUMNS = [
   {

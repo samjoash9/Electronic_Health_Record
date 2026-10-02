@@ -45,7 +45,7 @@ public class UserManagementController : ControllerBase
         var username = request.Username.Trim();
         var contactNo = string.IsNullOrWhiteSpace(request.ContactNo) ? null : request.ContactNo.Trim();
 
-        if (await _db.Admins.AnyAsync(a => a.Username == username))
+        if (await _db.IsUsernameTakenAsync(username))
         {
             return BadRequest(new
             {
@@ -155,9 +155,8 @@ public class UserManagementController : ControllerBase
             var username = request.Username!.Trim();
             var email = $"{username}@hospital.com";
 
-            if (await _db.Physicians.AnyAsync(p =>
-                p.Username == username ||
-                p.Email == email))
+            if (await _db.IsUsernameTakenAsync(username) ||
+                await _db.Physicians.AnyAsync(p => p.Email == email))
             {
                 return BadRequest(new
                 {

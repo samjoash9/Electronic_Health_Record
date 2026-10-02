@@ -5,13 +5,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { History } from 'lucide-react';
 import { submitStation1 } from '../../api/forms.api';
-import { hasPatientAccount } from '../../api/patients.api';
+import { hasPatientAccount, isUsernameAvailable } from '../../api/patients.api';
 import { calculateBMI, IDEAL_BMI } from '../../lib/bmi';
 import { station1Schema, newAccountUsernameSchema } from '../../lib/schemas';
 import { DEFAULT_PATIENT_PASSWORD } from '../../lib/constants';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station1Draft';
 import EmployeeSearch from './EmployeeSearch';
 import IdentityFields from './IdentityFields';
@@ -92,10 +93,36 @@ export default function Station1Page() {
   });
   const needsUsername = hasSelectedEmployee && hasAccount === false;
   needsUsernameRef.current = needsUsername;
+  // Trimmed to match newAccountUsernameSchema's /\S/ check.
+  const typedUsername = (watch('username') ?? '').trim();
+  const usernameMissing = needsUsername && !typedUsername;
+
+  // Two employees can share a name, so two patients can ask for the same
+  // username; this checks it is free while the admin is still on the field,
+  // rather than only failing at submit. Debounced so it runs once typing
+  // pauses, not per keystroke. Over-long names are not sent at all --
+  // newAccountUsernameSchema reports those as "Too long".
+  const debouncedUsername = useDebouncedValue(typedUsername, 300);
+  const usernameCheckable = needsUsername && typedUsername.length > 0 && typedUsername.length <= 30;
+  const usernameCheck = useQuery({
+    queryKey: ['usernameAvailable', debouncedUsername],
+    queryFn: () => isUsernameAvailable(debouncedUsername),
+    enabled: usernameCheckable && debouncedUsername === typedUsername,
+  });
+  const usernameSettled = debouncedUsername === typedUsername && !usernameCheck.isFetching;
+  // null when there is nothing to say -- including a failed check, which is
+  // left to the server's own uniqueness check at submit rather than blocking.
+  let usernameStatus = null;
+  if (usernameCheckable) {
+    if (!usernameSettled) usernameStatus = 'checking';
+    else if (usernameCheck.data === false) usernameStatus = 'taken';
+    else if (usernameCheck.data === true) usernameStatus = 'available';
+  }
+
   // Greys out Next and locks Vital Signs on the step indicator until the admin
-  // types something; trimmed to match newAccountUsernameSchema's /\S/ check.
-  const usernameMissing = needsUsername && !watch('username')?.trim();
-  const unlockedUpTo = !hasSelectedEmployee ? 1 : usernameMissing ? 2 : STEPS.length;
+  // has typed a username and it has come back as free.
+  const usernameBlocked = usernameMissing || usernameStatus === 'checking' || usernameStatus === 'taken';
+  const unlockedUpTo = !hasSelectedEmployee ? 1 : usernameBlocked ? 2 : STEPS.length;
 
   const mutation = useMutation({
     mutationFn: submitStation1,
@@ -126,6 +153,12 @@ export default function Station1Page() {
     },
     onError: (error) => {
       toast.error(error.message);
+      // Taken between the live check and submit (another desk registered it
+      // first): back to the field, where a fresh check will flag it.
+      if (error.status === 409 && /username/i.test(error.message)) {
+        queryClient.invalidateQueries({ queryKey: ['usernameAvailable'] });
+        setStep(2);
+      }
     },
   });
 
@@ -241,6 +274,7 @@ export default function Station1Page() {
             control={control}
             errors={errors}
             needsUsername={needsUsername}
+            usernameStatus={usernameStatus}
           />
         </>
       )}

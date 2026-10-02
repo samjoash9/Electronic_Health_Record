@@ -229,9 +229,10 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                         return BadRequest(new { message = "Username is required when registering a new patient account." });
                     }
 
-                    var usernameTaken = await _context.PatientAccounts
-                        .AnyAsync(a => a.Username == dto.Patient.Username);
-                    if (usernameTaken)
+                    // Against every kind of login, not just patients -- see
+                    // IsUsernameTakenAsync for why per-table uniqueness is not enough.
+                    var username = dto.Patient.Username.Trim();
+                    if (await _context.IsUsernameTakenAsync(username))
                     {
                         await transaction.RollbackAsync();
                         return Conflict(new { message = "That username is already taken." });
@@ -240,7 +241,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                     var account = new PatientAccount
                     {
                         PatientID = patient.PatientID,
-                        Username = dto.Patient.Username,
+                        Username = username,
                         Status = "Active",
                         MustChangePassword = true,
                         PasswordSetAt = now,

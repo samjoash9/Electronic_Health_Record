@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { saveDraft } from '../../lib/station1Draft';
-import { hasPatientAccount } from '../../api/patients.api';
+import { hasPatientAccount, isUsernameAvailable } from '../../api/patients.api';
 
 const EMPLOYEE = {
   externalEmployeeId: 'EMP-1',
@@ -23,6 +23,7 @@ const EMPLOYEE = {
 vi.mock('../../api/patients.api', () => ({
   searchEmployees: vi.fn(async () => [EMPLOYEE]),
   hasPatientAccount: vi.fn(async () => true),
+  isUsernameAvailable: vi.fn(async () => true),
 }));
 
 vi.mock('../../auth/useAuth', () => ({
@@ -91,6 +92,7 @@ describe('Station1Page username guard', () => {
     localStorage.clear();
     vi.clearAllMocks();
     hasPatientAccount.mockResolvedValue(false);
+    isUsernameAvailable.mockResolvedValue(true);
   });
 
   it('disables Next and the Vital Signs step until a username is entered', async () => {
@@ -124,14 +126,40 @@ describe('Station1Page username guard', () => {
     expect(screen.getByText('Confirm Information')).toHaveClass('font-bold');
   });
 
-  it('advances to Vital Signs once a username is entered', async () => {
+  it('advances to Vital Signs once an available username is entered', async () => {
     const user = userEvent.setup();
     renderPage();
     await selectEmployee(user);
     await user.type(await screen.findByLabelText(/desired username/i), 'juandelacruz');
 
+    expect(await screen.findByText('Username is available.')).toBeInTheDocument();
+    expect(isUsernameAvailable).toHaveBeenLastCalledWith('juandelacruz');
+
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(await screen.findByRole('heading', { name: 'Vital Signs' })).toBeInTheDocument();
+  });
+
+  it('blocks Next while the username is still being checked', async () => {
+    isUsernameAvailable.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+    await user.type(await screen.findByLabelText(/desired username/i), 'juandelacruz');
+
+    expect(await screen.findByText('Checking availability…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
+  it('blocks Next and says so when the username is already taken', async () => {
+    isUsernameAvailable.mockResolvedValue(false);
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+    await user.type(await screen.findByLabelText(/desired username/i), 'superadmin');
+
+    expect(await screen.findByText('That username is already taken.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByText('Vital Signs').closest('button')).toBeDisabled();
   });
 });

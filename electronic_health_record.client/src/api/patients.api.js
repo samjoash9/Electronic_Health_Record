@@ -257,3 +257,23 @@ export async function hasPatientAccount(externalEmployeeId) {
     throw toApiError(error);
   }
 }
+
+// Whether `username` is free for a new patient account. Checked against every
+// kind of login, not just patients: sign-in looks a username up across admins,
+// physicians and patients, so a clash with any of them would lock someone out.
+export async function isUsernameAvailable(username) {
+  if (USE_MOCK) {
+    await delay(100);
+    const { admins, physicians, patientAccounts } = db.read();
+    const wanted = username.trim().toLowerCase();
+    return ![...admins, ...physicians, ...patientAccounts]
+      .some((account) => account.username?.toLowerCase() === wanted);
+  }
+
+  try {
+    const { data } = await client.get('/patients/username-available', { params: { username } });
+    return Boolean(data?.available);
+  } catch (error) {
+    throw toApiError(error);
+  }
+}

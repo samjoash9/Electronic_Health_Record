@@ -7,7 +7,16 @@ import Field from '../../components/ui/Field';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 
-export default function IdentityFields({ register, watch, control, errors, needsUsername }) {
+// usernameStatus: 'checking' | 'available' | 'taken' | null, from Station1Page's
+// live uniqueness check.
+const USERNAME_HINTS = {
+  checking: 'Checking availability…',
+  available: <span className="font-medium text-[#0e7d6b]">Username is available.</span>,
+};
+
+export default function IdentityFields({
+  register, watch, control, errors, needsUsername, usernameStatus,
+}) {
   const age = ageFrom(watch('birthdate'));
 
   return (
@@ -18,7 +27,9 @@ export default function IdentityFields({ register, watch, control, errors, needs
             label="Desired Username (ask the patient)"
             htmlFor="username"
             required
-            error={errors?.username?.message}
+            error={errors?.username?.message
+              ?? (usernameStatus === 'taken' ? 'That username is already taken.' : undefined)}
+            hint={USERNAME_HINTS[usernameStatus]}
           >
             <Input
               id="username"
