@@ -19,6 +19,7 @@ import Avatar from '../../components/ui/Avatar';
 import TableFooter from '../../components/ui/TableFooter';
 import OnboardedPatientsChart from './OnboardedPatientsChart';
 import { STATION_CONFIG } from './stationConfig';
+import StationReportsSection from './stationReports/StationReportsSection';
 
 const RECENT_COLUMNS = [
   {
@@ -240,6 +241,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 2b. Station Reports: one general report per station, shared filter */}
+      <div className="mt-6">
+        <StationReportsSection />
       </div>
 
       {/* 3. Middle Section: Onboarded Patients Line Chart (full width) */}
