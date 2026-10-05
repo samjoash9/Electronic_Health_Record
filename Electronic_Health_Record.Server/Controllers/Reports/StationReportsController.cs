@@ -74,6 +74,142 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
             });
         }
 
+        // GET /api/reports/station2?from=&to=&office=
+        // Scores pool the same way as AssessmentController.GetWellnessScores:
+        // points over points possible, across the questions actually answered.
+        [HttpGet("station2")]
+        public async Task<IActionResult> GetStation2(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!TryParseRange(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var (completed, medianMinutes) = await ThroughputAsync(range,
+                f => new StationSpan { Start = f.Station2StartedAt, End = f.Station2SubmittedAt });
+
+            var assessed = await FormsInRange(range)
+                .Where(f => _context.AssessmentAnswers.Any(a => a.FormID == f.FormID))
+                .Select(f => new { f.FormID, f.PatientID, f.FormDate })
+                .ToListAsync();
+            var latestIds = LatestPerPatient(assessed, v => v.PatientID, v => v.FormDate, v => v.FormID)
+                .Select(v => v.FormID)
+                .ToList();
+
+            var answers = await (
+                from a in _context.AssessmentAnswers
+                join o in _context.AssessmentOptions on a.OptionID equals o.OptionID
+                join q in _context.AssessmentQuestions on a.QuestionID equals q.QuestionID
+                where latestIds.Contains(a.FormID)
+                select new { a.FormID, a.QuestionID, q.CategoryID, Score = (int)o.Score }
+            ).ToListAsync();
+
+            // A question's best option is what an answer to it could have scored.
+            var bestByQuestion = await _context.AssessmentOptions
+                .GroupBy(o => o.QuestionID)
+                .Select(g => new { QuestionID = g.Key, Best = g.Max(o => (int)o.Score) })
+                .ToDictionaryAsync(q => q.QuestionID, q => q.Best);
+
+            var bands = answers
+                .GroupBy(a => a.FormID)
+                .Select(g => ReportClassifiers.WellnessBand(ScorePercent(
+                    g.Sum(a => a.Score),
+                    g.Sum(a => bestByQuestion.GetValueOrDefault(a.QuestionID)))));
+
+            var categoryNames = await _context.AssessmentCategories
+                .ToDictionaryAsync(c => c.CategoryID, c => c.Name);
+
+            var focus = answers
+                .GroupBy(a => a.CategoryID)
+                .Select(g => new
+                {
+                    CategoryID = g.Key,
+                    Percent = ScorePercent(
+                        g.Sum(a => a.Score),
+                        g.Sum(a => bestByQuestion.GetValueOrDefault(a.QuestionID))),
+                })
+                .Where(c => c.Percent != null)
+                .OrderBy(c => c.Percent)
+                .FirstOrDefault();
+
+            return Ok(new
+            {
+                completed,
+                medianMinutes,
+                patients = latestIds.Count,
+                bands = ReportClassifiers.Tally(bands, "excellent", "good", "fair", "attention", "support"),
+                focusArea = focus == null ? null : new
+                {
+                    category = categoryNames.GetValueOrDefault(focus.CategoryID, "Unknown"),
+                    percent = Math.Round(focus.Percent!.Value, 1),
+                },
+            });
+        }
+
+        // GET /api/reports/station3?from=&to=&office=
+        [HttpGet("station3")]
+        public async Task<IActionResult> GetStation3(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!TryParseRange(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var consults = await FormsInRange(range)
+                .Where(f => f.Station3SubmittedAt != null)
+                .Select(f => new
+                {
+                    f.FormID, f.PatientID, f.FormDate, f.SignedByName,
+                    f.Station3StartedAt, f.Station3SubmittedAt,
+                })
+                .ToListAsync();
+
+            var latestIds = LatestPerPatient(consults, v => v.PatientID, v => v.FormDate, v => v.FormID)
+                .Select(v => v.FormID)
+                .ToList();
+
+            var charges = await (
+                from c in _context.WellnessFormCharges
+                join f in FormsInRange(range) on c.FormID equals f.FormID
+                select new { c.ItemType, c.Name }
+            ).ToListAsync();
+
+            // A blank PMH row (no catalog condition, no free text) is not a condition.
+            var withCondition = await _context.PastMedicalHistories
+                .Where(h => latestIds.Contains(h.FormID)
+                         && (h.ConditionID != null || (h.ConditionOther != null && h.ConditionOther != "")))
+                .Select(h => h.FormID)
+                .Distinct()
+                .CountAsync();
+
+            var social = await _context.SocialHistories
+                .Where(s => latestIds.Contains(s.FormID))
+                .Select(s => new { s.FormID, s.Smokes, s.AlcoholType })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                completed = consults.Count,
+                medianMinutes = ReportClassifiers.MedianMinutes(
+                    consults.Select(c => (c.Station3StartedAt, c.Station3SubmittedAt))),
+                patients = latestIds.Count,
+                topLabs = TopByCount(charges.Where(c => c.ItemType == ChargeItemType.Lab).Select(c => c.Name)),
+                topMeds = TopByCount(charges.Where(c => c.ItemType == ChargeItemType.Medication).Select(c => c.Name)),
+                // SignedByName, not PhysicianID: it survives deletion of the account.
+                byPhysician = consults
+                    .GroupBy(c => string.IsNullOrWhiteSpace(c.SignedByName) ? "Unknown" : c.SignedByName.Trim())
+                    .Select(g => new NameCount(g.Key, g.Count()))
+                    .OrderByDescending(p => p.Count)
+                    .ThenBy(p => p.Name)
+                    .ToList(),
+                riskFactors = new
+                {
+                    chronicCondition = withCondition,
+                    smokers = social.Where(s => s.Smokes == true).Select(s => s.FormID).Distinct().Count(),
+                    drinkers = social.Where(s => !string.IsNullOrWhiteSpace(s.AlcoholType))
+                        .Select(s => s.FormID).Distinct().Count(),
+                },
+            });
+        }
+
         // ---- shared helpers ------------------------------------------------
 
         private sealed record ReportRange(DateTime From, DateTime To, string? Office);
@@ -135,5 +271,19 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
             var finished = spans.Where(s => s.End != null).ToList();
             return (finished.Count, ReportClassifiers.MedianMinutes(finished.Select(s => (s.Start, s.End))));
         }
+
+        private sealed record NameCount(string Name, int Count);
+
+        private static double? ScorePercent(int points, int possible) =>
+            possible == 0 ? null : 100.0 * points / possible;
+
+        // The five names seen most often, case-insensitively, ties alphabetical.
+        private static List<NameCount> TopByCount(IEnumerable<string> names) =>
+            names.GroupBy(n => n.Trim(), StringComparer.OrdinalIgnoreCase)
+                 .Select(g => new NameCount(g.First().Trim(), g.Count()))
+                 .OrderByDescending(n => n.Count)
+                 .ThenBy(n => n.Name)
+                 .Take(5)
+                 .ToList();
     }
 }
