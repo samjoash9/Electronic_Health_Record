@@ -28,6 +28,11 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
     [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
     public class StationReportsController : ControllerBase
     {
+        // Forms that never reached Station 3 carry no charges, and a cancelled
+        // visit consumes nothing -- the same exclusions as BillingController.
+        private static readonly string[] UnbilledStatuses =
+            ["PendingAssessment", "PendingConsultation", "Cancelled"];
+
         private readonly ElectronicHealthRecordDbContext _context;
 
         public StationReportsController(ElectronicHealthRecordDbContext context)
@@ -318,6 +323,89 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                     specialistReferral = latest.Count(e => e.ReferralToEyeSpecialist == "Yes"),
                     followUp = latest.Count(e => e.FollowUpConsultationAdvised == "Yes"),
                 },
+            });
+        }
+
+        // GET /api/reports/station6?from=&to=
+        // Capital is pooled across offices, so office is accepted but ignored.
+        // The period shown is the billing form covering the end of the range,
+        // or today when the range runs into the future. Consumed is summed
+        // exactly as BillingController.SummarisePeriodAsync does.
+        [HttpGet("station6")]
+        public async Task<IActionResult> GetStation6(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!TryParseRange(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var today = PhilippineTime.Today;
+            var asOf = range.To < today ? range.To : today;
+
+            var period = await _context.BillingForms
+                .Where(b => b.StartDate.Date <= asOf && b.EndDate.Date >= asOf)
+                .OrderByDescending(b => b.StartDate)
+                .FirstOrDefaultAsync();
+
+            if (period == null)
+            {
+                return Ok(new
+                {
+                    asOf = asOf.ToString("yyyy-MM-dd"),
+                    period = (object?)null,
+                    byType = new { lab = 0m, medication = 0m },
+                    topItems = Array.Empty<object>(),
+                    unpricedCount = 0,
+                });
+            }
+
+            var lowerBound = period.StartDate.Date;
+            var upperBound = period.EndDate.Date.AddDays(1);
+
+            var charges = await (
+                from c in _context.WellnessFormCharges
+                join f in _context.WellnessForms on c.FormID equals f.FormID
+                where f.FormDate >= lowerBound
+                   && f.FormDate < upperBound
+                   && !UnbilledStatuses.Contains(f.Status)
+                select new { c.ItemType, c.Name, c.UnitPrice, c.Quantity }
+            ).ToListAsync();
+
+            // A null price is a quote still owed, not zero: it adds nothing to
+            // the money and is counted in unpricedCount instead.
+            static decimal Amount(decimal? unitPrice, int quantity) => (unitPrice ?? 0) * quantity;
+
+            var consumed = charges.Sum(c => Amount(c.UnitPrice, c.Quantity));
+
+            return Ok(new
+            {
+                asOf = asOf.ToString("yyyy-MM-dd"),
+                period = new
+                {
+                    billingFormID = period.BillingFormID,
+                    title = period.Title,
+                    startDate = period.StartDate.ToString("yyyy-MM-dd"),
+                    endDate = period.EndDate.ToString("yyyy-MM-dd"),
+                    capital = period.Capital,
+                    consumed,
+                    remaining = period.Capital - consumed,
+                    percentUsed = period.Capital > 0 ? Math.Round(consumed / period.Capital * 100, 1) : 0m,
+                },
+                byType = new
+                {
+                    lab = charges.Where(c => c.ItemType == ChargeItemType.Lab)
+                        .Sum(c => Amount(c.UnitPrice, c.Quantity)),
+                    medication = charges.Where(c => c.ItemType == ChargeItemType.Medication)
+                        .Sum(c => Amount(c.UnitPrice, c.Quantity)),
+                },
+                topItems = charges
+                    .Where(c => c.UnitPrice != null)
+                    .GroupBy(c => c.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .Select(g => new { name = g.First().Name.Trim(), amount = g.Sum(c => Amount(c.UnitPrice, c.Quantity)) })
+                    .OrderByDescending(i => i.amount)
+                    .ThenBy(i => i.name)
+                    .Take(5)
+                    .ToList(),
+                unpricedCount = charges.Count(c => c.UnitPrice == null),
             });
         }
 
