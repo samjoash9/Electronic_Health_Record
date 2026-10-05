@@ -44,3 +44,24 @@ export function yearOptions(years, selected) {
     .sort((a, b) => b - a)
     .map((y) => ({ value: String(y), label: String(y) }));
 }
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** yyyy-MM-dd for a calendar date, the format the report endpoints take. */
+export const isoDate = (year, month, day) => `${year}-${pad2(month)}-${pad2(day)}`;
+
+/**
+ * Inclusive { from, to } for the station reports' filter: one day, one
+ * month, or one calendar year. `date` is already yyyy-MM-dd for Day.
+ */
+export function periodRange(granularity, { year, month, date }) {
+  if (granularity === 'day') return { from: date, to: date };
+  if (granularity === 'month') {
+    return { from: isoDate(year, month, 1), to: isoDate(year, month, daysInMonth(year, month)) };
+  }
+  return { from: isoDate(year, 1, 1), to: isoDate(year, 12, 31) };
+}
+
+/** The current year and the `count - 1` before it, newest first. */
+export const recentYears = (currentYear, count = 5) =>
+  Array.from({ length: count }, (_, i) => currentYear - i);

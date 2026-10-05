@@ -18,18 +18,7 @@ import StatCard from '../../components/ui/StatCard';
 import Avatar from '../../components/ui/Avatar';
 import TableFooter from '../../components/ui/TableFooter';
 import OnboardedPatientsChart from './OnboardedPatientsChart';
-import DiagnosedConditionsChart from './DiagnosedConditionsChart';
-import SmokerStatusChart from './SmokerStatusChart';
-import WellnessAspectsChart from './WellnessAspectsChart';
-
-const STATION_CONFIG = [
-  { id: 1, name: 'Station 1', bgClass: 'bg-sky-500', hex: '#0ea5e9' },
-  { id: 2, name: 'Station 2', bgClass: 'bg-emerald-500', hex: '#10b981' },
-  { id: 3, name: 'Station 3', bgClass: 'bg-violet-500', hex: '#8b5cf6' },
-  { id: 4, name: 'Station 4', bgClass: 'bg-amber-500', hex: '#f59e0b' },
-  { id: 5, name: 'Station 5', bgClass: 'bg-rose-500', hex: '#f43f5e' },
-  { id: 6, name: 'Station 6', bgClass: 'bg-teal-500', hex: '#14b8a6' },
-];
+import { STATION_CONFIG } from './stationConfig';
 
 const RECENT_COLUMNS = [
   {
@@ -253,22 +242,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. Middle Section: Strictly Static Charts (3 Columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Donut Chart (Col 1) */}
-        <DiagnosedConditionsChart />
-
-        {/* Line Chart (Cols 2 & 3) */}
+      {/* 3. Middle Section: Onboarded Patients Line Chart (full width) */}
+      <div className="mt-6">
         <OnboardedPatientsChart />
-      </div>
-
-      {/* 3b. Third Row Analytics: 7 Aspects of Wellness & Smoker Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* The '7 Aspects of Wellness' Bar Chart (Left Side: 2 Columns) */}
-        <WellnessAspectsChart />
-
-        {/* The 'Smoker Status' Stacked Bar Chart (Right Side: 1 Column) */}
-        <SmokerStatusChart />
       </div>
 
       {/* 4. Bottom Section: Existing Recent Forms table with mt-6 */}
