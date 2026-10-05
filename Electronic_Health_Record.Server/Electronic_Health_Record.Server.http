@@ -4,3 +4,19 @@ GET {{Electronic_Health_Record.Server_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+### Station reports — log in, paste the token below
+POST https://localhost:7165/api/auth/login
+Content-Type: application/json
+
+{ "username": "superadmin", "password": "<your password>" }
+
+###
+@token = <paste token>
+
+GET https://localhost:7165/api/reports/station1?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+###
+GET https://localhost:7165/api/reports/station1?from=2026-12-31&to=2026-01-01
+Authorization: Bearer {{token}}
