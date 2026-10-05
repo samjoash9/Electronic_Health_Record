@@ -25,6 +25,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
@@ -64,9 +65,7 @@
       <SpaPublishFiles Include="$(SpaRoot)\dist\**" />
     </ItemGroup>
 
-    <Error
-      Condition="'@(SpaPublishFiles)' == ''"
-      Text="The client build produced no files in $(SpaRoot)\dist. Publishing would deploy an API with no UI, so the build is stopped here." />
+    <Error Condition="'@(SpaPublishFiles)' == ''" Text="The client build produced no files in $(SpaRoot)\dist. Publishing would deploy an API with no UI, so the build is stopped here." />
 
     <ItemGroup>
       <ResolvedFileToPublish Include="@(SpaPublishFiles)">

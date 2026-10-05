@@ -1,12 +1,15 @@
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Patient;
 using Electronic_Health_Record.Server.Models;
+using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
+using System.Globalization;
+using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 
 
@@ -428,6 +431,222 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
                 _logger.LogError(ex, "Failed to retrieve visit history for patient {PatientID}.", patientId);
                 return StatusCode(500, "An error occurred while retrieving this patient's visit history.");
             }
+        }
+
+        // Manila has had no DST since 1978 (see PhilippineTime), so a fixed
+        // offset is exact -- and, unlike TimeZoneInfo, it translates to SQL.
+        private const int ManilaUtcOffsetHours = 8;
+
+        // GET /api/patients/onboarded?granularity=day&year=2026&month=10
+        // GET /api/patients/onboarded?granularity=month&year=2026
+        // GET /api/patients/onboarded?granularity=year
+        // The dashboard's "Total Patients Onboarded" chart. A patient is
+        // onboarded when Station 1 first registers them (Patient.CreatedAt,
+        // stored UTC). Buckets are Manila calendar days/months/years, so a
+        // 7 AM PHT registration -- still the previous day in UTC -- lands on
+        // the day the clinic actually saw it. Every bucket in the range comes
+        // back, zero-filled, so the client can plot the series as-is.
+        //   day   -> each day of the month; previous = same day of the month before
+        //   month -> each month of the year; previous = same month of the year before
+        //   year  -> each year since the first registration; no previous
+        [Authorize]
+        [HttpGet("onboarded")]
+        public async Task<IActionResult> GetOnboardedStats(
+            [FromQuery] string? granularity,
+            [FromQuery] int? year,
+            [FromQuery] int? month)
+        {
+            var mode = granularity?.Trim().ToLowerInvariant();
+            if (mode is not ("day" or "month" or "year"))
+                return BadRequest(new { message = "granularity must be day, month, or year." });
+
+            if (mode is "day" or "month" && year is not (>= 1900 and <= 2100))
+                return BadRequest(new { message = "A year between 1900 and 2100 is required." });
+
+            if (mode == "day" && month is not (>= 1 and <= 12))
+                return BadRequest(new { message = "A month between 1 and 12 is required." });
+
+            try
+            {
+                var thisYear = PhilippineTime.Today.Year;
+                var firstCreatedAt = await _context.Patients.MinAsync(p => (DateTime?)p.CreatedAt);
+                var firstYear = firstCreatedAt is { } first
+                    ? Math.Min(first.AddHours(ManilaUtcOffsetHours).Year, thisYear)
+                    : thisYear;
+
+                List<OnboardedPoint> points;
+
+                if (mode == "day")
+                {
+                    var start = new DateTime(year!.Value, month!.Value, 1);
+                    var previousStart = start.AddMonths(-1);
+                    var current = await CountOnboardedAsync(start, start.AddMonths(1), p => p.CreatedAt.AddHours(ManilaUtcOffsetHours).Day);
+                    var previous = await CountOnboardedAsync(previousStart, start, p => p.CreatedAt.AddHours(ManilaUtcOffsetHours).Day);
+                    var daysInPrevious = DateTime.DaysInMonth(previousStart.Year, previousStart.Month);
+
+                    // Previous is null past the end of a shorter month (Mar 31
+                    // has no Feb 31), so the dashed line stops instead of
+                    // dropping to a zero that never happened.
+                    points = Enumerable.Range(1, DateTime.DaysInMonth(start.Year, start.Month))
+                        .Select(d => new OnboardedPoint(
+                            d.ToString(CultureInfo.InvariantCulture),
+                            current.GetValueOrDefault(d),
+                            d <= daysInPrevious ? previous.GetValueOrDefault(d) : null))
+                        .ToList();
+                }
+                else if (mode == "month")
+                {
+                    var start = new DateTime(year!.Value, 1, 1);
+                    var current = await CountOnboardedAsync(start, start.AddYears(1), p => p.CreatedAt.AddHours(ManilaUtcOffsetHours).Month);
+                    var previous = await CountOnboardedAsync(start.AddYears(-1), start, p => p.CreatedAt.AddHours(ManilaUtcOffsetHours).Month);
+
+                    points = Enumerable.Range(1, 12)
+                        .Select(m => new OnboardedPoint(
+                            CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(m),
+                            current.GetValueOrDefault(m),
+                            previous.GetValueOrDefault(m)))
+                        .ToList();
+                }
+                else
+                {
+                    var counts = await CountOnboardedAsync(
+                        new DateTime(firstYear, 1, 1),
+                        new DateTime(thisYear + 1, 1, 1),
+                        p => p.CreatedAt.AddHours(ManilaUtcOffsetHours).Year);
+
+                    points = Enumerable.Range(firstYear, thisYear - firstYear + 1)
+                        .Select(y => new OnboardedPoint(
+                            y.ToString(CultureInfo.InvariantCulture),
+                            counts.GetValueOrDefault(y),
+                            null))
+                        .ToList();
+                }
+
+                return Ok(new
+                {
+                    data = new
+                    {
+                        Total = points.Sum(p => p.Current),
+                        Points = points,
+                        // What the Year dropdown offers: every year that can
+                        // have data, newest last.
+                        Years = Enumerable.Range(firstYear, thisYear - firstYear + 1).ToList(),
+                    },
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve onboarded patient stats.");
+                return StatusCode(500, "An error occurred while retrieving onboarded patient stats.");
+            }
+        }
+
+        private sealed record OnboardedPoint(string Label, int Current, int? Previous);
+
+        // GET /api/patients/smoking-status
+        // GET /api/patients/smoking-status?office=PROVINCIAL HEALTH OFFICE
+        // The dashboard's Smoker Status card. Each patient counts once, by
+        // the Social History of their latest visit that answered "Smokes?" --
+        // someone who quit since an earlier visit is a non-smoker now.
+        // Cancelled forms and unanswered rows are skipped. Station 3 lets a
+        // smoker tick cigarette and e-cigarette both, so smokers split four
+        // ways (cigarette only, e-cigarette only, both, neither ticked) and
+        // the split adds up to the number of smokers.
+        // office is compared with Patient.AgencyOffice (the client offers the
+        // offices in agencyPositions.json); the column's default collation
+        // makes that case-insensitive. Omit it for every office.
+        [Authorize]
+        [HttpGet("smoking-status")]
+        public async Task<IActionResult> GetSmokingStatus([FromQuery] string? office)
+        {
+            var officeFilter = string.IsNullOrWhiteSpace(office) ? null : office.Trim();
+
+            try
+            {
+                var answered =
+                    from s in _context.SocialHistories
+                    join f in _context.WellnessForms on s.FormID equals f.FormID
+                    join p in _context.Patients on f.PatientID equals p.PatientID
+                    where s.Smokes != null
+                       && f.Status != "Cancelled"
+                       && (officeFilter == null || p.AgencyOffice == officeFilter)
+                    select new
+                    {
+                        f.PatientID,
+                        f.FormDate,
+                        f.FormID,
+                        s.SocialHistoryID,
+                        s.Smokes,
+                        s.SmokesCigarette,
+                        s.SmokesEcig,
+                    };
+
+                // A patient's latest answered visit is the one no other answered
+                // visit of theirs comes after. FormID breaks same-day ties (as
+                // in WellnessFormsController.GetMine), and SocialHistoryID a
+                // stray second row on one form, so nobody is counted twice.
+                var latest = answered.Where(a => !answered.Any(b =>
+                    b.PatientID == a.PatientID
+                    && (b.FormDate > a.FormDate
+                        || (b.FormDate == a.FormDate && b.FormID > a.FormID)
+                        || (b.FormID == a.FormID && b.SocialHistoryID > a.SocialHistoryID))));
+
+                // One constant group, so at most one row: taken in memory
+                // rather than with FirstOrDefaultAsync, which makes EF log an
+                // "unordered First" warning on every dashboard load.
+                var counts = (await latest
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        Total = g.Count(),
+                        NonSmokers = g.Count(x => x.Smokes == false),
+                        Traditional = g.Count(x => x.Smokes == true && x.SmokesCigarette && !x.SmokesEcig),
+                        ECigarette = g.Count(x => x.Smokes == true && !x.SmokesCigarette && x.SmokesEcig),
+                        Both = g.Count(x => x.Smokes == true && x.SmokesCigarette && x.SmokesEcig),
+                        Unspecified = g.Count(x => x.Smokes == true && !x.SmokesCigarette && !x.SmokesEcig),
+                    })
+                    .ToListAsync())
+                    .SingleOrDefault();
+
+                return Ok(new
+                {
+                    data = new
+                    {
+                        Total = counts?.Total ?? 0,
+                        NonSmokers = counts?.NonSmokers ?? 0,
+                        Smokers = new
+                        {
+                            Traditional = counts?.Traditional ?? 0,
+                            ECigarette = counts?.ECigarette ?? 0,
+                            Both = counts?.Both ?? 0,
+                            Unspecified = counts?.Unspecified ?? 0,
+                        },
+                    },
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve smoking status for office {Office}.", officeFilter ?? "(all)");
+                return StatusCode(500, "An error occurred while retrieving smoking status.");
+            }
+        }
+
+        // Registrations in [fromLocal, toLocal) Manila time, counted per
+        // bucket. The range is converted to UTC and filtered on the raw
+        // column so SQL can use it as-is; only the grouping key shifts.
+        private async Task<Dictionary<int, int>> CountOnboardedAsync(
+            DateTime fromLocal,
+            DateTime toLocal,
+            Expression<Func<Patient, int>> bucket)
+        {
+            var fromUtc = fromLocal.AddHours(-ManilaUtcOffsetHours);
+            var toUtc = toLocal.AddHours(-ManilaUtcOffsetHours);
+
+            return await _context.Patients
+                .Where(p => p.CreatedAt >= fromUtc && p.CreatedAt < toUtc)
+                .GroupBy(bucket)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.Key, g => g.Count);
         }
     }
 }

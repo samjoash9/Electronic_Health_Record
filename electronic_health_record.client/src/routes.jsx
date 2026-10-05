@@ -11,6 +11,7 @@ import FormsPage from './features/admin/FormsPage';
 import FormDetailPage from './features/admin/FormDetailPage';
 import FormEditPage from './features/admin/FormEditPage';
 import ActivityLogsPage from './features/admin/ActivityLogsPage';
+import HealthReportsPage from './features/reports/HealthReportsPage';
 import OnboardingPage from './features/admin/onboarding/OnboardingPage';
 import Station1Page from './features/station1/Station1Page';
 import Station2QueuePage from './features/station2/Station2QueuePage';
@@ -60,6 +61,9 @@ export const routeElements = createRoutesFromElements(
       <Route element={<RequireAuth allow={[ROLES.ADMIN, ROLES.DOCTOR]} />}>
         <Route path="/forms" element={<FormsPage />} />
         <Route path="/forms/:formId" element={<FormDetailPage />} />
+        {/* Population figures, no single patient's chart: the doctors read
+            them as much as the admins who run the programme. */}
+        <Route path="/health-reports" element={<HealthReportsPage />} />
       </Route>
 
       <Route element={<RequireAuth allow={[ROLES.ADMIN]} />}>

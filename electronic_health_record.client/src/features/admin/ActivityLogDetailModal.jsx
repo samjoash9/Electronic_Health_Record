@@ -28,7 +28,8 @@ function Row({ icon: Icon, label, children }) {
 /**
  * Read-only detail for one audit entry. An audit log is a record of what
  * happened, so nothing here is editable — the only action offered is opening
- * the form the entry refers to.
+ * the form the entry refers to. (Deleting an entry lives on the table row.)
+ * `actionLabel` maps an Action key to its display text.
  */
 export default function ActivityLogDetailModal({ log, actionLabel, onClose }) {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function ActivityLogDetailModal({ log, actionLabel, onClose }) {
       {log && (
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Row icon={Activity} label="Action">
-            {actionLabel?.[log.action] ?? log.action}
+            {actionLabel ? actionLabel(log.action) : log.action}
           </Row>
           <Row icon={Clock} label="Date / Time">
             {formatDateTime(log.occurredAt)}

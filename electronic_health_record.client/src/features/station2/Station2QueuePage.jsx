@@ -63,6 +63,7 @@ export default function Station2QueuePage() {
 
           <DataTable
             columns={COLUMNS}
+            evenColumns
             rows={table.pageRows}
             onRowClick={setPreviewRow}
             empty={table.isSearching ? 'No patients match your search.' : 'No patients waiting. Forms submitted at Station 1 appear here automatically.'}

@@ -30,3 +30,20 @@ export async function getAssessmentTemplate() {
     throw toApiError(error);
   }
 }
+
+/**
+ * Average Station 2 score per wellness category, from each patient's latest
+ * assessed visit -- the dashboard's 7 Aspects chart: { total, aspects: [{
+ * categoryID, name, score }] }, score a percentage of the points possible
+ * (null when nobody answered that category). Pass { office } to limit it to
+ * one agency office, or {} for all. No USE_MOCK branch: the mock db has no
+ * wellness forms to aggregate over.
+ */
+export async function getWellnessScores(params) {
+  try {
+    const { data } = await client.get('/assessment/wellness-scores', { params });
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}

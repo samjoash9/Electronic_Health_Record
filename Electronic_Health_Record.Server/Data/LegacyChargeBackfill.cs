@@ -51,22 +51,18 @@ namespace Electronic_Health_Record.Server.Data
         {
             // Only forms that have been through Station 3 or later can carry
             // legacy billing text; earlier statuses never had the fields set.
-            var candidates = await context.WellnessForms
+            // This runs on every app start, before the first request is
+            // served, so the already-charged check is done in SQL and only the
+            // three columns the parse reads come back -- loading whole rows
+            // pulled every signed form's three base64 signatures each start.
+            var pending = await context.WellnessForms
                 .Where(f => f.Status != "PendingAssessment" && f.Status != "PendingConsultation")
                 .Where(f => (f.RecommendedDiagnosticTest != null && f.RecommendedDiagnosticTest != "")
                          || (f.ManagementTreatment != null && f.ManagementTreatment != ""))
+                .Where(f => !context.WellnessFormCharges.Any(c => c.FormID == f.FormID))
+                .Select(f => new { f.FormID, f.RecommendedDiagnosticTest, f.ManagementTreatment })
                 .ToListAsync();
 
-            if (candidates.Count == 0)
-                return;
-
-            var alreadyCharged = await context.WellnessFormCharges
-                .Select(c => c.FormID)
-                .Distinct()
-                .ToListAsync();
-            var alreadyChargedSet = alreadyCharged.ToHashSet();
-
-            var pending = candidates.Where(f => !alreadyChargedSet.Contains(f.FormID)).ToList();
             if (pending.Count == 0)
                 return;
 

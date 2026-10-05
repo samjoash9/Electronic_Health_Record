@@ -14,3 +14,19 @@ export async function getMedicalConditions() {
     throw toApiError(error);
   }
 }
+
+/**
+ * Distinct patients per Past Medical History condition, for visits in one
+ * period -- the dashboard's donut: { total, conditions: [{ conditionID,
+ * name, count }], years }. granularity 'day' takes { year, month, day },
+ * 'month' takes { year, month }, 'year' takes { year }. No USE_MOCK branch:
+ * the mock db has no wellness forms to aggregate over.
+ */
+export async function getDiagnosedConditions(params) {
+  try {
+    const { data } = await client.get('/medicalconditions/diagnosed', { params });
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
