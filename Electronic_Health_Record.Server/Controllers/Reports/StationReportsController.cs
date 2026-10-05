@@ -210,6 +210,117 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
             });
         }
 
+        // GET /api/reports/station4?from=&to=&office=
+        // Values compared below must match DENTAL_INDICATORS in
+        // src/lib/constants.js and the CK_DentalAssessment_* constraints.
+        [HttpGet("station4")]
+        public async Task<IActionResult> GetStation4(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!TryParseRange(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var (completed, medianMinutes) = await ThroughputAsync(range,
+                f => new StationSpan { Start = f.Station4StartedAt, End = f.Station4SubmittedAt });
+
+            var exams = await (
+                from f in FormsInRange(range)
+                join d in _context.DentalAssessments on f.FormID equals d.FormID
+                select new
+                {
+                    f.FormID, f.PatientID, f.FormDate,
+                    d.OralHygieneStatus, d.DentalCaries, d.GumCondition,
+                    d.ToothStatus, d.OralLesions, d.DentalReferral,
+                }
+            ).ToListAsync();
+
+            var latest = LatestPerPatient(exams, v => v.PatientID, v => v.FormDate, v => v.FormID);
+
+            return Ok(new
+            {
+                completed,
+                medianMinutes,
+                patients = latest.Count,
+                hygiene = new
+                {
+                    good = latest.Count(e => e.OralHygieneStatus == "Good"),
+                    fair = latest.Count(e => e.OralHygieneStatus == "Fair"),
+                    poor = latest.Count(e => e.OralHygieneStatus == "Poor"),
+                },
+                findings = new
+                {
+                    caries = latest.Count(e => e.DentalCaries == "Present"),
+                    gumProblem = latest.Count(e => e.GumCondition is "Gingivitis" or "Suspected Periodontal Problem"),
+                    toothProblem = latest.Count(e => e.ToothStatus is "Missing Teeth" or "Needs Dental Treatment"),
+                    // Stored as "Present – refer for evaluation" (en dash); matched
+                    // on the prefix so the dash's encoding cannot desync it.
+                    oralLesions = latest.Count(e => e.OralLesions != null && e.OralLesions.StartsWith("Present")),
+                },
+                referrals = new
+                {
+                    routine = latest.Count(e => e.DentalReferral == "Routine referral"),
+                    urgent = latest.Count(e => e.DentalReferral == "Urgent referral"),
+                },
+            });
+        }
+
+        // GET /api/reports/station5?from=&to=&office=
+        // Values compared below must match VISION_INDICATORS in
+        // src/lib/constants.js and the CK_VisionAssessment_* constraints.
+        [HttpGet("station5")]
+        public async Task<IActionResult> GetStation5(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!TryParseRange(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var (completed, medianMinutes) = await ThroughputAsync(range,
+                f => new StationSpan { Start = f.Station5StartedAt, End = f.Station5SubmittedAt });
+
+            var exams = await (
+                from f in FormsInRange(range)
+                join v in _context.VisionAssessments on f.FormID equals v.FormID
+                select new
+                {
+                    f.FormID, f.PatientID, f.FormDate,
+                    v.BlurredVision, v.DifficultySeeingNear, v.DifficultySeeingDistant,
+                    v.HeadacheEyeStrain, v.EyePainDiscomfort, v.EyeConditionIdentified,
+                    v.UsesEyeglassesContactLenses, v.CorrectiveLensesRecommended,
+                    v.ReferralToEyeSpecialist, v.FollowUpConsultationAdvised,
+                }
+            ).ToListAsync();
+
+            var latest = LatestPerPatient(exams, v => v.PatientID, v => v.FormDate, v => v.FormID);
+
+            return Ok(new
+            {
+                completed,
+                medianMinutes,
+                patients = latest.Count,
+                symptoms = new
+                {
+                    blurred = latest.Count(e => e.BlurredVision == "Yes"),
+                    near = latest.Count(e => e.DifficultySeeingNear == "Yes"),
+                    distant = latest.Count(e => e.DifficultySeeingDistant == "Yes"),
+                    eyeStrain = latest.Count(e => e.HeadacheEyeStrain == "Yes"),
+                    eyePain = latest.Count(e => e.EyePainDiscomfort == "Yes"),
+                },
+                conditions = new
+                {
+                    none = latest.Count(e => e.EyeConditionIdentified == "None"),
+                    refractiveError = latest.Count(e => e.EyeConditionIdentified == "Refractive error"),
+                    other = latest.Count(e => e.EyeConditionIdentified == "Other"),
+                },
+                usesCorrection = latest.Count(e => e.UsesEyeglassesContactLenses == "Yes"),
+                outcomes = new
+                {
+                    lensesRecommended = latest.Count(e => e.CorrectiveLensesRecommended == "Yes"),
+                    specialistReferral = latest.Count(e => e.ReferralToEyeSpecialist == "Yes"),
+                    followUp = latest.Count(e => e.FollowUpConsultationAdvised == "Yes"),
+                },
+            });
+        }
+
         // ---- shared helpers ------------------------------------------------
 
         private sealed record ReportRange(DateTime From, DateTime To, string? Office);

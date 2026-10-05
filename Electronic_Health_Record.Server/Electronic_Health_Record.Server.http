@@ -28,3 +28,11 @@ Authorization: Bearer {{token}}
 ###
 GET https://localhost:7165/api/reports/station3?from=2026-01-01&to=2026-12-31
 Authorization: Bearer {{token}}
+
+###
+GET https://localhost:7165/api/reports/station4?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+###
+GET https://localhost:7165/api/reports/station5?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
