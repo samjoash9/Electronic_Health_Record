@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Linq.Expressions;
+using System.Text.Json;
 
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.WellnessForm;
@@ -60,7 +61,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 query = query.OrderByDescending(f => f.FormDate);
             }
 
-            var forms = await query.ToListAsync();
+            var forms = await query.AsNoTracking().Select(ListColumns).ToListAsync();
             var patientsById = await PatientsByIdAsync(forms.Select(f => f.PatientID));
             var accountsByPatientId = await PatientAccountsByPatientIdAsync(forms.Select(f => f.PatientID));
 
@@ -125,6 +126,8 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 // breaks the tie so "latest" is stable across requests instead
                 // of depending on undefined ordering among equal dates.
                 .ThenByDescending(f => f.FormID)
+                .AsNoTracking()
+                .Select(ListColumns)
                 .ToListAsync();
 
             var patientsById = await PatientsByIdAsync(forms.Select(f => f.PatientID));
@@ -1994,6 +1997,53 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             };
         }
 
+        // The columns a list row needs, selected in SQL. The three signature
+        // columns are base64 PNG data URLs of tens of KB each, so reading the
+        // whole entity for a list pulled every signature in the table across
+        // the wire and shipped one per row to the client -- the dashboard's
+        // GET /api/wellnessforms grew to ~12 MB and took most of a minute.
+        // Nothing that renders a list shows a signature; the single-form read
+        // (BuildFormResponseAsync) still returns all three.
+        private static readonly Expression<Func<WellnessForm, WellnessForm>> ListColumns = f => new WellnessForm
+        {
+            FormID = f.FormID,
+            PatientID = f.PatientID,
+            PhysicianID = f.PhysicianID,
+            Status = f.Status,
+            CurrentStation = f.CurrentStation,
+            RowVersion = f.RowVersion,
+            SignedAt = f.SignedAt,
+            SignedByName = f.SignedByName,
+            SignedByLicenseNo = f.SignedByLicenseNo,
+            FormDate = f.FormDate,
+            WeightKg = f.WeightKg,
+            HeightCm = f.HeightCm,
+            BMI = f.BMI,
+            IdealBMI = f.IdealBMI,
+            BPSystolic = f.BPSystolic,
+            BPDiastolic = f.BPDiastolic,
+            TempCelsius = f.TempCelsius,
+            HeartRate = f.HeartRate,
+            RespRate = f.RespRate,
+            Station1AdminID = f.Station1AdminID,
+            Station1SubmittedAt = f.Station1SubmittedAt,
+            Station2AdminID = f.Station2AdminID,
+            Station2StartedAt = f.Station2StartedAt,
+            Station2SubmittedAt = f.Station2SubmittedAt,
+            RecommendedDiagnosticTest = f.RecommendedDiagnosticTest,
+            ImpressionClinical = f.ImpressionClinical,
+            ManagementTreatment = f.ManagementTreatment,
+            Station3StartedAt = f.Station3StartedAt,
+            Station3SubmittedAt = f.Station3SubmittedAt,
+            Station4StartedAt = f.Station4StartedAt,
+            Station4SubmittedAt = f.Station4SubmittedAt,
+            Station5StartedAt = f.Station5StartedAt,
+            Station5SubmittedAt = f.Station5SubmittedAt,
+            CreatedAt = f.CreatedAt,
+            UpdatedAt = f.UpdatedAt,
+        };
+
+        // Expects a form read through ListColumns: no signature fields.
         private object WithPatient(
             WellnessForm form,
             Dictionary<int, Patient> patientsById,
@@ -2010,7 +2060,6 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 form.Status,
                 form.CurrentStation,
                 RowVersion = Convert.ToBase64String(form.RowVersion ?? Array.Empty<byte>()),
-                form.Signature,
                 form.SignedAt,
                 // Who signed, as frozen at signing time. Outlives the physician
                 // account, so a record stays attributable after a delete nulls
@@ -2054,6 +2103,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         {
             var ids = patientIds.Distinct().ToList();
             return await _context.Patients
+                .AsNoTracking()
                 .Where(p => ids.Contains(p.PatientID))
                 .ToDictionaryAsync(p => p.PatientID);
         }

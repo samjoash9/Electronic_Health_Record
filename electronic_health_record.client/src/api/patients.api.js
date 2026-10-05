@@ -238,6 +238,38 @@ export async function getPatientVisitHistory(patientID) {
   }
 }
 
+/**
+ * Patients registered at Station 1, bucketed on Manila time for the
+ * dashboard's onboarding chart: { total, points: [{ label, current,
+ * previous }], years }. granularity 'day' takes { year, month }, 'month'
+ * takes { year }, 'year' takes neither. No USE_MOCK branch, same reason
+ * as getPatientVisitHistory above.
+ */
+export async function getOnboardedStats(params) {
+  try {
+    const { data } = await client.get('/patients/onboarded', { params });
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/**
+ * Each patient's smoking status from their latest answered visit, for the
+ * dashboard's Smoker Status card: { total, nonSmokers, smokers: {
+ * traditional, eCigarette, both, unspecified } }. Pass { office } to limit
+ * it to one agency office, or {} for all. No USE_MOCK branch, same reason
+ * as getPatientVisitHistory above.
+ */
+export async function getSmokingStatus(params) {
+  try {
+    const { data } = await client.get('/patients/smoking-status', { params });
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 // Station 1: once an employee is picked, checks whether they already have a
 // PatientAccount. If not, the admin must ask the patient for a username
 // before the registration can be submitted.

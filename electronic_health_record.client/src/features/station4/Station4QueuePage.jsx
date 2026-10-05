@@ -71,6 +71,7 @@ export default function Station4QueuePage() {
         <div className="flex flex-col gap-3">
           <DataTable
             columns={COLUMNS}
+            evenColumns
             rows={table.pageRows}
             onRowClick={(row) => navigate(`/station4/${row.formID}`)}
             empty={table.isSearching

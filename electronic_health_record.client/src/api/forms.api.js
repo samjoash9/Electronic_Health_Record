@@ -343,6 +343,23 @@ export async function getActivityLogs() {
     }
 }
 
+/**
+ * Permanently delete audit log entries (superadmin only). Resolves to
+ * { deleted }: how many rows actually went, which can be fewer than asked
+ * for if some were already deleted elsewhere. Nothing records the deletion.
+ */
+export async function deleteActivityLogs(logIDs) {
+    try {
+        const { data } = await api.delete('/wellnessformauditlogs', {
+            data: { logIDs },
+        });
+
+        return data.data ?? data;
+    } catch (error) {
+        throw toApiError(error);
+    }
+}
+
 
 /**
  * Get the authenticated patient's wellness forms.

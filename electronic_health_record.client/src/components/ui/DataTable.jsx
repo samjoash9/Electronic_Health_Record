@@ -16,6 +16,11 @@ import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
  * any column sets one the table switches to a fixed layout so columns keep
  * their position when sorting changes which rows' text is longest --
  * otherwise the browser resizes columns to fit content on every re-sort.
+ * `evenColumns` turns on that fixed layout without per-column widths: every
+ * column with no `width` then takes an equal share of what is left, instead
+ * of the auto layout's content-weighted split. The actions column would take
+ * an equal share too, so give it a `rowActionsWidth` wide enough for its
+ * buttons -- a fixed layout never grows a column to fit its content.
  *
  * `variant` picks the skin: "tinted" is the station queues' teal header with
  * zebra rows; "plain" is the quieter hairline-and-white treatment the dashboard
@@ -45,11 +50,11 @@ const VARIANTS = {
 };
 
 export default function DataTable({
-  columns, rows, onRowClick, rowActions, rowActionsHeader, variant = 'tinted',
-  empty = 'Nothing here yet.', sortKey, sortDirection, onSort,
+  columns, rows, onRowClick, rowActions, rowActionsHeader, rowActionsWidth, variant = 'tinted',
+  empty = 'Nothing here yet.', sortKey, sortDirection, onSort, evenColumns = false,
 }) {
   const skin = VARIANTS[variant] ?? VARIANTS.tinted;
-  const hasWidths = columns.some((c) => c.width);
+  const hasWidths = evenColumns || columns.some((c) => c.width);
 
   if (!rows?.length) {
     return (
@@ -65,7 +70,7 @@ export default function DataTable({
         {hasWidths && (
           <colgroup>
             {columns.map((c) => <col key={c.key} style={{ width: c.width }} />)}
-            {rowActions && <col />}
+            {rowActions && <col style={{ width: rowActionsWidth }} />}
           </colgroup>
         )}
         <thead className={skin.head}>

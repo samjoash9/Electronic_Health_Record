@@ -1,4 +1,5 @@
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.DTOs.Audit;
 using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,12 +35,15 @@ namespace Electronic_Health_Record.Server.Controllers.Audit
                 .OrderByDescending(l => l.OccurredAt)
                 .ToListAsync();
 
+            // Only the form -> patient hop is needed. Reading whole WellnessForm
+            // rows here pulled all three base64 signatures of every logged form.
             var formIds = logs.Select(l => l.FormID).Distinct().ToList();
-            var formsById = await _context.WellnessForms
+            var patientIdByFormId = await _context.WellnessForms
                 .Where(f => formIds.Contains(f.FormID))
-                .ToDictionaryAsync(f => f.FormID);
+                .Select(f => new { f.FormID, f.PatientID })
+                .ToDictionaryAsync(f => f.FormID, f => f.PatientID);
 
-            var patientIds = formsById.Values.Select(f => f.PatientID).Distinct().ToList();
+            var patientIds = patientIdByFormId.Values.Distinct().ToList();
             var patientsById = await _context.Patients
                 .Where(p => patientIds.Contains(p.PatientID))
                 .ToDictionaryAsync(p => p.PatientID);
@@ -58,8 +62,8 @@ namespace Electronic_Health_Record.Server.Controllers.Audit
 
             var response = logs.Select(log =>
             {
-                formsById.TryGetValue(log.FormID, out var form);
-                var patient = form != null && patientsById.TryGetValue(form.PatientID, out var p) ? p : null;
+                var patient = patientIdByFormId.TryGetValue(log.FormID, out var patientId)
+                    && patientsById.TryGetValue(patientId, out var p) ? p : null;
 
                 return new
                 {
@@ -76,6 +80,27 @@ namespace Electronic_Health_Record.Server.Controllers.Audit
             });
 
             return Ok(response);
+        }
+
+        // DELETE /api/wellnessformauditlogs
+        // Body: { logIDs: [1, 2, 3] }. Hard delete, superadmin only (the
+        // controller's [Authorize]). Nothing records the deletion itself -- a
+        // deliberate choice to keep the table small, at the cost of these
+        // entries being gone for good. IDs that no longer exist (already
+        // deleted in another tab, say) are skipped rather than failing the
+        // batch, so the response says how many rows actually went.
+        [HttpDelete("")]
+        public async Task<IActionResult> DeleteLogs([FromBody] DeleteAuditLogsDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var ids = dto.LogIDs.Distinct().ToList();
+            var deleted = await _context.WellnessFormAuditLogs
+                .Where(l => ids.Contains(l.LogID))
+                .ExecuteDeleteAsync();
+
+            return Ok(new { Deleted = deleted });
         }
 
         private static string ActorName(

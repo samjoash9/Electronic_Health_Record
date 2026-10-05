@@ -140,180 +140,185 @@ export default function FormsPage() {
       <h1 className="text-lg font-semibold text-ink-900">Forms</h1>
 
       <Card
-      flush
-      actions={
-        /*
-         * The three controls need ~780px to sit on one row (288 search + 224
-         * status + ~250 date + gaps), so the single-row layout starts at @4xl
-         * (56rem/896px) -- not @2xl (42rem/672px), which the card still clears
-         * with a collapsed sidebar and which therefore let the row engage at a
-         * width where it could only wrap, orphaning the date box on its own
-         * line. Below that: a 2-column grid, search spanning the full width on
-         * top, status and date range sharing the row beneath it.
-         */
-        <div className="grid w-full grid-cols-2 items-center gap-2 @4xl:flex @4xl:flex-wrap">
-          <SearchInput
-            id="forms-search"
-            value={table.query}
-            onChange={table.onSearch}
-            placeholder="Search by name or username"
-            className="col-span-2 w-full @4xl:w-72"
-          />
-          <Select
-            value={table.filter}
-            onChange={(e) => table.onFilter(e.target.value)}
-            options={STATUS_FILTER_OPTIONS}
-            className="w-full @4xl:w-56"
-          />
-          <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5">
-            <CalendarRange size={15} className="shrink-0 text-ink-400" />
-            <input
-              type="date"
-              aria-label="Visit date from"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              max={dateTo || undefined}
-              className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
+        flush
+        actions={
+          /*
+           * The three controls need ~780px to sit on one row (288 search + 224
+           * status + ~250 date + gaps), so the single-row layout starts at @4xl
+           * (56rem/896px) -- not @2xl (42rem/672px), which the card still clears
+           * with a collapsed sidebar and which therefore let the row engage at a
+           * width where it could only wrap, orphaning the date box on its own
+           * line. Below that: a 2-column grid, search spanning the full width on
+           * top, status and date range sharing the row beneath it.
+           */
+          <div className="grid w-full grid-cols-2 items-center gap-2 @4xl:flex @4xl:flex-wrap">
+            <SearchInput
+              id="forms-search"
+              value={table.query}
+              onChange={table.onSearch}
+              placeholder="Search by name or username"
+              className="col-span-2 w-full @4xl:w-72"
             />
-            <span className="shrink-0 text-ink-400">–</span>
-            <input
-              type="date"
-              aria-label="Visit date to"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              min={dateFrom || undefined}
-              className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
+            <Select
+              value={table.filter}
+              onChange={(e) => table.onFilter(e.target.value)}
+              options={STATUS_FILTER_OPTIONS}
+              className="w-full @4xl:w-56"
             />
-            {hasDateFilter && (
-              <button
-                type="button"
-                onClick={clearDateFilter}
-                aria-label="Clear date filter"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
-              >
-                <X size={12} />
-              </button>
-            )}
+            <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5">
+              <CalendarRange size={15} className="shrink-0 text-ink-400" />
+              <input
+                type="date"
+                aria-label="Visit date from"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                max={dateTo || undefined}
+                className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
+              />
+              <span className="shrink-0 text-ink-400">–</span>
+              <input
+                type="date"
+                aria-label="Visit date to"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                min={dateFrom || undefined}
+                className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
+              />
+              {hasDateFilter && (
+                <button
+                  type="button"
+                  onClick={clearDateFilter}
+                  aria-label="Clear date filter"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <DataTable
-          columns={COLUMNS}
-          rows={table.pageRows}
-          onRowClick={(row) => navigate(`/forms/${row.formID}`)}
-          rowActions={canCancel ? (row) => (
-            <div className="flex items-center gap-1">
-              {/*
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <DataTable
+            columns={COLUMNS}
+            rows={table.pageRows}
+            onRowClick={(row) => navigate(`/forms/${row.formID}`)}
+            evenColumns
+            rowActionsHeader={canCancel ? 'Actions' : undefined}
+            // Fits all three buttons on one line; a row missing Send Back or
+            // Cancel centres what is left under the header.
+            rowActionsWidth={canCancel ? '22rem' : undefined}
+            rowActions={canCancel ? (row) => (
+              <div className="flex items-center justify-center gap-1">
+                {/*
                 * Hidden at Station 1 as well as on cancelled forms: there is no
                 * earlier station to send those back to, so the modal would open
                 * with an empty destination list.
                 */}
-              {row.status !== FORM_STATUS.CANCELLED && row.currentStation > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-amber-700 hover:bg-amber-50"
-                  title={`Send form #${row.formID} back to an earlier station`}
-                  onClick={() => setFormToRevert(row)}
-                >
-                  <Undo2 size={16} />
-                  Send back
-                </Button>
-              )}
-              {row.status !== FORM_STATUS.CANCELLED && (
+                {row.status !== FORM_STATUS.CANCELLED && row.currentStation > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-amber-700 hover:bg-amber-50"
+                    title={`Send form #${row.formID} back to an earlier station`}
+                    onClick={() => setFormToRevert(row)}
+                  >
+                    <Undo2 size={16} />
+                    Send Back
+                  </Button>
+                )}
+                {row.status !== FORM_STATUS.CANCELLED && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-rose-600 hover:bg-rose-50"
+                    title={`Cancel form #${row.formID}`}
+                    onClick={() => setFormToCancel(row)}
+                  >
+                    <Ban size={16} />
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   className="text-rose-600 hover:bg-rose-50"
-                  title={`Cancel form #${row.formID}`}
-                  onClick={() => setFormToCancel(row)}
+                  title={`Permanently delete form #${row.formID}`}
+                  onClick={() => setFormToDelete(row)}
                 >
-                  <Ban size={16} />
-                  Cancel
+                  <Trash2 size={16} />
+                  Delete
                 </Button>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-rose-600 hover:bg-rose-50"
-                title={`Permanently delete form #${row.formID}`}
-                onClick={() => setFormToDelete(row)}
-              >
-                <Trash2 size={16} />
-                Delete
-              </Button>
-            </div>
-          ) : undefined}
-          empty={table.isSearching || table.isFiltered || hasDateFilter
-            ? 'No forms match your search.'
-            : 'No forms found.'}
-        />
+              </div>
+            ) : undefined}
+            empty={table.isSearching || table.isFiltered || hasDateFilter
+              ? 'No forms match your search.'
+              : 'No forms found.'}
+          />
 
-        <TableFooter
-          page={table.page}
-          totalPages={table.totalPages}
-          total={table.total}
-          noun="form"
-          onPageChange={table.setPage}
-        />
-      </div>
+          <TableFooter
+            page={table.page}
+            totalPages={table.totalPages}
+            total={table.total}
+            noun="form"
+            onPageChange={table.setPage}
+          />
+        </div>
 
-      {formToCancel && (
-      <CancelFormModal
-        key={formToCancel.formID}
-        form={formToCancel}
-        isPending={cancelMutation.isPending}
-        error={cancelMutation.error}
-        onConfirm={({ reason }) => cancelMutation.mutate({
-          formID: formToCancel.formID,
-          reason,
-          rowVersion: formToCancel.rowVersion,
-        })}
-        onClose={() => {
-          cancelMutation.reset();
-          setFormToCancel(null);
-        }}
-      />
-      )}
+        {formToCancel && (
+          <CancelFormModal
+            key={formToCancel.formID}
+            form={formToCancel}
+            isPending={cancelMutation.isPending}
+            error={cancelMutation.error}
+            onConfirm={({ reason }) => cancelMutation.mutate({
+              formID: formToCancel.formID,
+              reason,
+              rowVersion: formToCancel.rowVersion,
+            })}
+            onClose={() => {
+              cancelMutation.reset();
+              setFormToCancel(null);
+            }}
+          />
+        )}
 
-      {formToRevert && (
-      <RevertFormModal
-        key={formToRevert.formID}
-        form={formToRevert}
-        isPending={revertMutation.isPending}
-        error={revertMutation.error}
-        onConfirm={({ targetStation, reason }) => revertMutation.mutate({
-          formID: formToRevert.formID,
-          targetStation,
-          reason,
-          rowVersion: formToRevert.rowVersion,
-        })}
-        onClose={() => {
-          revertMutation.reset();
-          setFormToRevert(null);
-        }}
-      />
-      )}
+        {formToRevert && (
+          <RevertFormModal
+            key={formToRevert.formID}
+            form={formToRevert}
+            isPending={revertMutation.isPending}
+            error={revertMutation.error}
+            onConfirm={({ targetStation, reason }) => revertMutation.mutate({
+              formID: formToRevert.formID,
+              targetStation,
+              reason,
+              rowVersion: formToRevert.rowVersion,
+            })}
+            onClose={() => {
+              revertMutation.reset();
+              setFormToRevert(null);
+            }}
+          />
+        )}
 
-      {formToDelete && (
-      <DeleteFormModal
-        key={formToDelete.formID}
-        form={formToDelete}
-        isPending={deleteMutation.isPending}
-        error={deleteMutation.error}
-        onConfirm={({ reason }) => deleteMutation.mutate({
-          formID: formToDelete.formID,
-          reason,
-          rowVersion: formToDelete.rowVersion,
-        })}
-        onClose={() => {
-          deleteMutation.reset();
-          setFormToDelete(null);
-        }}
-      />
-      )}
+        {formToDelete && (
+          <DeleteFormModal
+            key={formToDelete.formID}
+            form={formToDelete}
+            isPending={deleteMutation.isPending}
+            error={deleteMutation.error}
+            onConfirm={({ reason }) => deleteMutation.mutate({
+              formID: formToDelete.formID,
+              reason,
+              rowVersion: formToDelete.rowVersion,
+            })}
+            onClose={() => {
+              deleteMutation.reset();
+              setFormToDelete(null);
+            }}
+          />
+        )}
       </Card>
     </div>
   );

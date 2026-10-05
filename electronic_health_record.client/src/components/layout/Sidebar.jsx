@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, LayoutDashboard, Sheet, ClipboardList, ListChecks, Stethoscope, Smile, Eye, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus, Receipt } from 'lucide-react';
+import { LayoutGrid, LayoutDashboard, Sheet, ClipboardList, ListChecks, Stethoscope, Smile, Eye, FileText, LogOut, ShieldCheck, LifeBuoy, Settings, UserPlus, Receipt, HeartPulse } from 'lucide-react';
 import phoLogo from '../../assets/images/PHO_logo.jpg';
 import { useAuth } from '../../auth/useAuth';
 import { useStationChoice } from '../../hooks/useStationChoice';
@@ -26,6 +26,8 @@ const ONBOARDING_LINK = { to: '/onboarding', label: 'Onboarding', icon: UserPlus
 // No `station`: the read-only record of every form, which a doctor needs
 // precisely because their queue drops work once it is signed.
 const FORMS_LINK = { to: '/forms', label: 'Forms', icon: Sheet };
+// No `station`: population reports, read by admins and doctors alike.
+const HEALTH_REPORTS_LINK = { to: '/health-reports', label: 'Health Reports', icon: HeartPulse };
 
 const DASHBOARD_LINK = { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
 const STATION1_LINK = { to: '/station1', label: 'Station 1: Registration', icon: ClipboardList, station: 1 };
@@ -37,13 +39,14 @@ const STATION2_LINK = { to: '/station2', label: 'Station 2: Assessment', icon: L
 const LINKS = {
   admin: [
     DASHBOARD_LINK,
+    HEALTH_REPORTS_LINK,
     FORMS_LINK,
     ONBOARDING_LINK,
     STATION1_LINK,
     STATION2_LINK,
     STATION6_LINK,
   ],
-  doctor: [FORMS_LINK, STATION3_LINK, STATION4_LINK, STATION5_LINK],
+  doctor: [FORMS_LINK, HEALTH_REPORTS_LINK, STATION3_LINK, STATION4_LINK, STATION5_LINK],
   patient: [{ to: '/my-record', label: 'My Record', icon: FileText }],
 };
 
@@ -51,6 +54,7 @@ const LINKS = {
 // rather than gated on a station choice.
 const SUPERADMIN_LINKS = [
   DASHBOARD_LINK,
+  HEALTH_REPORTS_LINK,
   FORMS_LINK,
   ONBOARDING_LINK,
   ACTIVITY_LOGS_LINK,
