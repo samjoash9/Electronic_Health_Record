@@ -29,10 +29,11 @@ describe('Station5Report', () => {
   it('shows symptom prevalence and the condition split', async () => {
     renderReport();
     const symptoms = await screen.findByRole('list', { name: 'Symptoms' });
-    expect(within(item(symptoms, 'Headache / eye strain')).getByText('75%')).toBeInTheDocument();
+    // Shares are of those who answered each indicator, not of every patient.
+    expect(within(item(symptoms, 'Headache / eye strain')).getByText('100%')).toBeInTheDocument();
     const conditions = screen.getByRole('list', { name: 'Eye condition legend' });
     expect(within(item(conditions, 'Refractive error')).getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('1 (25%)')).toBeInTheDocument();
+    expect(screen.getByText('1 (50%)')).toBeInTheDocument();
     expect(getStationReport).toHaveBeenCalledWith(5, PARAMS);
   });
 

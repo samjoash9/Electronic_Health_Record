@@ -44,10 +44,15 @@ export default function Station4Report({ params }) {
             total={d.patients}
             color={station.hex}
             items={[
-              { key: 'caries', label: 'Dental caries', count: d.findings.caries },
-              { key: 'gum', label: 'Gum problem', count: d.findings.gumProblem },
-              { key: 'tooth', label: 'Missing / needs treatment', count: d.findings.toothProblem },
-              { key: 'lesions', label: 'Oral lesions', count: d.findings.oralLesions },
+              { key: 'caries', label: 'Dental caries', count: d.findings.caries, total: d.answered.caries },
+              { key: 'gum', label: 'Gum problem', count: d.findings.gumProblem, total: d.answered.gumProblem },
+              {
+                key: 'tooth',
+                label: 'Missing / needs treatment',
+                count: d.findings.toothProblem,
+                total: d.answered.toothProblem,
+              },
+              { key: 'lesions', label: 'Oral lesions', count: d.findings.oralLesions, total: d.answered.oralLesions },
             ]}
           />
         </div>

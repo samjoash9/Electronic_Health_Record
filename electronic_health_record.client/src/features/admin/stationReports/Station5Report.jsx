@@ -46,18 +46,23 @@ export default function Station5Report({ params }) {
             total={d.patients}
             color={station.hex}
             items={[
-              { key: 'blurred', label: 'Blurred vision', count: d.symptoms.blurred },
-              { key: 'near', label: 'Trouble seeing near', count: d.symptoms.near },
-              { key: 'distant', label: 'Trouble seeing far', count: d.symptoms.distant },
-              { key: 'eyeStrain', label: 'Headache / eye strain', count: d.symptoms.eyeStrain },
-              { key: 'eyePain', label: 'Eye pain', count: d.symptoms.eyePain },
+              { key: 'blurred', label: 'Blurred vision', count: d.symptoms.blurred, total: d.answered.blurred },
+              { key: 'near', label: 'Trouble seeing near', count: d.symptoms.near, total: d.answered.near },
+              { key: 'distant', label: 'Trouble seeing far', count: d.symptoms.distant, total: d.answered.distant },
+              {
+                key: 'eyeStrain',
+                label: 'Headache / eye strain',
+                count: d.symptoms.eyeStrain,
+                total: d.answered.eyeStrain,
+              },
+              { key: 'eyePain', label: 'Eye pain', count: d.symptoms.eyePain, total: d.answered.eyePain },
             ]}
           />
           <SegmentBar label="Eye condition" segments={toSegments(CONDITIONS, d.conditions)} />
           <p className="text-xs text-ink-600">
             Already wears glasses or contacts:{' '}
             <span className="font-semibold text-ink-900 tabular-nums">
-              {`${d.usesCorrection} (${pct(d.usesCorrection, d.patients)})`}
+              {`${d.usesCorrection} (${pct(d.usesCorrection, d.answered.usesCorrection)})`}
             </span>
           </p>
         </div>

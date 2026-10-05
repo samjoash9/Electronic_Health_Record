@@ -47,6 +47,7 @@ describe('Station3Report', () => {
     renderReport();
     const flags = await screen.findByRole('list', { name: 'Flags' });
     expect(within(item(flags, 'Chronic condition')).getByText('3 (50%)')).toBeInTheDocument();
-    expect(within(item(flags, 'Smokers')).getByText('2 (33%)')).toBeInTheDocument();
+    // 2 smokers among the 4 who answered the smoking question, not all 6.
+    expect(within(item(flags, 'Smokers')).getByText('2 (50%)')).toBeInTheDocument();
   });
 });

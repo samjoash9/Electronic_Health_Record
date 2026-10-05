@@ -23,6 +23,7 @@ export const REPORTS = {
     topMeds: [{ name: 'Amlodipine', count: 2 }],
     byPhysician: [{ name: 'Dr. Reyes', count: 4 }, { name: 'Dr. Cruz', count: 3 }],
     riskFactors: { chronicCondition: 3, smokers: 2, drinkers: 1 },
+    answered: { smokers: 4, drinkers: 6 },
   },
   4: {
     completed: 5,
@@ -31,6 +32,7 @@ export const REPORTS = {
     hygiene: { good: 2, fair: 2, poor: 1 },
     findings: { caries: 3, gumProblem: 1, toothProblem: 2, oralLesions: 0 },
     referrals: { routine: 2, urgent: 1 },
+    answered: { caries: 3, gumProblem: 5, toothProblem: 4, oralLesions: 5 },
   },
   5: {
     completed: 4,
@@ -40,6 +42,7 @@ export const REPORTS = {
     conditions: { none: 2, refractiveError: 1, other: 1 },
     usesCorrection: 1,
     outcomes: { lensesRecommended: 2, specialistReferral: 1, followUp: 0 },
+    answered: { blurred: 4, near: 4, distant: 4, eyeStrain: 3, eyePain: 4, usesCorrection: 2 },
   },
   6: {
     asOf: '2026-10-05',

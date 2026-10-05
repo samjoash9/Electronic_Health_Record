@@ -21,27 +21,34 @@ export function RankedList({ title, items, format = (v) => v }) {
   );
 }
 
-/** How many of `total` patients had each finding, as a count, a share and a thin bar. */
+/**
+ * How many patients had each finding, as a count, a share and a thin bar.
+ * An item's own `total` (the patients whose answer was recorded) wins over
+ * the list's, so a blank answer never counts as "no".
+ */
 export function PrevalenceList({ title, items, total, color }) {
   return (
     <div>
       <p className="mb-1.5 text-xs font-medium text-ink-600">{title}</p>
       <ul aria-label={title} className="flex flex-col gap-1.5 text-xs">
-        {items.map((item) => (
-          <li key={item.key} className="flex items-center gap-2">
-            <span className="w-36 shrink-0 truncate text-ink-700">{item.label}</span>
-            <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-              <span
-                className="block h-full rounded-full"
-                style={{ width: total ? `${(item.count / total) * 100}%` : '0%', backgroundColor: color }}
-              />
-            </span>
-            <span className="flex w-16 shrink-0 justify-end gap-1 tabular-nums">
-              <span className="font-semibold text-ink-900">{item.count}</span>
-              <span className="text-ink-500">{pct(item.count, total)}</span>
-            </span>
-          </li>
-        ))}
+        {items.map((item) => {
+          const of = item.total ?? total;
+          return (
+            <li key={item.key} className="flex items-center gap-2">
+              <span className="w-36 shrink-0 truncate text-ink-700">{item.label}</span>
+              <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                <span
+                  className="block h-full rounded-full"
+                  style={{ width: of ? `${(item.count / of) * 100}%` : '0%', backgroundColor: color }}
+                />
+              </span>
+              <span className="flex w-16 shrink-0 justify-end gap-1 tabular-nums">
+                <span className="font-semibold text-ink-900">{item.count}</span>
+                <span className="text-ink-500">{pct(item.count, of)}</span>
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

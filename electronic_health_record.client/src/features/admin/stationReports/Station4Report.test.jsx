@@ -32,7 +32,8 @@ describe('Station4Report', () => {
     expect(within(item(hygiene, 'Poor')).getByText('1')).toBeInTheDocument();
     const findings = screen.getByRole('list', { name: 'Findings' });
     expect(within(item(findings, 'Dental caries')).getByText('3')).toBeInTheDocument();
-    expect(within(item(findings, 'Dental caries')).getByText('60%')).toBeInTheDocument();
+    // 3 of the 3 patients the dentist answered caries for, not of all 5.
+    expect(within(item(findings, 'Dental caries')).getByText('100%')).toBeInTheDocument();
     expect(getStationReport).toHaveBeenCalledWith(4, PARAMS);
   });
 

@@ -19,13 +19,15 @@ export default function Station3Report({ params }) {
         { label: 'Median time', value: minutes(d.medianMinutes) },
       ]}
       flags={(d) => {
-        const share = (count) => `${count} (${pct(count, d.patients)})`;
+        // Smoking and drinking are shares of the patients whose answer was
+        // recorded, so a blank answer never counts as "no".
+        const share = (count, of) => `${count} (${pct(count, of)})`;
         return (
           <FlagList
             items={[
-              { label: 'Chronic condition', value: share(d.riskFactors.chronicCondition), alert: false },
-              { label: 'Smokers', value: share(d.riskFactors.smokers), alert: false },
-              { label: 'Drinkers', value: share(d.riskFactors.drinkers), alert: false },
+              { label: 'Chronic condition', value: share(d.riskFactors.chronicCondition, d.patients), alert: false },
+              { label: 'Smokers', value: share(d.riskFactors.smokers, d.answered.smokers), alert: false },
+              { label: 'Drinkers', value: share(d.riskFactors.drinkers, d.answered.drinkers), alert: false },
             ]}
           />
         );

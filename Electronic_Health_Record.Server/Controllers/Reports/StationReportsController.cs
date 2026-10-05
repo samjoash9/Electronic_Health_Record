@@ -212,6 +212,14 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                     drinkers = social.Where(s => !string.IsNullOrWhiteSpace(s.AlcoholType))
                         .Select(s => s.FormID).Distinct().Count(),
                 },
+                // Denominators for the shares: Smokes is null when unanswered;
+                // alcohol has no yes/no of its own, so any recorded social
+                // history counts as answered.
+                answered = new
+                {
+                    smokers = social.Where(s => s.Smokes != null).Select(s => s.FormID).Distinct().Count(),
+                    drinkers = social.Select(s => s.FormID).Distinct().Count(),
+                },
             });
         }
 
@@ -265,6 +273,15 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                 {
                     routine = latest.Count(e => e.DentalReferral == "Routine referral"),
                     urgent = latest.Count(e => e.DentalReferral == "Urgent referral"),
+                },
+                // Denominators for the findings' shares: a null indicator was
+                // left unanswered, which is not the same as "none".
+                answered = new
+                {
+                    caries = latest.Count(e => e.DentalCaries != null),
+                    gumProblem = latest.Count(e => e.GumCondition != null),
+                    toothProblem = latest.Count(e => e.ToothStatus != null),
+                    oralLesions = latest.Count(e => e.OralLesions != null),
                 },
             });
         }
@@ -322,6 +339,17 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                     lensesRecommended = latest.Count(e => e.CorrectiveLensesRecommended == "Yes"),
                     specialistReferral = latest.Count(e => e.ReferralToEyeSpecialist == "Yes"),
                     followUp = latest.Count(e => e.FollowUpConsultationAdvised == "Yes"),
+                },
+                // Denominators for the symptom and correction shares: a null
+                // indicator was left unanswered, which is not the same as "No".
+                answered = new
+                {
+                    blurred = latest.Count(e => e.BlurredVision != null),
+                    near = latest.Count(e => e.DifficultySeeingNear != null),
+                    distant = latest.Count(e => e.DifficultySeeingDistant != null),
+                    eyeStrain = latest.Count(e => e.HeadacheEyeStrain != null),
+                    eyePain = latest.Count(e => e.EyePainDiscomfort != null),
+                    usesCorrection = latest.Count(e => e.UsesEyeglassesContactLenses != null),
                 },
             });
         }

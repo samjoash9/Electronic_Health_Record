@@ -40,6 +40,19 @@ describe('PrevalenceList', () => {
     expect(within(row).getByText('60%')).toBeInTheDocument();
   });
 
+  it('uses an item’s own total when it has one', () => {
+    render(
+      <PrevalenceList
+        title="Findings"
+        total={5}
+        color="#f59e0b"
+        items={[{ key: 'caries', label: 'Dental caries', count: 3, total: 3 }]}
+      />
+    );
+    const row = item(screen.getByRole('list', { name: 'Findings' }), 'Dental caries');
+    expect(within(row).getByText('100%')).toBeInTheDocument();
+  });
+
   it('shows an em dash for the share when there is no total', () => {
     render(
       <PrevalenceList title="Findings" total={0} color="#000" items={[{ key: 'c', label: 'Caries', count: 0 }]} />
