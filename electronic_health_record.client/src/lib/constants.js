@@ -142,34 +142,37 @@ export const THYROID_PANEL = ['TT3', 'TT4', 'TSH'];
  * amount box, so the doctor can quote it per form without it being mistaken
  * for free. SGPT/SGOT is one order covering both enzymes at 250.00 each.
  *
+ * `fullName` spells out an abbreviated name for the record view. BT has none:
+ * it reads as bleeding time or blood typing depending on the lab.
+ *
  * `was` records a name this test used to be stored under. The chosen tests are
  * persisted as a comma-joined string of these names, so a form saved before a
  * rename still pre-checks its boxes -- see splitValue in AssessmentPlanSection.
  */
 export const DIAGNOSTIC_TEST_CATALOG = [
-  { name: 'CBC', price: 180 },
+  { name: 'CBC', fullName: 'Complete blood count', price: 180 },
   { name: 'BT', price: 100 },
-  { name: 'U/A', price: 130 },
-  { name: 'SE', price: 50 },
-  { name: 'RBS', price: 120 },
-  { name: 'FBS', price: 120 },
+  { name: 'U/A', fullName: 'Urinalysis', price: 130 },
+  { name: 'SE', fullName: 'Stool examination', price: 50 },
+  { name: 'RBS', fullName: 'Random blood sugar', price: 120 },
+  { name: 'FBS', fullName: 'Fasting blood sugar', price: 120 },
   { name: 'Lipid Profile', price: 900, was: 'Liquid Profile' },
-  { name: 'Crea', price: 230 },
-  { name: 'SGPT/SGOT', price: 500 },
-  { name: 'SUA', price: 200 },
-  { name: 'ASO', price: 180 },
-  { name: 'NaK', price: 800 },
-  { name: 'BUN', price: 300 },
-  { name: 'HCV', price: null, was: 'HVC' },
+  { name: 'Crea', fullName: 'Creatinine', price: 230 },
+  { name: 'SGPT/SGOT', fullName: 'Liver enzymes (ALT/AST)', price: 500 },
+  { name: 'SUA', fullName: 'Serum uric acid', price: 200 },
+  { name: 'ASO', fullName: 'Antistreptolysin O titer', price: 180 },
+  { name: 'NaK', fullName: 'Sodium and potassium', price: 800 },
+  { name: 'BUN', fullName: 'Blood urea nitrogen', price: 300 },
+  { name: 'HCV', fullName: 'Hepatitis C virus', price: null, was: 'HVC' },
   { name: 'Tumor Markers CA 125', price: null },
-  { name: 'TT3', price: 650 },
-  { name: 'TT4', price: 650 },
-  { name: 'TSH', price: null },
+  { name: 'TT3', fullName: 'Total triiodothyronine', price: 650 },
+  { name: 'TT4', fullName: 'Total thyroxine', price: 650 },
+  { name: 'TSH', fullName: 'Thyroid-stimulating hormone', price: null },
   { name: 'Drug Test', price: 250 },
-  { name: 'H. Pylori', price: 450 },
-  { name: 'HBA1c', price: 900 },
-  { name: 'ECG', price: null },
-  { name: 'UTZ', price: null },
+  { name: 'H. Pylori', fullName: 'Helicobacter pylori', price: 450 },
+  { name: 'HBA1c', fullName: 'Glycated hemoglobin', price: 900 },
+  { name: 'ECG', fullName: 'Electrocardiogram', price: null },
+  { name: 'UTZ', fullName: 'Ultrasound', price: null },
   { name: 'Chest Xray', price: 220 },
   { name: 'Papsmear', price: 400 },
 ];
@@ -218,65 +221,77 @@ export const STATUS_TONE = {
  * not at build time, so edit both together. The en dashes in '6–12 months',
  * 'Present – refer for evaluation', 'Yes – satisfactory' and
  * 'Yes – needs assessment' are U+2013, not hyphens.
+ *
+ * `shortLabel` names the indicator in the form record's findings list.
  */
 export const DENTAL_INDICATORS = [
   {
     name: 'oralHygieneStatus',
     label: 'Oral Hygiene Status',
+    shortLabel: 'Oral hygiene',
     options: ['Good', 'Fair', 'Poor'],
     remarksPlaceholder: 'e.g. heavy plaque along the lower incisors',
   },
   {
     name: 'dentalCaries',
     label: 'Presence of Dental Caries',
+    shortLabel: 'Dental caries',
     options: ['None', 'Present'],
     remarksPlaceholder: 'e.g. two carious molars, lower left',
   },
   {
     name: 'gumCondition',
     label: 'Gum Condition',
+    shortLabel: 'Gum condition',
     options: ['Healthy', 'Gingivitis', 'Suspected Periodontal Problem'],
     remarksPlaceholder: 'e.g. bleeding on probing, upper anterior',
   },
   {
     name: 'toothStatus',
     label: 'Tooth Status',
+    shortLabel: 'Tooth status',
     options: ['Complete/Functional', 'Missing Teeth', 'Needs Dental Treatment'],
     remarksPlaceholder: 'e.g. missing upper right first molar',
   },
   {
     name: 'toothachePain',
     label: 'Toothache / Dental Pain',
+    shortLabel: 'Toothache / dental pain',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. intermittent pain on cold, two weeks',
   },
   {
     name: 'oralLesions',
     label: 'Oral Lesions / Abnormalities',
+    shortLabel: 'Oral lesions / abnormalities',
     options: ['None', 'Present – refer for evaluation'],
     remarksPlaceholder: 'e.g. white patch on buccal mucosa',
   },
   {
     name: 'dentureUse',
     label: 'Denture / Prosthesis Use',
+    shortLabel: 'Denture / prosthesis use',
     options: ['None', 'Yes – satisfactory', 'Yes – needs assessment'],
     remarksPlaceholder: 'e.g. upper partial denture, loose fit',
   },
   {
     name: 'dentalTreatmentNeed',
     label: 'Dental Treatment Need',
+    shortLabel: 'Treatment need',
     options: ['None', 'Preventive Care', 'Restorative Treatment', 'Extraction', 'Other'],
     remarksPlaceholder: 'Specify if Other, e.g. orthodontic referral',
   },
   {
     name: 'lastDentalVisit',
     label: 'Last Dental Visit',
+    shortLabel: 'Last dental visit',
     options: ['Within 6 months', '6–12 months', 'More than 1 year', 'Never'],
     remarksPlaceholder: 'e.g. last cleaning March 2025',
   },
   {
     name: 'dentalReferral',
     label: 'Dental Referral',
+    shortLabel: 'Dental referral',
     options: ['Not needed', 'Routine referral', 'Urgent referral'],
     remarksPlaceholder: 'e.g. refer to district hospital dental clinic',
   },
@@ -298,6 +313,7 @@ export const VISION_INDICATORS = [
   {
     name: 'historyOfEyeProblems',
     label: 'History of Eye Problems',
+    shortLabel: 'History of eye problems',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. cataract surgery, left eye, 2019',
@@ -305,6 +321,7 @@ export const VISION_INDICATORS = [
   {
     name: 'eyePainDiscomfort',
     label: 'Eye Pain / Discomfort',
+    shortLabel: 'Eye pain / discomfort',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. intermittent stinging, both eyes',
@@ -312,6 +329,7 @@ export const VISION_INDICATORS = [
   {
     name: 'blurredVision',
     label: 'Blurred Vision',
+    shortLabel: 'Blurred vision',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. worse toward end of shift',
@@ -319,6 +337,7 @@ export const VISION_INDICATORS = [
   {
     name: 'difficultySeeingNear',
     label: 'Difficulty Seeing Near Objects',
+    shortLabel: 'Difficulty seeing near objects',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. trouble reading fine print',
@@ -326,6 +345,7 @@ export const VISION_INDICATORS = [
   {
     name: 'difficultySeeingDistant',
     label: 'Difficulty Seeing Distant Objects',
+    shortLabel: 'Difficulty seeing distant objects',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. trouble reading road signs',
@@ -333,6 +353,7 @@ export const VISION_INDICATORS = [
   {
     name: 'headacheEyeStrain',
     label: 'Headache / Eye Strain',
+    shortLabel: 'Headache / eye strain',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. after prolonged screen use',
@@ -340,6 +361,7 @@ export const VISION_INDICATORS = [
   {
     name: 'usesEyeglassesContactLenses',
     label: 'Uses Eyeglasses / Contact Lenses',
+    shortLabel: 'Uses eyeglasses / contact lenses',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. reading glasses only',
@@ -347,6 +369,7 @@ export const VISION_INDICATORS = [
   {
     name: 'visualAcuityRightEye',
     label: 'Visual Acuity – Right Eye',
+    shortLabel: 'Visual acuity (right)',
     type: 'text',
     placeholder: 'e.g. 20/20',
     remarksPlaceholder: 'e.g. with corrective lenses',
@@ -354,6 +377,7 @@ export const VISION_INDICATORS = [
   {
     name: 'visualAcuityLeftEye',
     label: 'Visual Acuity – Left Eye',
+    shortLabel: 'Visual acuity (left)',
     type: 'text',
     placeholder: 'e.g. 20/20',
     remarksPlaceholder: 'e.g. with corrective lenses',
@@ -361,6 +385,7 @@ export const VISION_INDICATORS = [
   {
     name: 'eyeConditionIdentified',
     label: 'Eye Condition Identified',
+    shortLabel: 'Eye condition identified',
     type: 'choice',
     options: ['None', 'Refractive error', 'Other'],
     hasOther: true,
@@ -374,6 +399,7 @@ export const VISION_INDICATORS = [
   {
     name: 'correctiveLensesRecommended',
     label: 'Corrective Lenses Recommended',
+    shortLabel: 'Corrective lenses recommended',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. reading glasses, +1.00',
@@ -381,6 +407,7 @@ export const VISION_INDICATORS = [
   {
     name: 'referralToEyeSpecialist',
     label: 'Referral to Eye Specialist Needed',
+    shortLabel: 'Referral to eye specialist',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. refer to ophthalmologist for glaucoma screening',
@@ -388,6 +415,7 @@ export const VISION_INDICATORS = [
   {
     name: 'followUpConsultationAdvised',
     label: 'Follow-up Consultation Advised',
+    shortLabel: 'Follow-up consultation advised',
     type: 'choice',
     options: ['No', 'Yes'],
     remarksPlaceholder: 'e.g. recheck acuity in 6 months',

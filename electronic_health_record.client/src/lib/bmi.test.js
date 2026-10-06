@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { calculateBMI, calculateIdealWeightKg, bmiCategory, IDEAL_BMI } from './bmi';
+import {
+  calculateBMI, calculateIdealWeightKg, bmiCategory, bmiScalePercent, IDEAL_BMI, BMI_SCALE,
+} from './bmi';
 
 describe('calculateBMI', () => {
   it('computes BMI from weight in kg and height in cm', () => {
@@ -66,5 +68,22 @@ describe('bmiCategory', () => {
   it('returns null when BMI is missing', () => {
     expect(bmiCategory(null)).toBeNull();
     expect(bmiCategory(undefined)).toBeNull();
+  });
+});
+
+describe('bmiScalePercent', () => {
+  it('places a BMI proportionally along the drawn scale', () => {
+    expect(bmiScalePercent(BMI_SCALE.min)).toBe(0);
+    expect(bmiScalePercent(BMI_SCALE.max)).toBe(100);
+    expect(bmiScalePercent(25)).toBeCloseTo(50);
+  });
+
+  it('pins a BMI outside the scale to the nearer end', () => {
+    expect(bmiScalePercent(12)).toBe(0);
+    expect(bmiScalePercent(48)).toBe(100);
+  });
+
+  it('accepts the decimal string the API may send', () => {
+    expect(bmiScalePercent('28.7')).toBeCloseTo(68.5);
   });
 });

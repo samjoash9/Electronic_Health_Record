@@ -45,6 +45,25 @@ export function formatDateTime(iso) {
   });
 }
 
+/** Time of day only ("2:15 PM"), in Philippine time like formatDateTime. */
+export function formatTime(iso) {
+  if (!iso) return '—';
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return date.toLocaleTimeString('en-PH', {
+    hour: 'numeric', minute: '2-digit',
+    timeZone: PH_TIME_ZONE,
+  });
+}
+
+/** "Oct 2, 2026 at 2:15 PM" -- how the record view stamps when a station was done. */
+export function formatDateAtTime(iso) {
+  const date = formatDate(iso);
+  return date === '—' ? date : `${date} at ${formatTime(iso)}`;
+}
+
 /** Peso amount with thousands separators and a fixed two decimals. */
 export function peso(amount) {
   return `₱${Number(amount || 0).toLocaleString('en-PH', {

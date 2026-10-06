@@ -99,7 +99,7 @@ export default function SmokerStatusChart() {
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-wider uppercase text-ink-400">Smoker Status</p>
             <p className="text-sm font-medium text-ink-600 mt-0.5">
-              {data ? `${data.total} patients` : 'Distribution Overview'}
+              {data ? `${data.total} patients · ${officeLabel}` : 'Distribution Overview'}
             </p>
           </div>
           <Select

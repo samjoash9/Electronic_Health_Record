@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDiagnosticTests, diagnosticTestsTotal, catalogPrice } from './diagnosticTests';
+import { parseDiagnosticTests, diagnosticTestsTotal, catalogPrice, catalogFullName } from './diagnosticTests';
 
 describe('parseDiagnosticTests', () => {
   it('prices catalog tests stored bare', () => {
@@ -96,5 +96,17 @@ describe('catalogPrice', () => {
 
   it('returns null for a name that is not in the catalog', () => {
     expect(catalogPrice('Not A Real Test')).toBeNull();
+  });
+});
+
+describe('catalogFullName', () => {
+  it('spells out an abbreviated test', () => {
+    expect(catalogFullName('CBC')).toBe('Complete blood count');
+    expect(catalogFullName('TSH')).toBe('Thyroid-stimulating hormone');
+  });
+
+  it('has nothing to add for a test already named in full, or one not in the catalog', () => {
+    expect(catalogFullName('Drug Test')).toBeNull();
+    expect(catalogFullName('Not A Real Test')).toBeNull();
   });
 });

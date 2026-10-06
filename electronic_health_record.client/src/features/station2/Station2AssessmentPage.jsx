@@ -76,26 +76,26 @@ export default function Station2AssessmentPage() {
   };
 
   return (
-    <div className="m-5 flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg">
-      <Card title="Review Assessment" className="m-0 rounded-none border-0 shadow-none">
+    <>
+      <Card title="Review Assessment">
         <AnswersReview categories={categories} answers={answersForReview} />
+
+        <div className="mt-5 flex justify-end border-t border-line pt-4">
+          <Button
+            type="button"
+            variant="teal"
+            size="lg"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate(draftAnswers ?? Object.fromEntries(
+              savedAnswers.map((a) => [a.questionID, a.optionID]),
+            ))}
+          >
+            {mutation.isPending ? 'Submitting…' : 'Submit to Station 3'}
+          </Button>
+        </div>
       </Card>
 
-      <div className="flex justify-end gap-2 rounded-lg bg-surface px-4 py-3">
-        <Button
-          type="button"
-          variant="teal"
-          size="lg"
-          disabled={mutation.isPending}
-          onClick={() => mutation.mutate(draftAnswers ?? Object.fromEntries(
-            savedAnswers.map((a) => [a.questionID, a.optionID]),
-          ))}
-        >
-          {mutation.isPending ? 'Submitting…' : 'Submit to Station 3'}
-        </Button>
-      </div>
-
       <ConflictModal open={conflictOpen} onReload={handleReload} onClose={() => setConflictOpen(false)} />
-    </div>
+    </>
   );
 }
