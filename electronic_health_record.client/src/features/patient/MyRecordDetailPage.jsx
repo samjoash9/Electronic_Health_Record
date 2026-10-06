@@ -1,7 +1,10 @@
+import { useState, useRef } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 import {
-  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
+  ArrowLeft, Download, Loader2, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
   Users, Stethoscope, Activity, ClipboardList, FlaskConical, Pill,
   Cigarette, Dumbbell, Wine, BadgeCheck, Smile, Eye,
 } from 'lucide-react';
@@ -48,12 +51,134 @@ function StaticAnswer({ value, placeholder }) {
 export default function MyRecordDetailPage() {
   const { formId } = useParams();
   const navigate = useNavigate();
+  const demographicsRef = useRef(null);
+  const station1Ref = useRef(null);
+  const station2HeaderRef = useRef(null);
+  const station2SpiritualRef = useRef(null);
+  const station2PsychologicalRef = useRef(null);
+  const station2MentalRef = useRef(null);
+  const station2EmotionalRef = useRef(null);
+  const station2PhysicalRef = useRef(null);
+  const station2FinancialRef = useRef(null);
+  const station2SocialRef = useRef(null);
+  const station3Ref = useRef(null);
+  const station4Ref = useRef(null);
+  const station5Ref = useRef(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories } = useQuery({
     queryKey: ['assessment-template'],
     queryFn: getAssessmentTemplate,
     staleTime: Infinity,
   });
+
+  const downloadPatientRecord = async () => {
+    if (isGeneratingPDF) return;
+    setIsGeneratingPDF(true);
+
+    // 1. Define the refs array representing your sections in order
+    const sections = [
+      demographicsRef,
+      station1Ref,
+      station2HeaderRef,
+      station2SpiritualRef,
+      station2PsychologicalRef,
+      station2MentalRef,
+      station2EmotionalRef,
+      station2PhysicalRef,
+      station2FinancialRef,
+      station2SocialRef,
+      station3Ref,
+      station4Ref,
+      station5Ref,
+    ];
+
+    const buttonsToClose = [];
+    try {
+      // Temporarily expand any collapsed sections within the document
+      const collapsedButtons = document.querySelectorAll('button[aria-expanded="false"]');
+      collapsedButtons.forEach((btn) => {
+        btn.click();
+        buttonsToClose.push(btn);
+      });
+
+      if (buttonsToClose.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      // Filter out external font stylesheets to avoid CORS cloning issues
+      const filter = (node) => {
+        if (node.tagName === 'LINK' && node.href && node.href.includes('fonts.googleapis.com')) {
+          return false;
+        }
+        return true;
+      };
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const marginX = 10; // 10mm margins on left/right
+      const usableWidth = pdfWidth - (marginX * 2); 
+      let currentY = 15; // Starting top margin
+
+      // 2. Loop through each section
+      for (let i = 0; i < sections.length; i++) {
+        const section = sections[i].current;
+        if (!section) continue;
+
+        // Force a fixed pixel width for the capture so it doesn't rely on screen size
+        const captureWidth = 1024; 
+
+        const dataUrl = await toPng(section, {
+          quality: 1,
+          backgroundColor: '#ffffff', // Ensure pure white background
+          pixelRatio: 2,
+          width: captureWidth,
+          filter,
+          style: {
+            width: `${captureWidth}px`,
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+          },
+        });
+
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgHeight = (imgProps.height * usableWidth) / imgProps.width;
+
+        // Page break logic: If this section exceeds the page height, add a new page
+        if (currentY + imgHeight > pdfHeight - 15 && i > 0) {
+          pdf.addPage();
+          currentY = 15; // Reset Y for the new page
+        }
+
+        pdf.addImage(dataUrl, 'PNG', marginX, currentY, usableWidth, imgHeight);
+        currentY += imgHeight + 10; // Add 10mm spacing between sections
+      }
+
+      // 3. Add the centered watermark to every page
+      const pageCount = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setTextColor(230, 235, 233);
+        pdf.setFontSize(28); 
+        pdf.text(
+          ['eHPR System', 'Confidential Patient Record'], 
+          pdfWidth / 2, 
+          pdfHeight / 2, 
+          { angle: 45, align: 'center', baseline: 'middle' }
+        );
+      }
+
+      pdf.save(`My_Health_Record_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate patient record PDF:', err);
+    } finally {
+      // Restore user's previous collapsed section state
+      buttonsToClose.forEach((btn) => btn.click());
+      setIsGeneratingPDF(false);
+    }
+  };
 
   const backButton = (
     <Button
@@ -86,13 +211,43 @@ export default function MyRecordDetailPage() {
 
   return (
     <div className="flex flex-col gap-4 pb-10">
-      {backButton}
+      <div className="flex justify-between items-center mb-6">
+        <Button
+          type="button"
+          variant="secondary"
+          size="md"
+          onClick={() => navigate('/my-record')}
+        >
+          <ArrowLeft size={16} strokeWidth={2.25} />
+          Back to My Record
+        </Button>
 
-      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
-        <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-xl font-bold text-white shadow-sm ring-4 ring-white">
-            {fullName(patient).charAt(0).toUpperCase()}
-          </div>
+        <button
+          type="button"
+          onClick={downloadPatientRecord}
+          disabled={isGeneratingPDF}
+          className="flex items-center gap-2 bg-[#0A594D] hover:bg-[#07463c] text-white px-4 py-2 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+        >
+          {isGeneratingPDF ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>Generating PDF...</span>
+            </>
+          ) : (
+            <>
+              <Download size={16} />
+              <span>Download Record</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div ref={demographicsRef} className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+          <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-xl font-bold text-white shadow-sm ring-4 ring-white">
+              {fullName(patient).charAt(0).toUpperCase()}
+            </div>
           <div>
             <p className="text-lg font-semibold text-ink-900">{fullName(patient)}</p>
             <p className="text-sm text-ink-500">Age {ageFrom(patient?.birthdate)} · {patient?.position} · {patient?.agencyOffice}</p>
@@ -116,14 +271,27 @@ export default function MyRecordDetailPage() {
         </dl>
       </div>
 
-      <PriorStationsPanel form={form} categories={categories} />
+      <PriorStationsPanel
+        form={form}
+        categories={categories}
+        station1Ref={station1Ref}
+        station2HeaderRef={station2HeaderRef}
+        station2SpiritualRef={station2SpiritualRef}
+        station2PsychologicalRef={station2PsychologicalRef}
+        station2MentalRef={station2MentalRef}
+        station2EmotionalRef={station2EmotionalRef}
+        station2PhysicalRef={station2PhysicalRef}
+        station2FinancialRef={station2FinancialRef}
+        station2SocialRef={station2SocialRef}
+      />
 
-      <SectionCard
-        step={1}
-        title="Family Medical History"
-        subtitle="Conditions reported among your immediate family."
-        icon={Users}
-      >
+      <div ref={station3Ref} className="flex flex-col gap-4">
+        <SectionCard
+          step={1}
+          title="Family Medical History"
+          subtitle="Conditions reported among your immediate family."
+          icon={Users}
+        >
         <HistoryList
           items={form.familyMedicalHistory}
           empty="No family medical history on file."
@@ -238,73 +406,145 @@ export default function MyRecordDetailPage() {
           </div>
         </div>
       </SectionCard>
+      </div>
 
-      <SectionCard
-        step={5}
-        title="Dental Assessment"
-        subtitle="Station 4 findings and the examining dentist's remarks."
-        icon={Smile}
-      >
-        {form.dentalAssessment ? (
-          <div className="flex flex-col gap-4">
-            {DENTAL_INDICATORS.map(({ name, label }, index) => (
-              // SubPanel renders its icon unconditionally with no fallback, and
-              // DENTAL_INDICATORS carries no per-indicator icon, so every row
-              // reuses the section's own Smile icon rather than passing none.
-              <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-semibold text-ink-900">
-                    {form.dentalAssessment[name] || <span className="font-normal text-ink-400 italic">Not assessed</span>}
-                  </p>
-                  <StaticAnswer
-                    value={form.dentalAssessment[`${name}Remarks`]}
-                    placeholder="No remarks."
-                  />
-                </div>
-              </SubPanel>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-ink-500">Not yet completed.</p>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        step={6}
-        title="Vision Assessment"
-        subtitle="Station 5 findings and the examining optometrist's remarks."
-        icon={Eye}
-      >
-        {form.visionAssessment ? (
-          <div className="flex flex-col gap-4">
-            {VISION_INDICATORS.map((indicator, index) => {
-              const { name, label, type, hasOther, otherFieldName } = indicator;
-              const value = form.visionAssessment[name];
-              const otherValue = hasOther ? form.visionAssessment[otherFieldName] : null;
-              // SubPanel renders its icon unconditionally with no fallback, and
-              // VISION_INDICATORS carries no per-indicator icon, so every row
-              // reuses the section's own Eye icon rather than passing none.
-              return (
-                <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+      <div ref={station4Ref}>
+        <SectionCard
+          step={5}
+          title="Dental Assessment"
+          subtitle="Station 4 findings and the examining dentist's remarks."
+          icon={Smile}
+        >
+          {form.dentalAssessment ? (
+            <div className="flex flex-col gap-4">
+              {DENTAL_INDICATORS.map(({ name, label }, index) => (
+                // SubPanel renders its icon unconditionally with no fallback, and
+                // DENTAL_INDICATORS carries no per-indicator icon, so every row
+                // reuses the section's own Smile icon rather than passing none.
+                <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
                   <div className="flex flex-col gap-1.5">
                     <p className="text-sm font-semibold text-ink-900">
-                      {value
-                        ? `${value}${hasOther && value === 'Other' && otherValue ? ` — ${otherValue}` : ''}`
-                        : <span className="font-normal text-ink-400 italic">{type === 'text' ? 'Not recorded' : 'Not assessed'}</span>}
+                      {form.dentalAssessment[name] || <span className="font-normal text-ink-400 italic">Not assessed</span>}
                     </p>
                     <StaticAnswer
-                      value={form.visionAssessment[`${name}Remarks`]}
+                      value={form.dentalAssessment[`${name}Remarks`]}
                       placeholder="No remarks."
                     />
                   </div>
                 </SubPanel>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-sm text-ink-500">Not yet completed.</p>
-        )}
-      </SectionCard>
+              ))}
+
+              <div className="mt-6 border border-gray-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="bg-[#e6f4f1] text-[#37AF9B] p-2 rounded-full">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">DENTIST</p>
+                    <p className="font-bold text-gray-900 leading-tight">
+                      {form.dentist ? `Dr. ${form.dentist.firstName} ${form.dentist.surname}` : '—'}
+                    </p>
+                    <p className="text-sm text-gray-500">PRC License No. {form.dentist?.prcLicenseNo ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start sm:items-end">
+                  <div className="w-48 h-16 border border-gray-200 rounded-md flex items-center justify-center mb-1 bg-surface p-1">
+                    {form.dentalSignature ? (
+                      <img
+                        src={form.dentalSignature}
+                        alt="Dentist signature"
+                        className="h-full max-h-14 max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">No signature</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    Signed {form.dentalSignedAt ? formatDateTime(form.dentalSignedAt) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-500">Not yet completed.</p>
+          )}
+        </SectionCard>
+      </div>
+
+      <div ref={station5Ref}>
+        <SectionCard
+          step={6}
+          title="Vision Assessment"
+          subtitle="Station 5 findings and the examining optometrist's remarks."
+          icon={Eye}
+        >
+          {form.visionAssessment ? (
+            <div className="flex flex-col gap-4">
+              {VISION_INDICATORS.map((indicator, index) => {
+                const { name, label, type, hasOther, otherFieldName } = indicator;
+                const value = form.visionAssessment[name];
+                const otherValue = hasOther ? form.visionAssessment[otherFieldName] : null;
+                // SubPanel renders its icon unconditionally with no fallback, and
+                // VISION_INDICATORS carries no per-indicator icon, so every row
+                // reuses the section's own Eye icon rather than passing none.
+                return (
+                  <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-sm font-semibold text-ink-900">
+                        {value
+                          ? `${value}${hasOther && value === 'Other' && otherValue ? ` — ${otherValue}` : ''}`
+                          : <span className="font-normal text-ink-400 italic">{type === 'text' ? 'Not recorded' : 'Not assessed'}</span>}
+                      </p>
+                      <StaticAnswer
+                        value={form.visionAssessment[`${name}Remarks`]}
+                        placeholder="No remarks."
+                      />
+                    </div>
+                  </SubPanel>
+                );
+              })}
+
+              <div className="mt-6 border border-gray-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="bg-[#e6f4f1] text-[#37AF9B] p-2 rounded-full">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">OPTOMETRIST</p>
+                    <p className="font-bold text-gray-900 leading-tight">
+                      {form.optometrist ? `Dr. ${form.optometrist.firstName} ${form.optometrist.surname}` : '—'}
+                    </p>
+                    <p className="text-sm text-gray-500">PRC License No. {form.optometrist?.prcLicenseNo ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start sm:items-end">
+                  <div className="w-48 h-16 border border-gray-200 rounded-md flex items-center justify-center mb-1 bg-surface p-1">
+                    {form.visionSignature ? (
+                      <img
+                        src={form.visionSignature}
+                        alt="Optometrist signature"
+                        className="h-full max-h-14 max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">No signature</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    Signed {form.visionSignedAt ? formatDateTime(form.visionSignedAt) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-500">Not yet completed.</p>
+          )}
+        </SectionCard>
+      </div>
+      </div>
     </div>
   );
 }

@@ -11,7 +11,13 @@ import ScoreBar from '../../components/ui/ScoreBar';
 import LanguageToggle from './LanguageToggle';
 import BandChip from './BandChip';
 
-export default function AnswersReview({ categories, answers }) {
+export default function AnswersReview({
+  categories,
+  answers,
+  headerRef,
+  headerSlot,
+  categoryRefs,
+}) {
   const answerMap = answersToMap(answers);
   const scores = scoreAllCategories(categories, answers);
   const scoreByCategory = Object.fromEntries(scores.map((s) => [s.categoryID, s]));
@@ -40,24 +46,27 @@ export default function AnswersReview({ categories, answers }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-line bg-surface px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-ink-900">{t.title}</h3>
-          <LanguageToggle value={lang} onChange={setLang} />
+      <div ref={headerRef} className="flex flex-col gap-4">
+        {headerSlot}
+        <div className="rounded-xl border border-line bg-surface px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-bold text-ink-900">{t.title}</h3>
+            <LanguageToggle value={lang} onChange={setLang} />
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-ink-700">{t.howToRead}</p>
+          <p className="mt-3 text-xs font-bold uppercase tracking-wide text-ink-500">{t.scoreGuide}</p>
+          <ul className="mt-1.5 flex flex-wrap gap-2">
+            {BANDS.map((band) => {
+              const { min, max } = bandRange(band);
+              return (
+                <li key={band}>
+                  <BandChip band={band} label={`${t.bands[band]} · ${min}–${max}%`} />
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-xs text-ink-500">{t.disclaimer}</p>
         </div>
-        <p className="mt-2 text-sm leading-relaxed text-ink-700">{t.howToRead}</p>
-        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-ink-500">{t.scoreGuide}</p>
-        <ul className="mt-1.5 flex flex-wrap gap-2">
-          {BANDS.map((band) => {
-            const { min, max } = bandRange(band);
-            return (
-              <li key={band}>
-                <BandChip band={band} label={`${t.bands[band]} · ${min}–${max}%`} />
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-3 text-xs text-ink-500">{t.disclaimer}</p>
       </div>
 
       <button
@@ -91,8 +100,10 @@ export default function AnswersReview({ categories, answers }) {
           const Icon = Icons[style.icon] ?? Icons.ClipboardList;
           const isCollapsed = Boolean(collapsed[category.categoryID]);
           const panelId = `${uid}-panel-${category.categoryID}`;
+          const categoryRef = categoryRefs?.[category.name] ?? categoryRefs?.[category.name?.toLowerCase()];
           return (
-            <section key={category.categoryID} aria-label={name} className="overflow-hidden rounded-xl border border-line">
+            <div key={category.categoryID} ref={categoryRef}>
+              <section aria-label={name} className="overflow-hidden rounded-xl border border-line">
               <button
                 type="button"
                 onClick={() => toggle(category.categoryID)}
@@ -172,8 +183,9 @@ export default function AnswersReview({ categories, answers }) {
                 </ul>
               </div>
             </section>
-          );
-        })}
+          </div>
+        );
+      })}
 
         <section aria-label={t.overallSummary} className="overflow-hidden rounded-xl border border-line">
           <div className="px-4 py-3 bg-teal-50 border-b border-line">
