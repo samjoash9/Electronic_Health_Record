@@ -59,6 +59,27 @@ const searchFields = (f) => {
 
 const filterField = (f) => f.status;
 
+// Chromium's native calendar glyph is ~12px -- too small a target to hit
+// reliably. The glyph is enlarged to fill the field's height, and a click
+// anywhere in the field opens the picker too, so the glyph no longer has to
+// be aimed at at all.
+const DATE_INPUT_CLASS = [
+  'h-7 w-full min-w-0 cursor-pointer rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto',
+  '[&::-webkit-calendar-picker-indicator]:size-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer',
+  '[&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:p-0.5',
+  '[&::-webkit-calendar-picker-indicator:hover]:bg-gray-100',
+].join(' ');
+
+// showPicker() is missing on older browsers and throws without a user
+// gesture; either way the input's native behaviour still stands.
+const openDatePicker = (e) => {
+  try {
+    e.currentTarget.showPicker?.();
+  } catch {
+    /* fall back to native behaviour */
+  }
+};
+
 export default function FormsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -172,8 +193,9 @@ export default function FormsPage() {
                 aria-label="Visit date from"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
+                onClick={openDatePicker}
                 max={dateTo || undefined}
-                className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
+                className={DATE_INPUT_CLASS}
               />
               <span className="shrink-0 text-ink-400">–</span>
               <input
@@ -181,8 +203,9 @@ export default function FormsPage() {
                 aria-label="Visit date to"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
+                onClick={openDatePicker}
                 min={dateFrom || undefined}
-                className="h-7 w-full min-w-0 rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto"
+                className={DATE_INPUT_CLASS}
               />
               {hasDateFilter && (
                 <button

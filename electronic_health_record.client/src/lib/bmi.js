@@ -42,10 +42,26 @@ export function calculateIdealWeightKg(heightCm) {
   return round1(IDEAL_BMI * heightM * heightM);
 }
 
+/** Lower bound of each category above Underweight, on the Asia-Pacific cutoffs. */
+export const BMI_CUTOFFS = { normal: 18.5, overweight: 23, obese: 25 };
+
 export function bmiCategory(bmi) {
   if (bmi === null || bmi === undefined) return null;
-  if (bmi < 18.5) return 'Underweight';
-  if (bmi < 23) return 'Normal';
-  if (bmi < 25) return 'Overweight';
+  if (bmi < BMI_CUTOFFS.normal) return 'Underweight';
+  if (bmi < BMI_CUTOFFS.overweight) return 'Normal';
+  if (bmi < BMI_CUTOFFS.obese) return 'Overweight';
   return 'Obese';
+}
+
+/**
+ * The span the record view's BMI bar draws: wide enough to hold most adults
+ * with room either side of the cutoffs, which crowd together between 18.5
+ * and 25 on the Asia-Pacific scale.
+ */
+export const BMI_SCALE = { min: 15, max: 35 };
+
+/** Where a BMI sits along BMI_SCALE, 0-100; a reading off either end pins to it. */
+export function bmiScalePercent(bmi) {
+  const percent = ((Number(bmi) - BMI_SCALE.min) / (BMI_SCALE.max - BMI_SCALE.min)) * 100;
+  return Math.min(100, Math.max(0, percent));
 }

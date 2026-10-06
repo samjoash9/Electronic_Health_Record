@@ -1,0 +1,63 @@
+// Test data for the station report cards, shaped exactly like
+// GET /api/reports/station{n}. Every name and number is invented.
+export const REPORTS = {
+  1: {
+    completed: 12,
+    patients: 10,
+    bmi: { underweight: 1, normal: 4, overweight: 2, obese: 3 },
+    bp: { normal: 5, elevated: 2, stage1: 2, stage2: 1, crisis: 0 },
+    flags: { fever: 1, tachycardia: 2, bradycardia: 0, tachypnea: 0 },
+  },
+  2: {
+    completed: 9,
+    medianMinutes: 14.5,
+    patients: 8,
+    bands: { excellent: 1, good: 3, fair: 2, attention: 1, support: 1 },
+    focusArea: { category: 'Sleep', percent: 61.2 },
+  },
+  3: {
+    completed: 7,
+    medianMinutes: 22,
+    patients: 6,
+    topLabs: [{ name: 'CBC', count: 5 }, { name: 'Urinalysis', count: 3 }],
+    topMeds: [{ name: 'Amlodipine', count: 2 }],
+    byPhysician: [{ name: 'Dr. Reyes', count: 4 }, { name: 'Dr. Cruz', count: 3 }],
+    riskFactors: { chronicCondition: 3, smokers: 2, drinkers: 1 },
+    answered: { smokers: 4, drinkers: 6 },
+  },
+  4: {
+    completed: 5,
+    medianMinutes: 9,
+    patients: 5,
+    hygiene: { good: 2, fair: 2, poor: 1 },
+    findings: { caries: 3, gumProblem: 1, toothProblem: 2, oralLesions: 0 },
+    referrals: { routine: 2, urgent: 1 },
+    answered: { caries: 3, gumProblem: 5, toothProblem: 4, oralLesions: 5 },
+  },
+  5: {
+    completed: 4,
+    medianMinutes: 11,
+    patients: 4,
+    symptoms: { blurred: 2, near: 1, distant: 1, eyeStrain: 3, eyePain: 0 },
+    conditions: { none: 2, refractiveError: 1, other: 1 },
+    usesCorrection: 1,
+    outcomes: { lensesRecommended: 2, specialistReferral: 1, followUp: 0 },
+    answered: { blurred: 4, near: 4, distant: 4, eyeStrain: 3, eyePain: 4, usesCorrection: 2 },
+  },
+  6: {
+    asOf: '2026-10-05',
+    period: {
+      billingFormID: 1,
+      title: 'Q4 2026',
+      startDate: '2026-10-01',
+      endDate: '2026-12-31',
+      capital: 100000,
+      consumed: 85000,
+      remaining: 15000,
+      percentUsed: 85,
+    },
+    byType: { lab: 60000, medication: 25000 },
+    topItems: [{ name: 'CBC', amount: 30000 }, { name: 'Lipid profile', amount: 20000 }],
+    unpricedCount: 2,
+  },
+};

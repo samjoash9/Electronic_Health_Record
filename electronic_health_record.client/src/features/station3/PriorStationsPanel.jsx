@@ -1,6 +1,5 @@
-import { HeartPulse, ListChecks, ClipboardList, FlaskConical, Stethoscope, Pill, BadgeCheck, Smile, History, Receipt } from 'lucide-react';
+import { FlaskConical, Stethoscope, Pill, BadgeCheck, Smile, History, Receipt } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { bmiCategory } from '../../lib/bmi';
 import { scoreAllCategories, overallScore } from '../../lib/scoring';
 import { formatDate, formatDateTime, peso } from '../../lib/formatters';
 import { DENTAL_INDICATORS, STATUS_LABEL, STATUS_TONE } from '../../lib/constants';
@@ -10,6 +9,9 @@ import Badge from '../../components/ui/Badge';
 import ScoreRing from '../../components/ui/ScoreRing';
 import AnswersReview from '../station2/AnswersReview';
 import { SubPanel } from './SectionCard';
+import StationCollapsible from './StationCollapsible';
+import Station1VitalsDetail from './Station1VitalsDetail';
+import { vitalsHeader, assessmentHeader, consultationHeader, dentalHeader } from './stationHeaders';
 import DiagnosticTestList from '../../components/ui/DiagnosticTestList';
 
 /**
@@ -80,22 +82,6 @@ function StaticAnswer({ value, placeholder }) {
     : <p className="text-sm text-ink-400 italic">{placeholder}</p>;
 }
 
-const BMI_TONE = {
-  Underweight: 'warn',
-  Normal: 'success',
-  Overweight: 'warn',
-  Obese: 'danger',
-};
-
-function VitalRow({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs text-ink-500">{label}</p>
-      <p className="text-sm font-medium text-ink-900">{value ?? '—'}</p>
-    </div>
-  );
-}
-
 export default function PriorStationsPanel({
   form,
   categories,
@@ -111,7 +97,6 @@ export default function PriorStationsPanel({
   station2FinancialRef,
   station2SocialRef,
 }) {
-  const category = bmiCategory(form.bmi);
   const scores = categories ? scoreAllCategories(categories, form.assessmentAnswers) : [];
   const overall = categories ? overallScore(categories, form.assessmentAnswers) : null;
 
@@ -182,11 +167,7 @@ export default function PriorStationsPanel({
       </div>
 
       {upToStation >= 3 && (
-        <Collapsible
-          title="Station 3 — Consultation"
-          icon={ClipboardList}
-          subtitle={form.signedAt ? `Signed ${formatDateTime(form.signedAt)}` : 'Not yet completed'}
-        >
+        <StationCollapsible {...consultationHeader(form)}>
           {form.signedAt ? (
             <>
               <div className="flex flex-col gap-4">
@@ -228,15 +209,11 @@ export default function PriorStationsPanel({
           ) : (
             <p className="text-sm text-ink-500">Not yet completed.</p>
           )}
-        </Collapsible>
+        </StationCollapsible>
       )}
 
       {upToStation >= 4 && (
-        <Collapsible
-          title="Station 4 — Dental Assessment"
-          icon={Smile}
-          subtitle={form.dentalAssessment ? `Recorded ${formatDateTime(form.dentalSignedAt)}` : 'Not yet completed'}
-        >
+        <StationCollapsible {...dentalHeader(form)}>
           {form.dentalAssessment ? (
             <div className="flex flex-col gap-4">
               {DENTAL_INDICATORS.map(({ name, label }, index) => (
@@ -256,7 +233,7 @@ export default function PriorStationsPanel({
           ) : (
             <p className="text-sm text-ink-500">Not yet completed.</p>
           )}
-        </Collapsible>
+        </StationCollapsible>
       )}
     </div>
   );

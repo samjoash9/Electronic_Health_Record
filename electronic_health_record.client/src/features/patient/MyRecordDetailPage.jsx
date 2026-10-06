@@ -12,6 +12,7 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { FORM_STATUS, DENTAL_INDICATORS, VISION_INDICATORS } from '../../lib/constants';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
+import { familyHistoryLabel } from '../../lib/familyHistory';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
@@ -295,9 +296,7 @@ export default function MyRecordDetailPage() {
         <HistoryList
           items={form.familyMedicalHistory}
           empty="No family medical history on file."
-          render={(row) => row.isNone
-            ? 'None reported'
-            : `${row.conditionOther ?? `Condition #${row.conditionID}`}${row.conditionType ? ` — ${row.conditionType}` : ''}`}
+          render={familyHistoryLabel}
         />
       </SectionCard>
 

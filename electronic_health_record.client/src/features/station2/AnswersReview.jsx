@@ -44,6 +44,9 @@ export default function AnswersReview({
   // are scoped per instance rather than hardcoded.
   const uid = useId();
 
+  // The guide and the "All Sections" toggle sit unboxed: this renders inside a
+  // card already (Station 2's review, Station 3's prior-stations panel), so
+  // only the sections themselves are drawn as boxes.
   return (
     <div className="flex flex-col gap-4">
       <div ref={headerRef} className="flex flex-col gap-4">
@@ -74,7 +77,7 @@ export default function AnswersReview({
         onClick={() => setAllCollapsed((v) => !v)}
         aria-expanded={!allCollapsed}
         aria-controls={`${uid}-sections`}
-        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-teal-50 px-4 py-3 text-left"
+        className="flex items-center justify-between gap-3 border-t border-line pt-4 text-left"
       >
         <span className="text-sm font-bold text-ink-900">
           {t.allSections}
@@ -139,7 +142,7 @@ export default function AnswersReview({
                     </div>
                   )}
                   {flagged.length > 0 && (
-                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                    <div className="rounded-lg bg-rose-50 px-3 py-2">
                       <p id={`${panelId}-flagged`} className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
                         <Icons.AlertTriangle size={14} aria-hidden="true" />
                         {t.flaggedTitle}
@@ -188,9 +191,7 @@ export default function AnswersReview({
       })}
 
         <section aria-label={t.overallSummary} className="overflow-hidden rounded-xl border border-line">
-          <div className="px-4 py-3 bg-teal-50 border-b border-line">
-            <span className="text-sm font-bold text-ink-900">{t.overallSummary}</span>
-          </div>
+          <h3 className="border-b border-line bg-teal-50 px-4 py-3 text-sm font-bold text-ink-900">{t.overallSummary}</h3>
           <ul className="divide-y divide-line">
             {scores.map((score) => {
               const band = scoreBand(score.percent);

@@ -12,6 +12,9 @@ export const canonical = (name) => ALIASES.get(name) ?? name;
 
 export const catalogPrice = (name) => BY_NAME.get(canonical(name))?.price ?? null;
 
+/** What an abbreviated test stands for, for the record view; null when the name already says it. */
+export const catalogFullName = (name) => BY_NAME.get(canonical(name))?.fullName ?? null;
+
 // An entry may carry a quoted amount in trailing parentheses -- "ECG (500)" --
 // used for the tests the office has no fixed rate for and for typed-in ones.
 // Catalog tests at their list price are stored bare, so a form saved before

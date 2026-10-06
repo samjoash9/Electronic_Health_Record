@@ -298,12 +298,13 @@ export default function ChargeCatalogPanel() {
         <DataTable
           columns={columns}
           rows={table.pageRows.map((item) => ({ ...item, id: item.chargeItemID }))}
+          rowActionsHeader="Actions"
           rowActions={(item) => (
             <button
               type="button"
               title={item.isActive ? 'Retire this item' : 'Restore this item'}
               onClick={() => toggleActive(item)}
-              className={`flex h-11 w-11 items-center justify-center rounded-lg transition ${
+              className={`mx-auto flex h-11 w-11 items-center justify-center rounded-lg transition ${
                 item.isActive
                   ? 'text-ink-400 hover:bg-rose-50 hover:text-rose-600'
                   : 'text-ink-400 hover:bg-emerald-50 hover:text-emerald-600'
