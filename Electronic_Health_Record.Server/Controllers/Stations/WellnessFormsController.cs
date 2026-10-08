@@ -531,6 +531,13 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 .Where(e => !string.IsNullOrWhiteSpace(e.ExerciseType))
                 .ToList();
 
+            // A year outside the patient's life up to this visit is a typo the
+            // client already flags; checked again so the API cannot store one.
+            var birthdate = await PatientBirthdateAsync(form.PatientID);
+            if (ConsultationYears.FirstError(birthdate, form.FormDate.Year, pastHistory, exercise, dto.SocialHistory)
+                is { } yearError)
+                return BadRequest(new { message = yearError });
+
             var conditionIds = pastHistory.Where(p => p.ConditionID.HasValue).Select(p => p.ConditionID!.Value)
                 .Concat(familyHistory.Where(f => f.ConditionID.HasValue).Select(f => f.ConditionID!.Value))
                 .Distinct()
@@ -1344,6 +1351,27 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 }
             }
 
+            // Same year range as the Station 3 submit, over only the sections
+            // this patch replaces: an old bad year elsewhere must not block an
+            // unrelated correction. The range runs to the corrected visit date
+            // when one is sent with it.
+            if (Sent("pastMedicalHistory") || Sent("exercise") || Sent("socialHistory"))
+            {
+                var birthdate = await PatientBirthdateAsync(form.PatientID);
+                var visitYear = (Sent("formDate") && dto.FormDate is { } correctedDate
+                    ? correctedDate
+                    : form.FormDate).Year;
+                var yearError = ConsultationYears.FirstError(
+                    birthdate,
+                    visitYear,
+                    Sent("pastMedicalHistory") ? dto.PastMedicalHistory : null,
+                    // Rows without a type are dropped below, so their years are never stored.
+                    Sent("exercise") ? dto.Exercise?.Where(e => !string.IsNullOrWhiteSpace(e.ExerciseType)) : null,
+                    Sent("socialHistory") ? dto.SocialHistory : null);
+                if (yearError != null)
+                    return BadRequest(new { message = yearError });
+            }
+
             ApplyRowVersionToken(form, dto.RowVersion);
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -2098,6 +2126,12 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 PatientAccount = account,
             };
         }
+
+        private Task<DateTime> PatientBirthdateAsync(int patientID) =>
+            _context.Patients
+                .Where(p => p.PatientID == patientID)
+                .Select(p => p.Birthdate)
+                .FirstOrDefaultAsync();
 
         private async Task<Dictionary<int, Patient>> PatientsByIdAsync(IEnumerable<int> patientIds)
         {

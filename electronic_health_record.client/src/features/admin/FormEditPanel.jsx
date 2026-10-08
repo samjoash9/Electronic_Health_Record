@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Activity, AlertTriangle, ClipboardList, Eye, Smile, Stethoscope } from 'lucide-react';
 import { DENTAL_INDICATORS, VISION_INDICATORS, FORM_STATUS } from '../../lib/constants';
+import { visitYear } from '../../lib/consultationRecord';
+import { yearBounds } from '../../lib/yearBounds';
+import { useRevealFirstInvalid } from '../../hooks/useRevealFirstInvalid';
 import SectionCard, { SubPanel } from '../station3/SectionCard';
 import FamilyHistorySection from '../station3/FamilyHistorySection';
 import PastMedicalHistorySection from '../station3/PastMedicalHistorySection';
@@ -22,6 +25,7 @@ import {
   changedAnswerCount,
   consultationChanges,
   consultationValuesFromForm,
+  consultationYearErrors,
   formDateValue,
 } from './formEditValues';
 
@@ -144,6 +148,8 @@ export default function FormEditPanel({
   const [draft, setDraft] = useState(() => initialDraft(form));
   const [reason, setReason] = useState('');
   const [activeTab, setActiveTab] = useState(TABS[0].id);
+  const panelRef = useRef(null);
+  const revealFirstInvalid = useRevealFirstInvalid(panelRef);
 
   const [initialAnswers] = useState(() => answersFromForm(form));
   const [answers, setAnswers] = useState(initialAnswers);
@@ -153,7 +159,11 @@ export default function FormEditPanel({
   // defaults handed to useForm so nothing the form does can reach back into
   // what the edit is diffed against.
   const [initialConsultation] = useState(() => consultationValuesFromForm(form));
-  const consultation = useForm({ defaultValues: consultationValuesFromForm(form) });
+  const consultation = useForm({
+    defaultValues: consultationValuesFromForm(form),
+    // A year outside the patient's lifetime is flagged while it is typed.
+    mode: 'onChange',
+  });
   // Subscribes the panel to every consultation keystroke, which is what keeps
   // the change counts and the save button current.
   const consultationValues = consultation.watch();
@@ -259,6 +269,29 @@ export default function FormEditPanel({
 
   const changedCount = Object.values(tabChangeCounts).reduce((sum, n) => sum + n, 0);
 
+  // The years a consultation answer may fall in run to the visit year, which
+  // follows a corrected visit date; the server checks against the same one.
+  const bounds = yearBounds(
+    form.patient?.birthdate,
+    visitYear({ ...form, formDate: draft.formDate || form.formDate }),
+  );
+
+  // Checked here rather than through the inputs' own rules: the Station 3
+  // inputs are only mounted while their tab is open. A failure opens that tab
+  // and brings the first bad year into view instead of saving.
+  const handleSave = () => {
+    const yearErrors = consultationYearErrors(consultationValues, bounds, Object.keys(consultationChanged));
+    if (yearErrors.length > 0) {
+      for (const { name, message } of yearErrors) {
+        consultation.setError(name, { type: 'validate', message });
+      }
+      setActiveTab('consultation');
+      revealFirstInvalid();
+      return;
+    }
+    onSave({ changes, reason: reason.trim() || undefined });
+  };
+
   const canSave = changedCount > 0
     && !isPending
     && (!reasonRequired || reason.trim().length >= 3);
@@ -271,7 +304,7 @@ export default function FormEditPanel({
   if (onDirtyChange) onDirtyChange(isDirty);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={panelRef} className="flex flex-col gap-4">
       <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
         <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
         <div className="text-sm text-amber-900">
@@ -426,8 +459,12 @@ export default function FormEditPanel({
               setValue={consultation.setValue}
               control={consultation.control}
             />
-            <PastMedicalHistorySection control={consultation.control} register={consultation.register} />
-            <SocialHistorySection control={consultation.control} watch={consultation.watch} />
+            <PastMedicalHistorySection
+              control={consultation.control}
+              register={consultation.register}
+              yearBounds={bounds}
+            />
+            <SocialHistorySection control={consultation.control} watch={consultation.watch} yearBounds={bounds} />
             <AssessmentPlanSection
               register={consultation.register}
               watch={consultation.watch}
@@ -587,7 +624,7 @@ export default function FormEditPanel({
             variant="teal"
             size="md"
             disabled={!canSave}
-            onClick={() => onSave({ changes, reason: reason.trim() || undefined })}
+            onClick={handleSave}
           >
             {isPending ? 'Saving…' : 'Save changes'}
           </Button>

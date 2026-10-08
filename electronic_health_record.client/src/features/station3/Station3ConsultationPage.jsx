@@ -12,6 +12,7 @@ import { useMarkStationStarted } from '../../hooks/useMarkStationStarted';
 import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
+import { useRevealFirstInvalid } from '../../hooks/useRevealFirstInvalid';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
 import {
@@ -19,6 +20,8 @@ import {
   buildCharges, buildExercise, buildFamilyHistory, buildManagementTreatment,
   buildPastMedicalHistory, buildSocialHistory,
 } from '../../lib/station3Payload';
+import { visitYear } from '../../lib/consultationRecord';
+import { yearBounds } from '../../lib/yearBounds';
 import { ROLES, STATIONS } from '../../lib/constants';
 import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
@@ -64,6 +67,8 @@ export default function Station3ConsultationPage() {
   // Mirrors mutation.isSuccess but updates synchronously, so the blocker
   // (read at navigate() time, not at next render) can't see a stale value.
   const submittedRef = useRef(false);
+  const formRef = useRef(null);
+  const revealFirstInvalid = useRevealFirstInvalid(formRef);
 
   const { data: form, isLoading, error, refetch } = useWellnessForm(formId);
   const { data: categories } = useQuery({
@@ -88,7 +93,14 @@ export default function Station3ConsultationPage() {
   const {
     register, control, watch, setValue, handleSubmit, getValues,
     formState: { isDirty },
-  } = useForm({ defaultValues: restoredDraft?.values ?? DEFAULT_VALUES });
+  } = useForm({
+    defaultValues: restoredDraft?.values ?? DEFAULT_VALUES,
+    // A year outside the patient's lifetime is flagged while it is typed, not
+    // only once Sign and Complete is pressed.
+    mode: 'onChange',
+    // Focus is moved by revealFirstInvalid instead, in page order.
+    shouldFocusError: false,
+  });
 
   // Notify only; the values themselves were seeded above during the first render.
   useEffect(() => {
@@ -175,6 +187,9 @@ export default function Station3ConsultationPage() {
   if (formDone) return <Skeleton />;
 
   const patient = form.patient;
+  // Every "year started" / "year diagnosed" must fall within the patient's life
+  // up to this visit; the server enforces the same range.
+  const bounds = yearBounds(patient?.birthdate, visitYear(form));
 
   const handleReload = () => {
     setConflictOpen(false);
@@ -182,15 +197,22 @@ export default function Station3ConsultationPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit((values) => {
-      // The picker is a submitted field, so it is validated here rather than
-      // only leaned on through a disabled button.
-      if (!physicianID) {
-        setPhysicianError('Select the attending physician.');
-        return;
-      }
-      mutation.mutate(values);
-    })}>
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit((values) => {
+        // The picker is a submitted field, so it is validated here rather than
+        // only leaned on through a disabled button.
+        if (!physicianID) {
+          setPhysicianError('Select the attending physician.');
+          return;
+        }
+        mutation.mutate(values);
+      }, () => {
+        // The only field rules on this form are the year bounds.
+        toast.error('Fix the highlighted year before submitting.');
+        revealFirstInvalid();
+      })}
+    >
       <div className="flex flex-col gap-4 pb-4">
         <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
           <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
@@ -223,8 +245,8 @@ export default function Station3ConsultationPage() {
         <PriorStationsPanel form={form} categories={categories} />
 
         <FamilyHistorySection register={register} watch={watch} setValue={setValue} control={control} />
-        <PastMedicalHistorySection control={control} register={register} />
-        <SocialHistorySection control={control} watch={watch} />
+        <PastMedicalHistorySection control={control} register={register} yearBounds={bounds} />
+        <SocialHistorySection control={control} watch={watch} yearBounds={bounds} />
         <AssessmentPlanSection register={register} watch={watch} setValue={setValue} control={control} />
         <PhysicianSignature
           physicianOptions={physicianOptions}
