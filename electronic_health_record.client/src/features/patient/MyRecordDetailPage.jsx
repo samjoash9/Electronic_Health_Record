@@ -63,23 +63,6 @@ export default function MyRecordDetailPage() {
     if (isGeneratingPDF) return;
     setIsGeneratingPDF(true);
 
-    // 1. Define the refs array representing your sections in order
-    const sections = [
-      demographicsRef,
-      station1Ref,
-      station2HeaderRef,
-      station2SpiritualRef,
-      station2PsychologicalRef,
-      station2MentalRef,
-      station2EmotionalRef,
-      station2PhysicalRef,
-      station2FinancialRef,
-      station2SocialRef,
-      station3Ref,
-      station4Ref,
-      station5Ref,
-    ];
-
     const buttonsToClose = [];
     try {
       // Temporarily expand any collapsed sections within the document
@@ -90,8 +73,12 @@ export default function MyRecordDetailPage() {
       });
 
       if (buttonsToClose.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 250));
       }
+
+      // Find every element with the chunk class in the exact order they appear in the DOM
+      const chunks = document.querySelectorAll('.pdf-export-chunk');
+      if (chunks.length === 0) return;
 
       // Filter out external font stylesheets to avoid CORS cloning issues
       const filter = (node) => {
@@ -104,45 +91,49 @@ export default function MyRecordDetailPage() {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const marginX = 10; // 10mm margins on left/right
+      const marginX = 10; 
       const usableWidth = pdfWidth - (marginX * 2); 
-      let currentY = 15; // Starting top margin
+      let currentY = 15; 
 
-      // 2. Loop through each section
-      for (let i = 0; i < sections.length; i++) {
-        const section = sections[i].current;
-        if (!section) continue;
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
 
-        // Force a fixed pixel width for the capture so it doesn't rely on screen size
-        const captureWidth = 1024; 
+        // Get the true, uncropped dimensions of the DOM element
+        const currentWidth = chunk.scrollWidth;
+        const currentHeight = chunk.scrollHeight;
 
-        const dataUrl = await toPng(section, {
+        const dataUrl = await toPng(chunk, {
           quality: 1,
-          backgroundColor: '#ffffff', // Ensure pure white background
+          backgroundColor: '#ffffff',
           pixelRatio: 2,
-          width: captureWidth,
+          width: currentWidth, // Capture full natural width
+          height: currentHeight,
           filter,
           style: {
-            width: `${captureWidth}px`,
+            width: `${currentWidth}px`,
+            height: `${currentHeight}px`,
             transform: 'scale(1)',
             transformOrigin: 'top left',
+            margin: '0', // Prevent margin shifts during capture
           },
         });
 
         const imgProps = pdf.getImageProperties(dataUrl);
         const imgHeight = (imgProps.height * usableWidth) / imgProps.width;
 
-        // Page break logic: If this section exceeds the page height, add a new page
+        // Clean Page Break Logic: If THIS whole chunk doesn't fit, push it to a new page
         if (currentY + imgHeight > pdfHeight - 15 && i > 0) {
           pdf.addPage();
-          currentY = 15; // Reset Y for the new page
+          currentY = 15; 
         }
 
         pdf.addImage(dataUrl, 'PNG', marginX, currentY, usableWidth, imgHeight);
-        currentY += imgHeight + 10; // Add 10mm spacing between sections
+        
+        // Add a small 6mm gap between chunks to mimic the website's gray spacing
+        currentY += imgHeight + 6; 
       }
 
-      // 3. Add the centered watermark to every page
+      // Add Watermarks to all generated pages
       const pageCount = pdf.internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
@@ -223,7 +214,7 @@ export default function MyRecordDetailPage() {
         </button>
       </div>
 
-      <div ref={demographicsRef} className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+      <div ref={demographicsRef} className="pdf-export-chunk overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-xl font-bold text-white shadow-sm ring-4 ring-white">
             {fullName(patient).charAt(0).toUpperCase()}
@@ -266,19 +257,19 @@ export default function MyRecordDetailPage() {
         station2SocialRef={station2SocialRef}
       />
 
-      <div ref={station3Ref}>
+      <div ref={station3Ref} className="pdf-export-chunk">
         <StationCollapsible {...consultationHeader(form)} flush>
           <Station3ConsultationDetail form={form} />
         </StationCollapsible>
       </div>
 
-      <div ref={station4Ref}>
+      <div ref={station4Ref} className="pdf-export-chunk">
         <StationCollapsible {...dentalHeader(form)} signOffInBody>
           <DentalAssessmentDetail form={form} />
         </StationCollapsible>
       </div>
 
-      <div ref={station5Ref}>
+      <div ref={station5Ref} className="pdf-export-chunk">
         <StationCollapsible {...visionHeader(form)} signOffInBody>
           <VisionAssessmentDetail form={form} />
         </StationCollapsible>

@@ -104,7 +104,7 @@ export default function PriorStationsPanel({
     <div className="flex flex-col gap-3">
       <PreviousVisitsSection patientID={form.patientID} currentFormID={form.formID} />
 
-      <div ref={station1Ref}>
+      <div ref={station1Ref} className="pdf-export-chunk">
         <StationCollapsible {...vitalsHeader(form)}>
           <Station1VitalsDetail form={form} />
         </StationCollapsible>
