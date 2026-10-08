@@ -49,7 +49,7 @@ export default function AnswersReview({
   // only the sections themselves are drawn as boxes.
   return (
     <div className="flex flex-col gap-4">
-      <div ref={headerRef} className="flex flex-col gap-4">
+      <div ref={headerRef} className="pdf-export-chunk flex flex-col gap-4">
         {headerSlot}
         <div className="rounded-xl border border-line bg-surface px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -105,7 +105,7 @@ export default function AnswersReview({
           const panelId = `${uid}-panel-${category.categoryID}`;
           const categoryRef = categoryRefs?.[category.name] ?? categoryRefs?.[category.name?.toLowerCase()];
           return (
-            <div key={category.categoryID} ref={categoryRef}>
+            <div key={category.categoryID} ref={categoryRef} className="pdf-export-chunk">
               <section aria-label={name} className="overflow-hidden rounded-xl border border-line">
               <button
                 type="button"
@@ -190,7 +190,7 @@ export default function AnswersReview({
         );
       })}
 
-        <section aria-label={t.overallSummary} className="overflow-hidden rounded-xl border border-line">
+        <section aria-label={t.overallSummary} className="pdf-export-chunk overflow-hidden rounded-xl border border-line">
           <h3 className="border-b border-line bg-teal-50 px-4 py-3 text-sm font-bold text-ink-900">{t.overallSummary}</h3>
           <ul className="divide-y divide-line">
             {scores.map((score) => {
