@@ -1,12 +1,29 @@
 import { useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Eye, Pill, Smile, Stethoscope, FlaskConical } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { Activity, AlertTriangle, ClipboardList, Eye, Smile, Stethoscope } from 'lucide-react';
 import { DENTAL_INDICATORS, VISION_INDICATORS, FORM_STATUS } from '../../lib/constants';
 import SectionCard, { SubPanel } from '../station3/SectionCard';
+import FamilyHistorySection from '../station3/FamilyHistorySection';
+import PastMedicalHistorySection from '../station3/PastMedicalHistorySection';
+import SocialHistorySection from '../station3/SocialHistorySection';
+import AssessmentPlanSection from '../station3/AssessmentPlanSection';
+import CategoryCard from '../station2/CategoryCard';
 import Field from '../../components/ui/Field';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
+import DatePicker from '../../components/ui/DatePicker';
 import Button from '../../components/ui/Button';
+import Skeleton from '../../components/ui/Skeleton';
+import {
+  CONSULTATION_KEYS,
+  answersFromForm,
+  answersPayload,
+  changedAnswerCount,
+  consultationChanges,
+  consultationValuesFromForm,
+  formDateValue,
+} from './formEditValues';
 
 /**
  * The nine Station 1 vitals, in the order they are taken. `step` drives the
@@ -25,33 +42,10 @@ const VITALS = [
   { name: 'respRate', label: 'Resp. Rate', unit: '/min', step: '1' },
 ];
 
-const CONSULTATION = [
-  {
-    name: 'recommendedDiagnosticTest',
-    label: 'Recommended Diagnostic Test',
-    icon: FlaskConical,
-    subtitle: 'Labs, imaging, or referrals ordered.',
-    maxLength: 200,
-  },
-  {
-    name: 'impressionClinical',
-    label: 'Impression / Clinical',
-    icon: Stethoscope,
-    subtitle: 'Working diagnosis from the findings.',
-    maxLength: 300,
-  },
-  {
-    name: 'managementTreatment',
-    label: 'Management / Treatment',
-    icon: Pill,
-    subtitle: 'Medication, lifestyle advice, and follow-up.',
-    maxLength: 300,
-  },
-];
-
 /** One tab per station, in the order the patient passes through them. */
 const TABS = [
   { id: 'vitals', label: 'Vitals', station: 'Station 1', icon: Activity },
+  { id: 'assessment', label: 'Assessment', station: 'Station 2', icon: ClipboardList },
   { id: 'consultation', label: 'Consultation', station: 'Station 3', icon: Stethoscope },
   { id: 'dental', label: 'Dental', station: 'Station 4', icon: Smile },
   { id: 'vision', label: 'Vision', station: 'Station 5', icon: Eye },
@@ -74,14 +68,21 @@ function toNumber(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+// The local calendar day, not toISOString's UTC one: in Manila the two differ
+// until 8am, which would leave the morning's own visits unpickable.
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Builds the draft the panel starts from: the form's own values, as strings. */
 function initialDraft(form) {
   return {
+    formDate: formDateValue(form),
     physicianID: form.physicianID ?? '',
     dentistID: form.dentistID ?? '',
     optometristID: form.optometristID ?? '',
     ...Object.fromEntries(VITALS.map((v) => [v.name, form[v.name] ?? ''])),
-    ...Object.fromEntries(CONSULTATION.map((c) => [c.name, form[c.name] ?? ''])),
     dental: Object.fromEntries(
       DENTAL_INDICATORS.flatMap(({ name }) => [
         [name, form.dentalAssessment?.[name] ?? ''],
@@ -101,11 +102,19 @@ function initialDraft(form) {
 /**
  * Superadmin correction surface for one form.
  *
- * What is editable here is exactly what the PATCH endpoint accepts: vitals, the
- * physician's assessment text, the three practitioner attributions, and the
- * dental and vision indicator grids. Signatures, status and station routing are
- * absent by design -- the server rejects them, and offering an input the server
- * refuses would be a lie.
+ * What is editable here is exactly what the PATCH endpoint accepts: the visit
+ * date and vitals, the Station 2 answers, the whole Station 3 consultation
+ * (family, past medical and social history, exercise, ordered tests,
+ * impression, treatment), the three practitioner attributions, and the dental
+ * and vision indicator grids. Signatures, status and station routing are
+ * absent by design -- the server rejects them, and offering an input the
+ * server refuses would be a lie.
+ *
+ * Stations 2 and 3 are edited through those stations' own inputs (the
+ * kiosk's answer cards, the consultation's sections) rather than through a
+ * flattened copy of their columns: the stored rows only make sense in the
+ * shape the station wrote them, and a correction should read back the same
+ * way the original did.
  *
  * The fields are split into one tab per station rather than one long scroll:
  * an operator correcting a blood pressure reading has no business scrolling
@@ -113,10 +122,10 @@ function initialDraft(form) {
  * the count of fields changed inside it, so what has been touched stays visible
  * from whichever tab is open.
  *
- * Only changed fields are sent. `draft` starts as a copy of the form's current
- * values and the diff against `form` at save time is what becomes the payload,
- * so an untouched field is omitted from the request entirely rather than sent
- * back unchanged.
+ * Only changed fields are sent. Each part starts as a copy of the form's
+ * current values and the diff against that copy at save time is what becomes
+ * the payload, so an untouched field is omitted from the request entirely
+ * rather than sent back unchanged.
  *
  * The panel owns the draft but not the decision to leave: `onDirtyChange` hands
  * the dirty flag up so the page can block navigation, and Cancel/Save are the
@@ -125,6 +134,7 @@ function initialDraft(form) {
 export default function FormEditPanel({
   form,
   physicians = [],
+  categories,
   onSave,
   onCancel,
   isPending,
@@ -134,6 +144,19 @@ export default function FormEditPanel({
   const [draft, setDraft] = useState(() => initialDraft(form));
   const [reason, setReason] = useState('');
   const [activeTab, setActiveTab] = useState(TABS[0].id);
+
+  const [initialAnswers] = useState(() => answersFromForm(form));
+  const [answers, setAnswers] = useState(initialAnswers);
+
+  // Station 3's sections are react-hook-form components, so the consultation
+  // lives in a form of its own. The baseline is built separately from the
+  // defaults handed to useForm so nothing the form does can reach back into
+  // what the edit is diffed against.
+  const [initialConsultation] = useState(() => consultationValuesFromForm(form));
+  const consultation = useForm({ defaultValues: consultationValuesFromForm(form) });
+  // Subscribes the panel to every consultation keystroke, which is what keeps
+  // the change counts and the save button current.
+  const consultationValues = consultation.watch();
 
   const set = (name, value) => setDraft((d) => ({ ...d, [name]: value }));
   const setNested = (group, name, value) =>
@@ -157,93 +180,84 @@ export default function FormEditPanel({
   const isCancelled = form.status === FORM_STATUS.CANCELLED;
   const reasonRequired = isSigned || isCancelled;
 
+  // Recomputed every render rather than memoised: watch() hands back the
+  // form's live values object, whose identity does not change as it fills.
+  const consultationChanged = consultationChanges(initialConsultation, consultationValues);
+  const answerChanges = changedAnswerCount(initialAnswers, answers);
+
   // Only what actually moved. The endpoint is a sparse PATCH: a key we omit is
   // left alone, so sending unchanged fields back would widen the audit entry
   // with noise and risk clobbering a value another station changed meanwhile.
-  const changes = useMemo(() => {
-    const out = {};
+  const changes = {};
 
-    for (const { name } of VITALS) {
-      const next = toNumber(draft[name]);
-      const current = form[name] ?? null;
-      if (next !== current) out[name] = next;
-    }
+  // The visit date cannot be cleared server-side, so an emptied picker is
+  // simply not sent.
+  if (draft.formDate && draft.formDate !== formDateValue(form)) changes.formDate = draft.formDate;
 
-    for (const { name } of CONSULTATION) {
-      const next = normalize(draft[name]);
-      const current = form[name] ?? null;
-      if (next !== current) out[name] = next;
-    }
+  for (const { name } of VITALS) {
+    const next = toNumber(draft[name]);
+    const current = form[name] ?? null;
+    if (next !== current) changes[name] = next;
+  }
 
-    for (const name of ['physicianID', 'dentistID', 'optometristID']) {
-      const next = toNumber(draft[name]);
-      const current = form[name] ?? null;
-      if (next !== current) out[name] = next;
-    }
+  for (const name of ['physicianID', 'dentistID', 'optometristID']) {
+    const next = toNumber(draft[name]);
+    const current = form[name] ?? null;
+    if (next !== current) changes[name] = next;
+  }
 
-    // The two assessment grids go as whole objects or not at all -- the server
-    // replaces the row wholesale, so a partial object would blank the
-    // indicators it left out.
-    const dentalChanged = DENTAL_INDICATORS.some(({ name }) =>
-      normalize(draft.dental[name]) !== (form.dentalAssessment?.[name] ?? null)
-      || normalize(draft.dental[`${name}Remarks`]) !== (form.dentalAssessment?.[`${name}Remarks`] ?? null));
+  // Station 2's answers go back as the full set: the server replaces them
+  // wholesale, so a partial list would drop the questions it left out.
+  if (answerChanges > 0) changes.assessmentAnswers = answersPayload(answers);
 
-    if (dentalChanged) {
-      out.dentalAssessment = Object.fromEntries(
-        Object.entries(draft.dental).map(([k, v]) => [k, normalize(v)])
-      );
-    }
+  Object.assign(changes, consultationChanged);
 
-    const visionChanged = VISION_INDICATORS.some(({ name, hasOther, otherFieldName }) =>
-      normalize(draft.vision[name]) !== (form.visionAssessment?.[name] ?? null)
-      || normalize(draft.vision[`${name}Remarks`]) !== (form.visionAssessment?.[`${name}Remarks`] ?? null)
-      || (hasOther
-        && normalize(draft.vision[otherFieldName]) !== (form.visionAssessment?.[otherFieldName] ?? null)));
+  // The two assessment grids go as whole objects or not at all -- the server
+  // replaces the row wholesale, so a partial object would blank the
+  // indicators it left out.
+  const dentalFields = DENTAL_INDICATORS.reduce((n, { name }) => {
+    const valueMoved = normalize(draft.dental[name]) !== (form.dentalAssessment?.[name] ?? null);
+    const remarksMoved = normalize(draft.dental[`${name}Remarks`])
+      !== (form.dentalAssessment?.[`${name}Remarks`] ?? null);
+    return n + (valueMoved ? 1 : 0) + (remarksMoved ? 1 : 0);
+  }, 0);
 
-    if (visionChanged) {
-      out.visionAssessment = Object.fromEntries(
-        Object.entries(draft.vision).map(([k, v]) => [k, normalize(v)])
-      );
-    }
+  if (dentalFields > 0) {
+    changes.dentalAssessment = Object.fromEntries(
+      Object.entries(draft.dental).map(([k, v]) => [k, normalize(v)])
+    );
+  }
 
-    return out;
-  }, [draft, form]);
+  const visionFields = VISION_INDICATORS.reduce((n, { name, hasOther, otherFieldName }) => {
+    const valueMoved = normalize(draft.vision[name]) !== (form.visionAssessment?.[name] ?? null);
+    const remarksMoved = normalize(draft.vision[`${name}Remarks`])
+      !== (form.visionAssessment?.[`${name}Remarks`] ?? null);
+    const otherMoved = hasOther
+      && normalize(draft.vision[otherFieldName]) !== (form.visionAssessment?.[otherFieldName] ?? null);
+    return n + (valueMoved ? 1 : 0) + (remarksMoved ? 1 : 0) + (otherMoved ? 1 : 0);
+  }, 0);
 
-  const changedCount = Object.keys(changes).length;
+  if (visionFields > 0) {
+    changes.visionAssessment = Object.fromEntries(
+      Object.entries(draft.vision).map(([k, v]) => [k, normalize(v)])
+    );
+  }
 
-  // Per-tab counts for the badges. `changes` carries the two assessment grids
-  // as one key each, which would read as "1 change" on a tab where six
-  // indicators moved, so those two are recounted field by field here.
-  const tabChangeCounts = useMemo(() => {
-    const countIn = (names) => names.filter((n) => n in changes).length;
+  // Per-tab counts for the badges, counted the way an operator would: one per
+  // answer, indicator or section touched. `changes` itself cannot be counted
+  // directly -- a grid or the answer set is one key however much moved inside
+  // it, and `charges` rides along with the test list rather than being an
+  // edit of its own.
+  const countIn = (names) => names.filter((n) => n in changes).length;
+  const tabChangeCounts = {
+    vitals: countIn(['formDate', ...VITALS.map((v) => v.name)]),
+    assessment: answerChanges,
+    consultation: countIn(['physicianID', ...CONSULTATION_KEYS]),
+    dental: countIn(['dentistID']) + dentalFields,
+    vision: countIn(['optometristID']) + visionFields,
+  };
 
-    const dentalFields = changes.dentalAssessment
-      ? DENTAL_INDICATORS.reduce((n, { name }) => {
-        const valueMoved = normalize(draft.dental[name]) !== (form.dentalAssessment?.[name] ?? null);
-        const remarksMoved = normalize(draft.dental[`${name}Remarks`])
-          !== (form.dentalAssessment?.[`${name}Remarks`] ?? null);
-        return n + (valueMoved ? 1 : 0) + (remarksMoved ? 1 : 0);
-      }, 0)
-      : 0;
-
-    const visionFields = changes.visionAssessment
-      ? VISION_INDICATORS.reduce((n, { name, hasOther, otherFieldName }) => {
-        const valueMoved = normalize(draft.vision[name]) !== (form.visionAssessment?.[name] ?? null);
-        const remarksMoved = normalize(draft.vision[`${name}Remarks`])
-          !== (form.visionAssessment?.[`${name}Remarks`] ?? null);
-        const otherMoved = hasOther
-          && normalize(draft.vision[otherFieldName]) !== (form.visionAssessment?.[otherFieldName] ?? null);
-        return n + (valueMoved ? 1 : 0) + (remarksMoved ? 1 : 0) + (otherMoved ? 1 : 0);
-      }, 0)
-      : 0;
-
-    return {
-      vitals: countIn(VITALS.map((v) => v.name)),
-      consultation: countIn([...CONSULTATION.map((c) => c.name), 'physicianID']),
-      dental: countIn(['dentistID']) + dentalFields,
-      vision: countIn(['optometristID']) + visionFields,
-    };
-  }, [changes, draft, form]);
+  const changedCount = Object.values(tabChangeCounts).reduce((sum, n) => sum + n, 0);
 
   const canSave = changedCount > 0
     && !isPending
@@ -315,180 +329,226 @@ export default function FormEditPanel({
         })}
       </div>
 
-      {activeTab === 'vitals' && (
-        <div role="tabpanel" id="edit-panel-vitals" aria-labelledby="edit-tab-vitals">
-          <SectionCard
-            step={1}
-            title="Vitals"
-            subtitle="Station 1 measurements."
-            icon={Activity}
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {VITALS.map(({ name, label, unit, step }) => (
-                <Field key={name} label={unit ? `${label} (${unit})` : label} htmlFor={`edit-${name}`}>
-                  <Input
-                    id={`edit-${name}`}
-                    type="number"
-                    step={step}
-                    min="0"
-                    value={draft[name]}
-                    onChange={(e) => set(name, e.target.value)}
+      {/* One fieldset around whichever tab is open, so a save in flight locks
+          every input -- including the Station 2 and 3 components, which take
+          no disabled prop of their own. */}
+      <fieldset disabled={isPending} className="m-0 min-w-0 border-0 p-0">
+        {activeTab === 'vitals' && (
+          <div role="tabpanel" id="edit-panel-vitals" aria-labelledby="edit-tab-vitals">
+            <SectionCard
+              title="Visit and Vitals"
+              subtitle="Visit date and the Station 1 measurements."
+              icon={Activity}
+            >
+              <div className="flex flex-col gap-4">
+                <Field label="Visit date" htmlFor="edit-formDate" className="sm:max-w-xs">
+                  <DatePicker
+                    id="edit-formDate"
+                    value={draft.formDate}
+                    max={todayIso()}
+                    onChange={(e) => set('formDate', e.target.value)}
                     disabled={isPending}
                   />
                 </Field>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
 
-      {activeTab === 'consultation' && (
-        <div role="tabpanel" id="edit-panel-consultation" aria-labelledby="edit-tab-consultation">
-          <SectionCard
-            step={2}
-            title="Physician's Assessment"
-            subtitle="Findings and plan of care recorded at Station 3."
-            icon={Stethoscope}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {VITALS.map(({ name, label, unit, step }) => (
+                    <Field key={name} label={unit ? `${label} (${unit})` : label} htmlFor={`edit-${name}`}>
+                      <Input
+                        id={`edit-${name}`}
+                        type="number"
+                        step={step}
+                        min="0"
+                        className="w-full"
+                        value={draft[name]}
+                        onChange={(e) => set(name, e.target.value)}
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {activeTab === 'assessment' && (
+          <div role="tabpanel" id="edit-panel-assessment" aria-labelledby="edit-tab-assessment">
+            <SectionCard
+              title="Wellness Assessment"
+              subtitle="The patient's Station 2 answers. Pick a different option to correct one."
+              icon={ClipboardList}
+            >
+              {categories ? (
+                // CategoryCard spaces itself with a bottom margin, so the last
+                // one's is cancelled rather than doubling the card padding.
+                <div className="[&>section:last-child]:mb-0">
+                  {categories.map((category) => (
+                    <CategoryCard
+                      key={category.categoryID}
+                      category={category}
+                      answers={answers}
+                      onAnswer={(questionID, optionID) =>
+                        setAnswers((a) => ({ ...a, [questionID]: optionID }))}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Skeleton />
+              )}
+            </SectionCard>
+          </div>
+        )}
+
+        {activeTab === 'consultation' && (
+          <div
+            role="tabpanel"
+            id="edit-panel-consultation"
+            aria-labelledby="edit-tab-consultation"
+            className="flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-4">
-              <SubPanel icon={Stethoscope} title="Attending Physician" subtitle="Station 3 consultation">
-                <Select
-                  options={physicianOptions}
-                  value={String(draft.physicianID ?? '')}
-                  onChange={(e) => set('physicianID', e.target.value)}
-                  disabled={isPending}
-                />
-              </SubPanel>
+            <SectionCard
+              title="Attending Physician"
+              subtitle="The doctor who saw the patient at Station 3."
+              icon={Stethoscope}
+            >
+              <Select
+                id="edit-physicianID"
+                options={physicianOptions}
+                value={String(draft.physicianID ?? '')}
+                onChange={(e) => set('physicianID', e.target.value)}
+                disabled={isPending}
+              />
+            </SectionCard>
 
-              {CONSULTATION.map(({ name, label, icon, subtitle, maxLength }) => (
-                <SubPanel key={name} icon={icon} title={label} subtitle={subtitle}>
-                  <Textarea
-                    id={`edit-${name}`}
-                    value={draft[name]}
-                    onChange={(e) => set(name, e.target.value)}
-                    maxLength={maxLength}
+            <FamilyHistorySection
+              register={consultation.register}
+              watch={consultation.watch}
+              setValue={consultation.setValue}
+              control={consultation.control}
+            />
+            <PastMedicalHistorySection control={consultation.control} register={consultation.register} />
+            <SocialHistorySection control={consultation.control} watch={consultation.watch} />
+            <AssessmentPlanSection
+              register={consultation.register}
+              watch={consultation.watch}
+              setValue={consultation.setValue}
+              control={consultation.control}
+            />
+          </div>
+        )}
+
+        {activeTab === 'dental' && (
+          <div role="tabpanel" id="edit-panel-dental" aria-labelledby="edit-tab-dental">
+            <SectionCard
+              title="Dental Assessment"
+              subtitle="Station 4 findings and the examining dentist's remarks."
+              icon={Smile}
+            >
+              <div className="flex flex-col gap-4">
+                <SubPanel icon={Smile} title="Examining Dentist" subtitle="Station 4">
+                  <Select
+                    options={physicianOptions}
+                    value={String(draft.dentistID ?? '')}
+                    onChange={(e) => set('dentistID', e.target.value)}
                     disabled={isPending}
                   />
                 </SubPanel>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
 
-      {activeTab === 'dental' && (
-        <div role="tabpanel" id="edit-panel-dental" aria-labelledby="edit-tab-dental">
-          <SectionCard
-            step={3}
-            title="Dental Assessment"
-            subtitle="Station 4 findings and the examining dentist's remarks."
-            icon={Smile}
-          >
-            <div className="flex flex-col gap-4">
-              <SubPanel icon={Smile} title="Examining Dentist" subtitle="Station 4">
-                <Select
-                  options={physicianOptions}
-                  value={String(draft.dentistID ?? '')}
-                  onChange={(e) => set('dentistID', e.target.value)}
-                  disabled={isPending}
-                />
-              </SubPanel>
-
-              {DENTAL_INDICATORS.map(({ name, label, options, remarksPlaceholder }, index) => (
-                <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
-                  <div className="flex flex-col gap-2">
-                    <Select
-                      options={[{ value: '', label: '— Not assessed —' }, ...options]}
-                      value={draft.dental[name] ?? ''}
-                      onChange={(e) => setNested('dental', name, e.target.value)}
-                      disabled={isPending}
-                    />
-                    <Textarea
-                      rows={2}
-                      value={draft.dental[`${name}Remarks`] ?? ''}
-                      onChange={(e) => setNested('dental', `${name}Remarks`, e.target.value)}
-                      placeholder={remarksPlaceholder}
-                      maxLength={300}
-                      disabled={isPending}
-                    />
-                  </div>
-                </SubPanel>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
-
-      {activeTab === 'vision' && (
-        <div role="tabpanel" id="edit-panel-vision" aria-labelledby="edit-tab-vision">
-          <SectionCard
-            step={4}
-            title="Vision Assessment"
-            subtitle="Station 5 findings and the examining optometrist's remarks."
-            icon={Eye}
-          >
-            <div className="flex flex-col gap-4">
-              <SubPanel icon={Eye} title="Examining Optometrist" subtitle="Station 5">
-                <Select
-                  options={physicianOptions}
-                  value={String(draft.optometristID ?? '')}
-                  onChange={(e) => set('optometristID', e.target.value)}
-                  disabled={isPending}
-                />
-              </SubPanel>
-
-              {VISION_INDICATORS.map((indicator, index) => {
-                const {
-                  name, label, type, options, placeholder,
-                  hasOther, otherFieldName, otherPlaceholder, remarksPlaceholder,
-                } = indicator;
-
-                return (
-                  <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+                {DENTAL_INDICATORS.map(({ name, label, options, remarksPlaceholder }, index) => (
+                  <SubPanel key={name} icon={Smile} title={`${index + 1}. ${label}`}>
                     <div className="flex flex-col gap-2">
-                      {type === 'text' ? (
-                        <Input
-                          value={draft.vision[name] ?? ''}
-                          onChange={(e) => setNested('vision', name, e.target.value)}
-                          placeholder={placeholder}
-                          maxLength={50}
-                          disabled={isPending}
-                        />
-                      ) : (
-                        <Select
-                          options={[{ value: '', label: '— Not assessed —' }, ...options]}
-                          value={draft.vision[name] ?? ''}
-                          onChange={(e) => setNested('vision', name, e.target.value)}
-                          disabled={isPending}
-                        />
-                      )}
-
-                      {hasOther && draft.vision[name] === 'Other' && (
-                        <Input
-                          value={draft.vision[otherFieldName] ?? ''}
-                          onChange={(e) => setNested('vision', otherFieldName, e.target.value)}
-                          placeholder={otherPlaceholder}
-                          maxLength={100}
-                          disabled={isPending}
-                        />
-                      )}
-
+                      <Select
+                        options={[{ value: '', label: '— Not assessed —' }, ...options]}
+                        value={draft.dental[name] ?? ''}
+                        onChange={(e) => setNested('dental', name, e.target.value)}
+                        disabled={isPending}
+                      />
                       <Textarea
                         rows={2}
-                        value={draft.vision[`${name}Remarks`] ?? ''}
-                        onChange={(e) => setNested('vision', `${name}Remarks`, e.target.value)}
+                        className="w-full"
+                        value={draft.dental[`${name}Remarks`] ?? ''}
+                        onChange={(e) => setNested('dental', `${name}Remarks`, e.target.value)}
                         placeholder={remarksPlaceholder}
                         maxLength={300}
-                        disabled={isPending}
                       />
                     </div>
                   </SubPanel>
-                );
-              })}
-            </div>
-          </SectionCard>
-        </div>
-      )}
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+
+        {activeTab === 'vision' && (
+          <div role="tabpanel" id="edit-panel-vision" aria-labelledby="edit-tab-vision">
+            <SectionCard
+              title="Vision Assessment"
+              subtitle="Station 5 findings and the examining optometrist's remarks."
+              icon={Eye}
+            >
+              <div className="flex flex-col gap-4">
+                <SubPanel icon={Eye} title="Examining Optometrist" subtitle="Station 5">
+                  <Select
+                    options={physicianOptions}
+                    value={String(draft.optometristID ?? '')}
+                    onChange={(e) => set('optometristID', e.target.value)}
+                    disabled={isPending}
+                  />
+                </SubPanel>
+
+                {VISION_INDICATORS.map((indicator, index) => {
+                  const {
+                    name, label, type, options, placeholder,
+                    hasOther, otherFieldName, otherPlaceholder, remarksPlaceholder,
+                  } = indicator;
+
+                  return (
+                    <SubPanel key={name} icon={Eye} title={`${index + 1}. ${label}`}>
+                      <div className="flex flex-col gap-2">
+                        {type === 'text' ? (
+                          <Input
+                            className="w-full"
+                            value={draft.vision[name] ?? ''}
+                            onChange={(e) => setNested('vision', name, e.target.value)}
+                            placeholder={placeholder}
+                            maxLength={50}
+                          />
+                        ) : (
+                          <Select
+                            options={[{ value: '', label: '— Not assessed —' }, ...options]}
+                            value={draft.vision[name] ?? ''}
+                            onChange={(e) => setNested('vision', name, e.target.value)}
+                            disabled={isPending}
+                          />
+                        )}
+
+                        {hasOther && draft.vision[name] === 'Other' && (
+                          <Input
+                            className="w-full"
+                            value={draft.vision[otherFieldName] ?? ''}
+                            onChange={(e) => setNested('vision', otherFieldName, e.target.value)}
+                            placeholder={otherPlaceholder}
+                            maxLength={100}
+                          />
+                        )}
+
+                        <Textarea
+                          rows={2}
+                          className="w-full"
+                          value={draft.vision[`${name}Remarks`] ?? ''}
+                          onChange={(e) => setNested('vision', `${name}Remarks`, e.target.value)}
+                          placeholder={remarksPlaceholder}
+                          maxLength={300}
+                        />
+                      </div>
+                    </SubPanel>
+                  );
+                })}
+              </div>
+            </SectionCard>
+          </div>
+        )}
+      </fieldset>
 
       <div className="sticky bottom-0 flex flex-col gap-3 rounded-xl border border-line bg-surface/95 p-4 shadow-lg backdrop-blur">
         <Field
@@ -502,6 +562,7 @@ export default function FormEditPanel({
           <Textarea
             id="edit-reason"
             rows={2}
+            className="w-full"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. Transcription error from the paper intake sheet"

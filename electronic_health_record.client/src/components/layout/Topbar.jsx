@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, PanelLeftClose, PanelLeftOpen, IdCard, Briefcase, ShieldCheck, Hash } from 'lucide-react';
+import { Menu, PanelLeftClose, PanelLeftOpen, IdCard, Briefcase, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
@@ -8,7 +8,6 @@ const ACCOUNT_FIELDS = [
   { key: 'username', label: 'Username', icon: IdCard },
   { key: 'role', label: 'Role', icon: Briefcase, className: 'capitalize' },
   { key: 'adminRole', label: 'Admin Tier', icon: ShieldCheck, className: 'capitalize', adminOnly: true },
-  { key: 'accountId', label: 'Account ID', icon: Hash },
 ];
 
 export default function Topbar({ collapsed, isTabletDown = false, onToggleSidebar }) {

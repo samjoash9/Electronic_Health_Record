@@ -1,5 +1,5 @@
 import { CircleCheck } from 'lucide-react';
-import { formatDate, formatDateAtTime, formatTime } from '../../lib/formatters';
+import { formatDateAtTime } from '../../lib/formatters';
 
 /** Icon tile, title and one-line description heading a part of a station's record. */
 export function RecordHeading({ id, icon: Icon, title, subtitle, level = 3 }) {
@@ -59,28 +59,10 @@ const initialsOf = (name) => {
 };
 
 /**
- * The quieter sign-off closing a station whose findings fill the card: ruled
- * off above rather than boxed, so it reads as the record's last line.
+ * Who signed the station off: the clinician, their licence, signature and
+ * when. Every signing station -- consultation, dental, vision -- closes on
+ * this same block, so a record reads its three sign-offs alike.
  */
-export function ExaminerSignOff({ role, name, licenseNo, signature, signatureAlt, signedAt }) {
-  return (
-    <div className="flex flex-col gap-3 border-t border-line pt-4 @xl:flex-row @xl:items-end @xl:justify-between">
-      <div className="min-w-0">
-        <p className="text-xs text-ink-500">{role}</p>
-        <p className="text-sm font-bold text-ink-900">{name ?? '—'}</p>
-        <p className="text-xs text-ink-500">PRC License No. {licenseNo ?? '—'}</p>
-      </div>
-      <div className="flex flex-col items-start gap-1 @xl:items-end">
-        {signature && <img src={signature} alt={signatureAlt} className="h-10 w-auto" />}
-        {signedAt && (
-          <p className="text-xs text-ink-500">{`Signed ${formatDate(signedAt)}, ${formatTime(signedAt)}`}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** Who signed the station off: the clinician, their licence, signature and when. */
 export function SignOff({ role, name, licenseNo, signature, signatureAlt, signedAt }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-line bg-gray-50 p-4 @xl:flex-row @xl:items-center @xl:justify-between">

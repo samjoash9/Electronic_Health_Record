@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { listPhysicians } from '../../api/onboarding.api';
+import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useEditForm } from '../../hooks/useEditForm';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
@@ -54,6 +55,14 @@ export default function FormEditPage() {
   const { data: physicians } = useQuery({
     queryKey: ['physicians'],
     queryFn: listPhysicians,
+  });
+
+  // The Station 2 tab renders the kiosk's own question cards, so it needs the
+  // same template the kiosk reads.
+  const { data: categories } = useQuery({
+    queryKey: ['assessment-template'],
+    queryFn: getAssessmentTemplate,
+    staleTime: Infinity,
   });
 
   const editMutation = useEditForm(formId);
@@ -145,6 +154,7 @@ export default function FormEditPage() {
         key={form.rowVersion}
         form={form}
         physicians={(physicians ?? []).filter((p) => p.isActive)}
+        categories={categories}
         onSave={handleSave}
         onCancel={backToRecord}
         onDirtyChange={handleDirtyChange}

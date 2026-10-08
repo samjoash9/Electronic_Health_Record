@@ -111,7 +111,7 @@ describe('DentalAssessmentDetail', () => {
     expect(screen.getByText('Dr. Ramiel Rasonado')).toBeInTheDocument();
     expect(screen.getByText('PRC License No. 18902759812')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Dentist signature' })).toBeInTheDocument();
-    expect(screen.getByText('Signed Oct 6, 2026, 2:08 PM')).toBeInTheDocument();
+    expect(screen.getByText('Signed Oct 6, 2026 at 2:08 PM')).toBeInTheDocument();
   });
 
   it("still names the dentist once their account is gone, from what the record kept", () => {

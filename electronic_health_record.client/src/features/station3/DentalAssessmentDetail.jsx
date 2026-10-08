@@ -1,5 +1,5 @@
 import { DENTAL_INDICATORS } from '../../lib/constants';
-import { ExaminerSignOff, NotRecorded } from './RecordParts';
+import { NotRecorded, SignOff } from './RecordParts';
 
 /**
  * A stored answer as the record reads it: sentence case, "a/b" spaced out, and
@@ -20,7 +20,7 @@ function DentistSignOff({ form }) {
   const { dentist } = form;
 
   return (
-    <ExaminerSignOff
+    <SignOff
       role="Examining dentist"
       name={dentist ? `Dr. ${dentist.firstName} ${dentist.surname}` : form.dentalSignedByName}
       licenseNo={dentist?.prcLicenseNo ?? form.dentalSignedByLicenseNo}

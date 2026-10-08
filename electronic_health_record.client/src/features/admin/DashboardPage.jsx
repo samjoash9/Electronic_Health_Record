@@ -243,14 +243,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2b. Station Reports: one general report per station, shared filter */}
-      <div className="mt-6">
-        <StationReportsSection />
-      </div>
-
-      {/* 3. Middle Section: Onboarded Patients Line Chart (full width) */}
+      {/* 2b. Onboarded Patients Line Chart (full width) */}
       <div className="mt-6">
         <OnboardedPatientsChart />
+      </div>
+
+      {/* 3. Station Reports: one general report per station, shared filter */}
+      <div className="mt-6">
+        <StationReportsSection />
       </div>
 
       {/* 4. Bottom Section: Existing Recent Forms table with mt-6 */}

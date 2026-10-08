@@ -14,7 +14,11 @@ import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { fullName, ageFrom, formatDate, formatDateTime } from '../../lib/formatters';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station3Draft';
-import { parseDiagnosticTests } from '../../lib/diagnosticTests';
+import {
+  DEFAULT_CONSULTATION_VALUES as DEFAULT_VALUES,
+  buildCharges, buildExercise, buildFamilyHistory, buildManagementTreatment,
+  buildPastMedicalHistory, buildSocialHistory,
+} from '../../lib/station3Payload';
 import { ROLES, STATIONS } from '../../lib/constants';
 import { ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, Save } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton';
@@ -39,131 +43,6 @@ const PATIENT_FIELDS = [
   { key: 'address', label: 'Address', icon: MapPin },
   { key: 'contactNo', label: 'Contact No.', icon: Phone },
 ];
-
-const BLANK_PMH_ROW = {
-  conditionOther: '', yearDiagnosed: '',
-  maintenanceDrugGeneric: '', dosage: '', frequency: '',
-};
-
-const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '' };
-
-const DEFAULT_VALUES = {
-  familyHistory: {
-    none: false,
-    conditions: {},
-    other: { checked: false, entries: [{ conditionOther: '', conditionType: '' }] },
-  },
-  pastMedicalHistory: [{ ...BLANK_PMH_ROW }],
-  socialHistory: {
-    // null means unanswered, so the Yes/No pair starts with neither selected.
-    smokes: null,
-    smokesCigarette: false,
-    cigaretteSticksPerDay: '', cigaretteFrequency: '', cigaretteYearStarted: '', cigarettePuffsPerDay: '',
-    smokesEcig: false,
-    ecigPodsPerMonth: '', ecigFrequency: '', ecigYearStarted: '', ecigPuffsPerDay: '',
-    alcoholType: '', drinkFrequency: '', drinksPerSession: '',
-  },
-  exercise: [{ exerciseType: '', exerciseFrequency: '', exerciseYearStarted: '' }],
-  recommendedDiagnosticTest: '',
-  impressionClinical: '',
-  medications: [{ ...BLANK_MEDICATION_ROW }],
-  lifestyleFollowUp: '',
-};
-
-// Medication rows and the free-text advice are captured separately but stored
-// in the one ManagementTreatment column the record already has, so the detail
-// pages that read it back as plain text keep working unchanged.
-function buildManagementTreatment(values) {
-  const rows = (values.medications ?? []).filter((row) => row.drug?.trim());
-
-  const meds = rows.map((row) =>
-    [row.drug.trim(), row.dosage?.trim(), row.frequency?.trim()]
-      .filter(Boolean)
-      .join(' — '),
-  );
-
-  const advice = values.lifestyleFollowUp?.trim();
-
-  return [
-    meds.length ? `Medications:\n${meds.map((m) => `• ${m}`).join('\n')}` : '',
-    advice ? `Lifestyle advice and follow-up:\n${advice}` : '',
-  ].filter(Boolean).join('\n\n') || null;
-}
-
-// Billing's source of truth for this visit (see WellnessFormCharge
-// server-side). The two free-text fields above stay the physician-facing
-// display text; this turns the same on-screen data into the line items
-// billing actually totals from.
-//
-// Labs go through parseDiagnosticTests() -- the same parser that already
-// reads recommendedDiagnosticTest back for display -- so a lab charge always
-// agrees with what the physician sees on screen. No ChargeItemID is sent:
-// Station 3's picker still runs off its own local catalog copy rather than
-// the server's, so the server resolves each name against the real catalog
-// itself (see SubmitStation3's byNameLookup) rather than trusting whatever
-// price this parse found.
-//
-// Medications are prescribing detail only, not billed line items: they carry
-// no price at Station 3 and so contribute nothing here. They stay recorded in
-// ManagementTreatment for the physician-facing text.
-function buildCharges(values) {
-  return parseDiagnosticTests(values.recommendedDiagnosticTest).map((row) => ({
-    itemType: 'Lab',
-    name: row.name,
-    unitPrice: row.price,
-    quantity: 1,
-  }));
-}
-
-function buildFamilyHistory(values) {
-  const fh = values.familyHistory;
-  if (fh.none) return [{ conditionID: 1, isNone: true, conditionType: null }];
-
-  const rows = [];
-  for (const [conditionID, entry] of Object.entries(fh.conditions ?? {})) {
-    if (!entry?.checked) continue;
-    rows.push({
-      conditionID: Number(conditionID),
-      isNone: false,
-      conditionType: entry.conditionType || null,
-    });
-  }
-  if (fh.other?.checked) {
-    for (const entry of fh.other.entries ?? []) {
-      if (!entry.conditionOther?.trim()) continue;
-      rows.push({
-        conditionID: null,
-        conditionOther: entry.conditionOther.trim(),
-        isNone: false,
-        conditionType: entry.conditionType || null,
-      });
-    }
-  }
-  return rows;
-}
-
-function buildPastMedicalHistory(values) {
-  return (values.pastMedicalHistory ?? [])
-    .filter((row) => row.conditionOther?.trim())
-    .map((row) => ({
-      conditionID: null,
-      conditionOther: row.conditionOther.trim(),
-      yearDiagnosed: row.yearDiagnosed ? Number(row.yearDiagnosed) : null,
-      maintenanceDrugGeneric: row.maintenanceDrugGeneric || null,
-      dosage: row.dosage || null,
-      frequency: row.frequency || null,
-    }));
-}
-
-function buildExercise(values) {
-  return (values.exercise ?? [])
-    .filter((row) => row.exerciseType?.trim())
-    .map((row) => ({
-      exerciseType: row.exerciseType.trim(),
-      exerciseFrequency: row.exerciseFrequency || null,
-      exerciseYearStarted: row.exerciseYearStarted || null,
-    }));
-}
 
 export default function Station3ConsultationPage() {
   const { formId } = useParams();
@@ -248,40 +127,7 @@ export default function Station3ConsultationPage() {
         familyMedicalHistory: buildFamilyHistory(values),
         pastMedicalHistory: buildPastMedicalHistory(values),
         exercise: buildExercise(values),
-        socialHistory: {
-          ...values.socialHistory,
-          // Unanswered stays null; only an explicit Yes carries the rest.
-          smokes: values.socialHistory.smokes ?? null,
-          smokesCigarette: values.socialHistory.smokes === true
-            ? Boolean(values.socialHistory.smokesCigarette) : false,
-          smokesEcig: values.socialHistory.smokes === true
-            ? Boolean(values.socialHistory.smokesEcig) : false,
-          // Each sub-block's fields are cleared unless its own checkbox is on,
-          // so an unchecked block can't submit stale values left over from
-          // when it was checked.
-          ...(values.socialHistory.smokes === true && values.socialHistory.smokesCigarette
-            ? {
-              cigaretteSticksPerDay: values.socialHistory.cigaretteSticksPerDay || null,
-              cigaretteFrequency: values.socialHistory.cigaretteFrequency || null,
-              cigaretteYearStarted: values.socialHistory.cigaretteYearStarted || null,
-              cigarettePuffsPerDay: values.socialHistory.cigarettePuffsPerDay || null,
-            }
-            : {
-              cigaretteSticksPerDay: null, cigaretteFrequency: null,
-              cigaretteYearStarted: null, cigarettePuffsPerDay: null,
-            }),
-          ...(values.socialHistory.smokes === true && values.socialHistory.smokesEcig
-            ? {
-              ecigPodsPerMonth: values.socialHistory.ecigPodsPerMonth || null,
-              ecigFrequency: values.socialHistory.ecigFrequency || null,
-              ecigYearStarted: values.socialHistory.ecigYearStarted || null,
-              ecigPuffsPerDay: values.socialHistory.ecigPuffsPerDay || null,
-            }
-            : {
-              ecigPodsPerMonth: null, ecigFrequency: null,
-              ecigYearStarted: null, ecigPuffsPerDay: null,
-            }),
-        },
+        socialHistory: buildSocialHistory(values),
         recommendedDiagnosticTest: values.recommendedDiagnosticTest || null,
         impressionClinical: values.impressionClinical || null,
         managementTreatment: buildManagementTreatment(values),

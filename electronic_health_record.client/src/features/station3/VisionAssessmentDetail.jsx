@@ -1,5 +1,5 @@
 import { VISION_INDICATORS } from '../../lib/constants';
-import { ExaminerSignOff } from './RecordParts';
+import { SignOff } from './RecordParts';
 
 const RIGHT_EYE = 'visualAcuityRightEye';
 const LEFT_EYE = 'visualAcuityLeftEye';
@@ -87,7 +87,7 @@ export default function VisionAssessmentDetail({ form }) {
 
       {/* An optometrist whose account was since deleted is named from the copy
           the server kept on the form (visionSignedByName/LicenseNo). */}
-      <ExaminerSignOff
+      <SignOff
         role="Examining optometrist"
         name={optometrist ? `Dr. ${optometrist.firstName} ${optometrist.surname}` : form.visionSignedByName}
         licenseNo={optometrist?.prcLicenseNo ?? form.visionSignedByLicenseNo}

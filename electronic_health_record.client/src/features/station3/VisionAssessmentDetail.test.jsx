@@ -148,7 +148,7 @@ describe('VisionAssessmentDetail', () => {
     expect(screen.getByText('Dr. Mark John')).toBeInTheDocument();
     expect(screen.getByText('PRC License No. 10625791285')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Optometrist signature' })).toBeInTheDocument();
-    expect(screen.getByText('Signed Oct 1, 2026, 3:14 PM')).toBeInTheDocument();
+    expect(screen.getByText('Signed Oct 1, 2026 at 3:14 PM')).toBeInTheDocument();
   });
 
   it('still names the optometrist once their account is gone, from what the record kept', () => {
