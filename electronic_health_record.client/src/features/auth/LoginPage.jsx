@@ -95,6 +95,7 @@ export default function LoginPage() {
         <nav className="hidden md:flex gap-8 text-slate-600 font-medium text-sm">
           <a href="#home" className="hover:text-[#0A594D] transition-colors">Home</a>
           <a href="#services" className="hover:text-[#0A594D] transition-colors">Services</a>
+          <a href="#features" className="hover:text-[#0A594D] transition-colors">Features</a>
           <a href="#faqs" className="hover:text-[#0A594D] transition-colors">FAQ&apos;s</a>
           <a href="#contact" className="hover:text-[#0A594D] transition-colors">Contact Us</a>
         </nav>
@@ -112,8 +113,8 @@ export default function LoginPage() {
       </header>
 
       {/* 4. Hero Section (Split Layout) */}
-      <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col justify-center">
-        <section id="home" className="grid grid-cols-1 lg:grid-cols-2 gap-12 p-6 lg:p-12 items-center">
+      <main className="flex-1 w-full flex flex-col justify-center">
+        <section id="home" className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 p-6 lg:p-12 items-center">
           {/* Left Column (Text) */}
           <div className="flex flex-col items-start justify-center">
             {/* Accent Pill */}
@@ -188,7 +189,7 @@ export default function LoginPage() {
         </section>
 
         {/* 5. Bottom Features Section */}
-        <section id="services" className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 lg:p-12 scroll-mt-6">
+        <section id="services" className="w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6 lg:p-12 scroll-mt-6">
           {/* Feature 1 */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#37AF9B]/10 text-[#0A594D] mb-4">
@@ -223,6 +224,171 @@ export default function LoginPage() {
               Comprehensive analytics tracking the 7 aspects of wellness, smoker lifestyle status,
               and station throughput for informed institutional decisions.
             </p>
+          </div>
+        </section>
+
+        {/* Wellness Achievements Feature Section */}
+        <section id="features" className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Section Header */}
+            <div className="text-center mb-16">
+              <span className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-sm font-medium">
+                Features
+              </span>
+              <h2 className="mt-4 text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                Championing Patient Safety &amp; Quality Care
+              </h2>
+              <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">
+                The Provincial Health Office (PHO) is dedicated to preventing avoidable harm and promoting safer healthcare practices across Agusan del Sur.
+              </p>
+            </div>
+
+            {/* Content Grid */}
+            <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+              {/* Left: Campaign Image */}
+              <div className="mb-10 lg:mb-0">
+                <div className="bg-gray-100 rounded-3xl aspect-[4/3] flex items-center justify-center border border-gray-200 overflow-hidden shadow-lg">
+                  <img
+                    src="/chrisan1.jpg"
+                    alt="Health Education and Promotion Officer III Chrisan P. Ranario conducting a ward class"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+
+              {/* Right: Text & Bullet Points */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  Empowering Patients Through Education
+                </h3>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                  Led by Health Education and Promotion Officer III Chrisan P. Ranario, healthcare providers from the Democrito O. Plaza Memorial Hospital (DOPMH) are actively conducting information drives and ward classes. These initiatives ensure patients and their families are fully informed partners in their own healthcare journey.
+                </p>
+
+                {/* Achievement List */}
+                <ul className="space-y-4">
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="bg-[#e6f4f1] rounded-full p-1">
+                        <svg className="w-4 h-4 text-[#0A594D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="ml-3 text-gray-600">
+                      <strong className="text-gray-900">Clear Medication Guidance:</strong> Helping patients and families thoroughly understand their prescribed medications and dosages.
+                    </p>
+                  </li>
+
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="bg-[#e6f4f1] rounded-full p-1">
+                        <svg className="w-4 h-4 text-[#0A594D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="ml-3 text-gray-600">
+                      <strong className="text-gray-900">Treatment Comprehension:</strong> Providing actionable, easy-to-understand instructions for recovery and continuous care.
+                    </p>
+                  </li>
+
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="bg-[#e6f4f1] rounded-full p-1">
+                        <svg className="w-4 h-4 text-[#0A594D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="ml-3 text-gray-600">
+                      <strong className="text-gray-900">Shared Responsibility:</strong> Fostering open communication between healthcare providers and patients to keep everyone safe.
+                    </p>
+                  </li>
+                </ul>
+
+                <div className="mt-10">
+                  <a
+                    href="https://www.facebook.com/pgasinfo/videos/1624518355898883"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-[#0A594D] hover:bg-[#07463c] text-white font-medium py-3 px-6 rounded-md transition-colors shadow-sm"
+                  >
+                    Watch the DIO Hour Campaign
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Second Feature Block: YAKAP na Handog ng Pangulo (Reversed Layout) */}
+            <div className="mt-24 lg:grid lg:grid-cols-2 lg:gap-16 items-center flex flex-col-reverse">
+              {/* Left: Text & Bullet Points */}
+              <div className="mt-10 lg:mt-0">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  YAKAP na Handog ng Pangulo
+                </h3>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                  Highlighted by Health Education and Promotion Officer III Chrisan P. Ranario during the September 14 event at the Datu Lipus Makapandong Cultural Center, the YAKAP program brings essential healthcare benefits directly to the employees of the Provincial Government of Agusan del Sur.
+                </p>
+
+                <ul className="space-y-4">
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="bg-[#e6f4f1] rounded-full p-1">
+                        <svg className="w-4 h-4 text-[#0A594D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="ml-3 text-gray-600">
+                      <strong className="text-gray-900">Free Medications:</strong> Ensuring accessible and continuous provision of essential medicines to all employees.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="bg-[#e6f4f1] rounded-full p-1">
+                        <svg className="w-4 h-4 text-[#0A594D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="ml-3 text-gray-600">
+                      <strong className="text-gray-900">Comprehensive Diagnostics:</strong> Offering free consultations and diagnostic tests under the localized Healthcare and Wellness Program.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="bg-[#e6f4f1] rounded-full p-1">
+                        <svg className="w-4 h-4 text-[#0A594D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="ml-3 text-gray-600">
+                      <strong className="text-gray-900">Public Workforce Wellness:</strong> Safeguarding the continuous health and well-being of the civil servants who serve the province.
+                    </p>
+                  </li>
+                </ul>
+
+                <div className="mt-10">
+                  <a
+                    href="https://www.facebook.com/reel/2181237419157034"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-[#0A594D] hover:bg-[#07463c] text-white font-medium py-3 px-6 rounded-md transition-colors shadow-sm"
+                  >
+                    Watch the YAKAP Highlight
+                  </a>
+                </div>
+              </div>
+
+              {/* Right: Image */}
+              <div>
+                <div className="bg-gray-100 rounded-3xl aspect-[4/3] flex items-center justify-center border border-gray-200 overflow-hidden shadow-lg">
+                  <img src="/chrisan2.png" alt="Chrisan P. Ranario presenting the YAKAP program" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>

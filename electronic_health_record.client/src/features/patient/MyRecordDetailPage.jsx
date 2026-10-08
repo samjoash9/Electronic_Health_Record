@@ -91,9 +91,9 @@ export default function MyRecordDetailPage() {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const marginX = 10; 
-      const usableWidth = pdfWidth - (marginX * 2); 
-      let currentY = 15; 
+      const marginX = 10;
+      const usableWidth = pdfWidth - (marginX * 2);
+      let currentY = 15;
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
@@ -124,13 +124,13 @@ export default function MyRecordDetailPage() {
         // Clean Page Break Logic: If THIS whole chunk doesn't fit, push it to a new page
         if (currentY + imgHeight > pdfHeight - 15 && i > 0) {
           pdf.addPage();
-          currentY = 15; 
+          currentY = 15;
         }
 
         pdf.addImage(dataUrl, 'JPEG', marginX, currentY, usableWidth, imgHeight);
-        
+
         // Add a small 6mm gap between chunks to mimic the website's gray spacing
-        currentY += imgHeight + 6; 
+        currentY += imgHeight + 6;
       }
 
       // Add Watermarks to all generated pages
@@ -138,11 +138,11 @@ export default function MyRecordDetailPage() {
       for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
         pdf.setTextColor(230, 235, 233);
-        pdf.setFontSize(28); 
+        pdf.setFontSize(28);
         pdf.text(
-          ['eHPR System', 'Confidential Patient Record'], 
-          pdfWidth / 2, 
-          pdfHeight / 2, 
+          ['eHPR System', 'Confidential Patient Record'],
+          pdfWidth / 2,
+          pdfHeight / 2,
           { angle: 45, align: 'center', baseline: 'middle' }
         );
       }
