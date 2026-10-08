@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from 'react';
-import { toPng } from 'html-to-image';
+import { useState, useRef } from 'react';
+import { toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
   Users,
@@ -24,10 +24,7 @@ import {
   FileSpreadsheet,
   Download,
   Loader2,
-  Filter,
 } from 'lucide-react';
-import Select from '../../components/ui/Select';
-import { ALL_OFFICES, OFFICE_OPTIONS } from '../admin/dashboardOffice';
 import StationReportSection from './StationReportSection';
 import {
   ResponsiveContainer,
@@ -116,14 +113,37 @@ function MedicationDemandTooltip({ active, payload }) {
   );
 }
 
+// Helper function to parse user station selection input
+const parseStationInput = (input) => {
+  if (!input) return [1, 2, 3, 4, 5]; // Default to all if empty
+  const stations = new Set();
+  const parts = input.replace(/\s+/g, '').split(',');
+  
+  parts.forEach(part => {
+    if (part.includes('-')) {
+      const [start, end] = part.split('-').map(Number);
+      if (start && end && start <= end) {
+        for (let i = start; i <= end; i++) {
+          if (i >= 1 && i <= 5) stations.add(i);
+        }
+      }
+    } else {
+      const num = Number(part);
+      if (num >= 1 && num <= 5) stations.add(num);
+    }
+  });
+  return Array.from(stations).sort();
+};
+
 /**
  * Master Health Reports: Clinic Pipeline Analytics
  * Vertically scrollable master dashboard providing graphical surveillance
  * across Station 1 (Registration) through Station 5 (Vision Screening).
  */
 export default function HealthReports() {
-  const [selectedOffice, setSelectedOffice] = useState(ALL_OFFICES);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [stationSelection, setStationSelection] = useState('');
 
   // Individual Section Container Refs
   const station1Ref = useRef(null);
@@ -148,17 +168,15 @@ export default function HealthReports() {
   const gumConditionRef = useRef(null);
   const visionSymptomsRef = useRef(null);
 
-  // Scaler multiplier for mock data when filtering by a specific office
-  const scale = useMemo(() => {
-    return selectedOffice === ALL_OFFICES ? 1 : 0.22;
-  }, [selectedOffice]);
-
   /**
    * Generates a multi-page clinical PDF report capturing each chart individually
    * and appending a formatted clinical description below it.
    */
   const generatePDF = async () => {
     if (isGeneratingPDF) return;
+    const selectedStations = parseStationInput(stationSelection);
+    if (selectedStations.length === 0) return;
+
     setIsGeneratingPDF(true);
 
     try {
@@ -182,78 +200,96 @@ export default function HealthReports() {
         return true;
       };
 
-      const reportSections = [
+      const allReportSections = [
         {
+          station: 1,
           ref: agencyChartRef,
           title: 'Station 1: Intake Volume by Agency / Office',
           desc: 'This chart illustrates the distribution of patient registrations across local provincial agencies, highlighting the primary sources of patient volume across the workforce.',
         },
         {
+          station: 1,
           ref: classificationChartRef,
           title: 'Station 1: Patient Classification Breakdown',
           desc: 'Granular breakdown of patient employment status (Permanent, Contract of Service, Job Order, Casual) to assist in administrative tracking, eligibility verification, and health resource planning.',
         },
         {
+          station: 1,
           ref: bmiChartRef,
           title: 'Station 1: Asia-Pacific BMI Classification',
           desc: 'Nutritional status categorization according to WHO Western Pacific Region cutoffs evaluated during initial triage, providing an early indicator for metabolic and lifestyle disease risks.',
         },
         {
+          station: 1,
           ref: bpChartRef,
           title: 'Station 1: Blood Pressure Stage Distribution',
           desc: 'AHA/ACC cardiovascular risk staging evaluated at registration triage to identify individuals presenting with Stage 1/2 Hypertension or hypertensive urgencies requiring immediate intervention.',
         },
         {
+          station: 2,
           ref: wellnessScoresChartRef,
           title: 'Station 2: 7-Aspect Wellness Assessment (Average Scores)',
           desc: 'Average assessment scores across the 7 wellness aspects (Physical, Emotional, Psychological, Mental, Spiritual, Social, Financial) on a 0–100 scale, identifying population health benchmarks.',
         },
         {
+          station: 2,
           ref: wellnessAtRiskChartRef,
           title: 'Station 2: At-Risk Patients by Wellness Aspect (Score < 50)',
           desc: 'Volume of screened individuals scoring below the critical threshold of 50 in specific wellness categories, highlighting priority targets for institutional counseling and support programs.',
         },
         {
+          station: 3,
           ref: medicalHistoryRef,
           title: 'Station 3: Past & Recent Medical History',
           desc: 'Aggregation of self-reported and documented past medical conditions, grouped by standardized nomenclature.',
         },
         {
+          station: 3,
           ref: maintenanceDrugRef,
           title: 'Station 3: Maintenance Medication Tracking',
           desc: 'Tracking of active maintenance pharmacotherapy utilized by the patient population to manage chronic conditions.',
         },
         {
+          station: 3,
           ref: socialHistoryRef,
           title: 'Station 3: Lifestyle Risk & Social History',
           desc: 'Overview of patient social history and lifestyle risk factors, including tobacco use, physical activity levels, and alcohol consumption patterns to inform holistic screening.',
         },
         {
+          station: 3,
           ref: diagnosticsChartRef,
           title: 'Station 3: Recommended Diagnostic & Laboratory Tests',
           desc: 'Volume and distribution of recommended clinical diagnostics, laboratory tests, and imaging ordered during patient consultations.',
         },
         {
+          station: 3,
           ref: treatmentMedicationRef,
           title: 'Station 3: Top Prescribed Medications (Inventory Demand)',
           desc: 'Volume of generic medications prescribed during management and treatment, utilized to forecast pharmacy inventory requirements and high-demand therapeutics.',
         },
         {
+          station: 4,
           ref: oralHygieneRef,
           title: 'Station 4: Oral Hygiene Status Distribution',
           desc: 'Categorical distribution of patient oral hygiene status based on plaque and calculus evaluation.',
         },
         {
+          station: 4,
           ref: gumConditionRef,
           title: 'Station 4: Periodontal & Gum Condition Assessment',
           desc: 'Clinical assessment of periodontal health, tracking the prevalence of gingivitis and suspected periodontal disease.',
         },
         {
+          station: 5,
           ref: visionSymptomsRef,
           title: 'Station 5: Prevalence of Reported Visual Symptoms',
           desc: 'Prevalence of self-reported visual symptoms, history of ocular problems, and difficulty in near and distant visual acuity to inform optometry and ophthalmology referrals.',
         },
       ];
+
+      const reportSections = allReportSections.filter((section) =>
+        selectedStations.includes(section.station)
+      );
 
       // Master Report Header Banner
       doc.setFillColor(10, 89, 77); // Deep Teal (#0A594D)
@@ -274,8 +310,15 @@ export default function HealthReports() {
         month: 'long',
         day: 'numeric',
       });
-      const officeLabel = selectedOffice === ALL_OFFICES ? 'All Provincial Offices & Departments' : selectedOffice;
-      doc.text(`Official Clinical Surveillance Report  |  Filter Scope: ${officeLabel}  |  Generated: ${dateStr}`, margin, currentY);
+      const stationScopeText =
+        selectedStations.length === 5
+          ? 'Stations 1–5'
+          : `Station(s): ${selectedStations.join(', ')}`;
+      doc.text(
+        `Official Clinical Surveillance Report  |  Scope: All Provincial Offices & Departments (${stationScopeText})  |  Generated: ${dateStr}`,
+        margin,
+        currentY
+      );
       currentY += 8;
 
       doc.setDrawColor(226, 232, 240); // slate-200
@@ -286,8 +329,9 @@ export default function HealthReports() {
       for (const section of reportSections) {
         if (!section.ref?.current) continue;
 
-        // Render DOM node to high-res PNG natively
-        const dataUrl = await toPng(section.ref.current, {
+        // Render DOM node to high-res JPEG natively with 0.9 compression
+        const dataUrl = await toJpeg(section.ref.current, {
+          quality: 0.9,
           cacheBust: true,
           backgroundColor: '#ffffff',
           pixelRatio: 2,
@@ -325,7 +369,7 @@ export default function HealthReports() {
         currentY += 4.5;
 
         // 2. Chart Snapshot Image
-        doc.addImage(dataUrl, 'PNG', imgX, currentY, imgWidth, imgHeight);
+        doc.addImage(dataUrl, 'JPEG', imgX, currentY, imgWidth, imgHeight);
         currentY += imgHeight + 3.5;
 
         // 3. Clinical Description (Wrapped Text)
@@ -378,7 +422,14 @@ export default function HealthReports() {
       }
 
       const fileDate = new Date().toISOString().split('T')[0];
-      doc.save(`eHPR_Clinical_Analytics_Report_${fileDate}.pdf`);
+      const stationFileSuffix =
+        selectedStations.length === 5
+          ? 'All_Stations'
+          : `Stations_${selectedStations.join('_')}`;
+      doc.save(`eHPR_Clinical_Analytics_Report_${stationFileSuffix}_${fileDate}.pdf`);
+
+      setIsDownloadModalOpen(false);
+      setStationSelection('');
     } catch (error) {
       console.error('Failed to generate PDF report:', error);
     } finally {
@@ -389,7 +440,7 @@ export default function HealthReports() {
   // ==========================================
   // STATION 1: REGISTRATION & VITALS DATA
   // ==========================================
-  const s1Total = Math.round(388 * scale);
+  const s1Total = 388;
   const s1Kpis = [
     {
       label: 'Patients Registered & Screened',
@@ -420,22 +471,22 @@ export default function HealthReports() {
     barColor: THEME.deepTeal,
     scrollable: true,
     data: [
-      { name: 'Prov. Health Office (PHO)', value: Math.round(58 * scale), color: THEME.deepTeal },
-      { name: 'Prov. Engineering Office (PEO)', value: Math.round(44 * scale), color: THEME.vibrantTeal },
-      { name: 'Prov. Governor’s Office (PGO)', value: Math.round(38 * scale), color: THEME.accentBlue },
-      { name: 'Disaster Risk Reduction (PDRRMO)', value: Math.round(31 * scale), color: '#14B8A6' },
-      { name: 'Social Welfare & Dev (PSWDO)', value: Math.round(28 * scale), color: THEME.accentAmber },
-      { name: 'Agriculture & Veterinary (PAVO)', value: Math.round(26 * scale), color: '#10B981' },
-      { name: 'Assessment & Treasury (PASTO)', value: Math.round(24 * scale), color: '#0284C7' },
-      { name: 'Provincial Budget Office', value: Math.round(22 * scale), color: '#F97316' },
-      { name: 'Correctional & Security (PCSMO)', value: Math.round(20 * scale), color: '#6366F1' },
-      { name: 'Environment & Natural Resources', value: Math.round(18 * scale), color: '#059669' },
-      { name: 'General Services Office (PGSO)', value: Math.round(16 * scale), color: '#D97706' },
-      { name: 'Planning & Development (PPDO)', value: Math.round(15 * scale), color: '#8B5CF6' },
-      { name: 'Provincial Accounting Office', value: Math.round(14 * scale), color: '#EC4899' },
-      { name: 'D.O.P. Memorial Hospital', value: Math.round(13 * scale), color: '#0D9488' },
-      { name: 'Provincial Legal Office', value: Math.round(11 * scale), color: '#7C3AED' },
-      { name: 'Human Resource Mgt (PHRMO)', value: Math.round(9 * scale), color: '#64748B' },
+      { name: 'Prov. Health Office (PHO)', value: 58, color: THEME.deepTeal },
+      { name: 'Prov. Engineering Office (PEO)', value: 44, color: THEME.vibrantTeal },
+      { name: 'Prov. Governor’s Office (PGO)', value: 38, color: THEME.accentBlue },
+      { name: 'Disaster Risk Reduction (PDRRMO)', value: 31, color: '#14B8A6' },
+      { name: 'Social Welfare & Dev (PSWDO)', value: 28, color: THEME.accentAmber },
+      { name: 'Agriculture & Veterinary (PAVO)', value: 26, color: '#10B981' },
+      { name: 'Assessment & Treasury (PASTO)', value: 24, color: '#0284C7' },
+      { name: 'Provincial Budget Office', value: 22, color: '#F97316' },
+      { name: 'Correctional & Security (PCSMO)', value: 20, color: '#6366F1' },
+      { name: 'Environment & Natural Resources', value: 18, color: '#059669' },
+      { name: 'General Services Office (PGSO)', value: 16, color: '#D97706' },
+      { name: 'Planning & Development (PPDO)', value: 15, color: '#8B5CF6' },
+      { name: 'Provincial Accounting Office', value: 14, color: '#EC4899' },
+      { name: 'D.O.P. Memorial Hospital', value: 13, color: '#0D9488' },
+      { name: 'Provincial Legal Office', value: 11, color: '#7C3AED' },
+      { name: 'Human Resource Mgt (PHRMO)', value: 9, color: '#64748B' },
     ],
   };
 
@@ -448,28 +499,28 @@ export default function HealthReports() {
     data: [
       {
         name: 'Permanent',
-        value: Math.round(145 * scale),
+        value: 145,
         pct: 37.4,
         color: '#0A594D', // Primary Deep Teal
         desc: 'Permanent plantilla civil service personnel',
       },
       {
         name: 'Contract of Service (COS)',
-        value: Math.round(98 * scale),
+        value: 98,
         pct: 25.3,
         color: '#37AF9B', // Vibrant Teal
         desc: 'Contract of service project appointments',
       },
       {
         name: 'Job Order (JO)',
-        value: Math.round(112 * scale),
+        value: 112,
         pct: 28.9,
         color: '#F59E0B', // Amber / Gold
         desc: 'Job order operational & support workforce',
       },
       {
         name: 'Casual',
-        value: Math.round(33 * scale),
+        value: 33,
         pct: 8.5,
         color: '#64748B', // Soft Slate / Blue-gray
         desc: 'Temporary / casual appointment employees',
@@ -484,11 +535,11 @@ export default function HealthReports() {
     subtitle: 'WHO Western Pacific Region cutoff metrics evaluated during registration triage',
     tag: 'Nutritional Triage',
     data: [
-      { name: 'Underweight', value: Math.round(21 * scale), pct: 5.4, color: THEME.accentAmber, subtext: '< 18.5 kg/m²' },
-      { name: 'Normal', value: Math.round(138 * scale), pct: 35.7, color: THEME.accentEmerald, subtext: '18.5 – 22.9 kg/m²' },
-      { name: 'Overweight', value: Math.round(95 * scale), pct: 24.5, color: THEME.accentAmber, subtext: '23.0 – 24.9 kg/m²' },
-      { name: 'Obese Class I', value: Math.round(97 * scale), pct: 25.0, color: THEME.accentRose, subtext: '25.0 – 29.9 kg/m²' },
-      { name: 'Obese Class II', value: Math.round(37 * scale), pct: 9.4, color: '#991B1B', subtext: '≥ 30.0 kg/m²' },
+      { name: 'Underweight', value: 21, pct: 5.4, color: THEME.accentAmber, subtext: '< 18.5 kg/m²' },
+      { name: 'Normal', value: 138, pct: 35.7, color: THEME.accentEmerald, subtext: '18.5 – 22.9 kg/m²' },
+      { name: 'Overweight', value: 95, pct: 24.5, color: THEME.accentAmber, subtext: '23.0 – 24.9 kg/m²' },
+      { name: 'Obese Class I', value: 97, pct: 25.0, color: THEME.accentRose, subtext: '25.0 – 29.9 kg/m²' },
+      { name: 'Obese Class II', value: 37, pct: 9.4, color: '#991B1B', subtext: '≥ 30.0 kg/m²' },
     ],
   };
 
@@ -499,18 +550,18 @@ export default function HealthReports() {
     subtitle: 'ACC/AHA 2017 Guidelines measured during intake screening',
     tag: 'Cardiovascular Risk',
     data: [
-      { name: 'Normal (<120/<80)', value: Math.round(155 * scale), pct: 39.9, color: THEME.accentEmerald, desc: 'Optimal cardiovascular status' },
-      { name: 'Elevated (120-129)', value: Math.round(60 * scale), pct: 15.5, color: THEME.accentAmber, desc: 'Lifestyle intervention indicated' },
-      { name: 'Stage 1 HTN', value: Math.round(99 * scale), pct: 25.5, color: '#EA580C', desc: '130-139 / 80-89 mmHg' },
-      { name: 'Stage 2 HTN', value: Math.round(62 * scale), pct: 16.0, color: THEME.accentRose, desc: '≥ 140 / ≥ 90 mmHg' },
-      { name: 'Hypertensive Crisis', value: Math.round(12 * scale), pct: 3.1, color: '#7F1D1D', desc: '> 180 and/or > 120 mmHg' },
+      { name: 'Normal (<120/<80)', value: 155, pct: 39.9, color: THEME.accentEmerald, desc: 'Optimal cardiovascular status' },
+      { name: 'Elevated (120-129)', value: 60, pct: 15.5, color: THEME.accentAmber, desc: 'Lifestyle intervention indicated' },
+      { name: 'Stage 1 HTN', value: 99, pct: 25.5, color: '#EA580C', desc: '130-139 / 80-89 mmHg' },
+      { name: 'Stage 2 HTN', value: 62, pct: 16.0, color: THEME.accentRose, desc: '≥ 140 / ≥ 90 mmHg' },
+      { name: 'Hypertensive Crisis', value: 12, pct: 3.1, color: '#7F1D1D', desc: '> 180 and/or > 120 mmHg' },
     ],
   };
 
   // ==========================================
   // STATION 2: STRICTLY 7-ASPECT WELLNESS DATA
   // ==========================================
-  const s2Total = Math.round(336 * scale);
+  const s2Total = 336;
   const s2Kpis = [
     {
       label: 'Total Assessments Completed',
@@ -565,20 +616,20 @@ export default function HealthReports() {
     subtitle: 'Number of surveyed individuals scoring critically low in each respective category',
     tag: 'Priority Interventions',
     data: [
-      { name: 'Financial Wellness', value: Math.round(68 * scale), color: THEME.accentRose, subtext: 'Economic distress & debt concerns' },
-      { name: 'Mental Well-being', value: Math.round(42 * scale), color: '#F97316', subtext: 'Chronic fatigue & cognitive strain' },
-      { name: 'Emotional Health', value: Math.round(36 * scale), color: THEME.accentAmber, subtext: 'Stress management deficits' },
-      { name: 'Psychological', value: Math.round(28 * scale), color: '#EAB308', subtext: 'Anxiety & adjustment strain' },
-      { name: 'Social Wellness', value: Math.round(22 * scale), color: '#8B5CF6', subtext: 'Workplace & community isolation' },
-      { name: 'Spiritual Health', value: Math.round(14 * scale), color: '#64748B', subtext: 'Value misalignment & burnout' },
-      { name: 'Physical Wellness', value: Math.round(11 * scale), color: '#0D9488', subtext: 'Severe mobility / vitality limits' },
+      { name: 'Financial Wellness', value: 68, color: THEME.accentRose, subtext: 'Economic distress & debt concerns' },
+      { name: 'Mental Well-being', value: 42, color: '#F97316', subtext: 'Chronic fatigue & cognitive strain' },
+      { name: 'Emotional Health', value: 36, color: THEME.accentAmber, subtext: 'Stress management deficits' },
+      { name: 'Psychological', value: 28, color: '#EAB308', subtext: 'Anxiety & adjustment strain' },
+      { name: 'Social Wellness', value: 22, color: '#8B5CF6', subtext: 'Workplace & community isolation' },
+      { name: 'Spiritual Health', value: 14, color: '#64748B', subtext: 'Value misalignment & burnout' },
+      { name: 'Physical Wellness', value: 11, color: '#0D9488', subtext: 'Severe mobility / vitality limits' },
     ],
   };
 
   // ==========================================
   // STATION 3: CONSULTATION DATA
   // ==========================================
-  const s3Total = Math.round(295 * scale);
+  const s3Total = 295;
   const s3Kpis = [
     {
       label: 'Consultations Completed',
@@ -600,7 +651,7 @@ export default function HealthReports() {
     },
     {
       label: 'Urgent Referrals Flagged',
-      value: Math.round(19 * scale),
+      value: 19,
       badgeTone: 'alert',
       icon: TriangleAlert,
     },
@@ -715,7 +766,7 @@ export default function HealthReports() {
   const aggregatedConditions = aggregateFreeText(
     MOCK_PATIENT_HISTORIES,
     'condition',
-    12 * scale
+    12
   ).map((entry, idx) => ({
     ...entry,
     color: CONDITION_PALETTE[idx % CONDITION_PALETTE.length],
@@ -735,7 +786,7 @@ export default function HealthReports() {
   const aggregatedDrugs = aggregateFreeText(
     MOCK_PATIENT_HISTORIES,
     'drug',
-    12 * scale
+    12
   ).map((entry, idx) => ({
     ...entry,
     color: DRUG_PALETTE[idx % DRUG_PALETTE.length],
@@ -768,9 +819,9 @@ export default function HealthReports() {
   // ------------------------------------------
   // Social History 1: Tobacco & Smoking Profile
   const smokingData = [
-    { name: 'Non-Smoker', value: Math.round(208 * scale), pct: 70.5, color: THEME.deepTeal },
-    { name: 'Cigarettes Only', value: Math.round(44 * scale), pct: 14.9, color: THEME.accentAmber },
-    { name: 'E-Cigarette / Vape', value: Math.round(28 * scale), pct: 9.5, color: THEME.vibrantTeal },
+    { name: 'Non-Smoker', value: 208, pct: 70.5, color: THEME.deepTeal },
+    { name: 'Cigarettes Only', value: 44, pct: 14.9, color: THEME.accentAmber },
+    { name: 'E-Cigarette / Vape', value: 28, pct: 9.5, color: THEME.vibrantTeal },
   ];
 
   // Social History 2: Exercise Free-Text Entries (Aggregated with case-insensitive logic)
@@ -809,7 +860,7 @@ export default function HealthReports() {
   const exerciseData = aggregateFreeText(
     MOCK_EXERCISE_INPUTS,
     'exercise',
-    8 * scale
+    8
   ).slice(0, 5).map((item, idx) => ({
     ...item,
     color: EXERCISE_PALETTE[idx % EXERCISE_PALETTE.length],
@@ -817,26 +868,26 @@ export default function HealthReports() {
 
   // Social History 3: Alcohol Consumption Frequency
   const alcoholData = [
-    { name: 'Non-Drinker', value: Math.round(152 * scale), pct: 51.5, color: THEME.deepTeal },
-    { name: 'Occasional', value: Math.round(98 * scale), pct: 33.2, color: THEME.vibrantTeal },
-    { name: 'Weekly', value: Math.round(36 * scale), pct: 12.2, color: THEME.accentAmber },
-    { name: 'Frequent/Daily', value: Math.round(9 * scale), pct: 3.1, color: THEME.accentRose },
+    { name: 'Non-Drinker', value: 152, pct: 51.5, color: THEME.deepTeal },
+    { name: 'Occasional', value: 98, pct: 33.2, color: THEME.vibrantTeal },
+    { name: 'Weekly', value: 36, pct: 12.2, color: THEME.accentAmber },
+    { name: 'Frequent/Daily', value: 9, pct: 3.1, color: THEME.accentRose },
   ];
 
   // Recommended Diagnostic & Laboratory Tests (Strictly Top 10 by order volume)
   const DIAGNOSTIC_TESTS_RAW = [
-    { name: 'Lipid Profile', count: Math.round(88 * scale), category: 'Clinical Chemistry' },
-    { name: 'CBC', count: Math.round(82 * scale), category: 'Hematology' },
-    { name: 'FBS', count: Math.round(76 * scale), category: 'Clinical Chemistry' },
-    { name: 'U/A (Urinalysis)', count: Math.round(68 * scale), category: 'Clinical Microscopy' },
-    { name: 'Crea (Creatinine)', count: Math.round(54 * scale), category: 'Renal Function' },
-    { name: 'Chest Xray', count: Math.round(48 * scale), category: 'Radiology' },
-    { name: 'SGPT/SGOT', count: Math.round(42 * scale), category: 'Hepatic Enzymes' },
-    { name: '12-Lead ECG', count: Math.round(38 * scale), category: 'Cardiology' },
-    { name: 'HBA1c', count: Math.round(26 * scale), category: 'Glycemic Control' },
-    { name: 'SUA (Uric Acid)', count: Math.round(22 * scale), category: 'Clinical Chemistry' },
-    { name: 'BUN', count: Math.round(18 * scale), category: 'Renal Function' },
-    { name: 'Electrolytes (NaK)', count: Math.round(15 * scale), category: 'Clinical Chemistry' },
+    { name: 'Lipid Profile', count: 88, category: 'Clinical Chemistry' },
+    { name: 'CBC', count: 82, category: 'Hematology' },
+    { name: 'FBS', count: 76, category: 'Clinical Chemistry' },
+    { name: 'U/A (Urinalysis)', count: 68, category: 'Clinical Microscopy' },
+    { name: 'Crea (Creatinine)', count: 54, category: 'Renal Function' },
+    { name: 'Chest Xray', count: 48, category: 'Radiology' },
+    { name: 'SGPT/SGOT', count: 42, category: 'Hepatic Enzymes' },
+    { name: '12-Lead ECG', count: 38, category: 'Cardiology' },
+    { name: 'HBA1c', count: 26, category: 'Glycemic Control' },
+    { name: 'SUA (Uric Acid)', count: 22, category: 'Clinical Chemistry' },
+    { name: 'BUN', count: 18, category: 'Renal Function' },
+    { name: 'Electrolytes (NaK)', count: 15, category: 'Clinical Chemistry' },
   ];
 
   const top10Diagnostics = DIAGNOSTIC_TESTS_RAW
@@ -928,7 +979,7 @@ export default function HealthReports() {
   const top10PrescribedMedications = aggregateFreeText(
     MOCK_PRESCRIBED_MEDICATIONS,
     'medication',
-    9 * scale
+    9
   )
     .slice(0, 10)
     .map((item, idx) => ({
@@ -939,7 +990,7 @@ export default function HealthReports() {
   // ==========================================
   // STATION 4: DENTAL ASSESSMENT DATA
   // ==========================================
-  const s4Total = Math.round(276 * scale);
+  const s4Total = 276;
   const dentalKpis = [
     {
       label: 'DENTAL SCREENINGS',
@@ -961,28 +1012,28 @@ export default function HealthReports() {
     },
     {
       label: 'RESTORATIVE & EXTRACTION NEEDED',
-      value: Math.round(114 * scale),
+      value: 114,
       badgeTone: 'warning',
       icon: Wrench,
     },
   ];
 
   const oralHygieneData = [
-    { name: 'Good', value: Math.round(102 * scale), pct: 37.0, color: THEME.accentEmerald },
-    { name: 'Fair', value: Math.round(118 * scale), pct: 42.8, color: THEME.accentAmber },
-    { name: 'Poor', value: Math.round(56 * scale), pct: 20.3, color: THEME.accentRose },
+    { name: 'Good', value: 102, pct: 37.0, color: THEME.accentEmerald },
+    { name: 'Fair', value: 118, pct: 42.8, color: THEME.accentAmber },
+    { name: 'Poor', value: 56, pct: 20.3, color: THEME.accentRose },
   ];
 
   const gumConditionData = [
-    { name: 'Healthy', value: Math.round(142 * scale), pct: 51.4, color: THEME.accentEmerald },
-    { name: 'Gingivitis', value: Math.round(93 * scale), pct: 33.7, color: THEME.accentAmber },
-    { name: 'Suspected Periodontal Problem', value: Math.round(41 * scale), pct: 14.9, color: THEME.accentRose },
+    { name: 'Healthy', value: 142, pct: 51.4, color: THEME.accentEmerald },
+    { name: 'Gingivitis', value: 93, pct: 33.7, color: THEME.accentAmber },
+    { name: 'Suspected Periodontal Problem', value: 41, pct: 14.9, color: THEME.accentRose },
   ];
 
   // ==========================================
   // STATION 5: VISION SCREENING DATA
   // ==========================================
-  const s5Total = Math.round(268 * scale);
+  const s5Total = 268;
   const visionKpis = [
     {
       label: 'VISION SCREENINGS PERFORMED',
@@ -998,24 +1049,24 @@ export default function HealthReports() {
     },
     {
       label: 'NEAR VISION DIFFICULTY (PRESBYOPIA RISK)',
-      value: Math.round(92 * scale),
+      value: 92,
       badgeTone: 'warning',
       icon: Glasses,
     },
     {
       label: 'DISTANT VISION DIFFICULTY (MYOPIA RISK)',
-      value: Math.round(78 * scale),
+      value: 78,
       badgeTone: 'warning',
       icon: Activity,
     },
   ];
 
   const visionSymptomsData = [
-    { name: 'History of Eye Problems', value: Math.round(52 * scale), yesCount: Math.round(52 * scale), pct: 19.4, color: THEME.deepTeal },
-    { name: 'Eye Pain / Discomfort', value: Math.round(38 * scale), yesCount: Math.round(38 * scale), pct: 14.2, color: THEME.accentRose },
-    { name: 'Blurred Vision', value: Math.round(112 * scale), yesCount: Math.round(112 * scale), pct: 41.8, color: THEME.accentAmber },
-    { name: 'Difficulty Seeing Near Objects', value: Math.round(92 * scale), yesCount: Math.round(92 * scale), pct: 34.3, color: THEME.vibrantTeal },
-    { name: 'Difficulty Seeing Distant Objects', value: Math.round(78 * scale), yesCount: Math.round(78 * scale), pct: 29.1, color: '#0EA5E9' },
+    { name: 'History of Eye Problems', value: 52, yesCount: 52, pct: 19.4, color: THEME.deepTeal },
+    { name: 'Eye Pain / Discomfort', value: 38, yesCount: 38, pct: 14.2, color: THEME.accentRose },
+    { name: 'Blurred Vision', value: 112, yesCount: 112, pct: 41.8, color: THEME.accentAmber },
+    { name: 'Difficulty Seeing Near Objects', value: 92, yesCount: 92, pct: 34.3, color: THEME.vibrantTeal },
+    { name: 'Difficulty Seeing Distant Objects', value: 78, yesCount: 78, pct: 29.1, color: '#0EA5E9' },
   ];
 
   // Quick navigation anchor scroll helper
@@ -1032,40 +1083,23 @@ export default function HealthReports() {
         {/* ==========================================
             MASTER DASHBOARD HEADER
         =========================================== */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="h-3 w-3 rounded-full bg-[#0A594D] animate-pulse" />
-              <p className="text-xs font-bold uppercase tracking-wider text-[#0A594D]">
-                Integrated EHR Surveillance
-              </p>
-            </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Clinic Pipeline Analytics
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Master clinical and graphical reports spanning Station 1 (Registration) through Station 5 (Vision Screening).
+        <div className="mb-8 border-b border-slate-200 pb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="h-3 w-3 rounded-full bg-[#0A594D] animate-pulse" />
+            <p className="text-xs font-bold uppercase tracking-wider text-[#0A594D]">
+              Integrated EHR Surveillance
             </p>
           </div>
-
-          {/* Department / Office Filter Dropdown */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 border border-slate-200 shadow-2xs">
-              <Filter size={15} className="text-[#0A594D]" />
-              <span className="text-xs font-medium text-slate-600">Filter Office:</span>
-              <Select
-                aria-label="Filter Office"
-                className="w-48 sm:w-64 border-0 bg-transparent text-xs font-semibold focus:ring-0"
-                options={OFFICE_OPTIONS}
-                value={selectedOffice}
-                onChange={(e) => setSelectedOffice(e.target.value)}
-              />
-            </div>
-          </div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            Clinic Pipeline Analytics
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Master clinical and graphical reports spanning Station 1 (Registration) through Station 5 (Vision Screening).
+          </p>
         </div>
 
         {/* Quick Station Navigation & Master PDF Export Sticky Bar */}
-        <div className="sticky top-3 z-20 mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md">
+        <div className="sticky top-3 z-30 mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md">
           {/* Left: Quick Jump Navigation Links */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-6">
             <span className="text-xs font-semibold text-slate-400 px-1 uppercase tracking-wider">
@@ -1092,21 +1126,11 @@ export default function HealthReports() {
           {/* Right: Master Download PDF Report Action Button */}
           <button
             type="button"
-            onClick={generatePDF}
-            disabled={isGeneratingPDF}
-            className="flex items-center gap-2 bg-[#0A594D] hover:bg-[#07463c] text-white px-4 py-2 rounded-md font-medium text-xs sm:text-sm transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            onClick={() => setIsDownloadModalOpen(true)}
+            className="flex items-center gap-2 bg-[#0A594D] hover:bg-[#07463c] text-white px-4 py-2 rounded-md font-medium text-xs sm:text-sm transition-colors cursor-pointer shadow-xs shrink-0"
           >
-            {isGeneratingPDF ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Generating PDF...</span>
-              </>
-            ) : (
-              <>
-                <Download size={16} />
-                <span>Download PDF Report</span>
-              </>
-            )}
+            <Download size={16} />
+            <span>Download PDF Report</span>
           </button>
         </div>
 
@@ -1826,6 +1850,48 @@ export default function HealthReports() {
             </div>
           </section>
         </div>
+
+        {/* Custom Report Download Modal */}
+        {isDownloadModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Download Custom Report</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Enter the stations you want to include in the PDF. Use commas for specific stations (e.g., <strong>1, 3, 5</strong>) or hyphens for a range (e.g., <strong>1-4</strong>). Leave blank to download all.
+              </p>
+              <input 
+                type="text" 
+                placeholder="e.g. 1-3, 5" 
+                value={stationSelection}
+                onChange={(e) => setStationSelection(e.target.value)}
+                className="w-full border border-gray-300 rounded-md p-2 mb-6 focus:ring-2 focus:ring-[#37AF9B] focus:border-transparent outline-none"
+              />
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setIsDownloadModalOpen(false)}
+                  disabled={isGeneratingPDF}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={generatePDF}
+                  disabled={isGeneratingPDF}
+                  className="px-4 py-2 bg-[#0A594D] hover:bg-[#07463c] text-white rounded-md font-medium transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Generating PDF...</span>
+                    </>
+                  ) : (
+                    'Generate PDF'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

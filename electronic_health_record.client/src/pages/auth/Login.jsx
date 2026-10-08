@@ -120,7 +120,7 @@ export default function Login() {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full h-14 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-full text-sm tracking-wide transition-all shadow-lg shadow-teal-500/30 flex items-center justify-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full h-14 bg-[#0A594D] hover:bg-[#07463c] text-white font-medium py-2 px-4 rounded-md transition-colors tracking-wide shadow-lg flex items-center justify-center cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
                             {isSubmitting ? 'AUTHENTICATING...' : 'LOG IN'}

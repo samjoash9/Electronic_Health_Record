@@ -113,7 +113,7 @@ const Select = forwardRef(function Select(
       {open && (
         <ul
           role="listbox"
-          className="absolute right-0 z-20 mt-2 max-h-64 w-max min-w-full overflow-auto rounded-xl border border-line bg-surface p-1.5 text-sm shadow-xl"
+          className="absolute right-0 z-50 mt-2 max-h-64 w-max min-w-full overflow-auto rounded-xl border border-line bg-surface p-1.5 text-sm shadow-xl"
         >
           {normalized.map((option) => {
             const isSelected = String(option.value) === String(internalValue);

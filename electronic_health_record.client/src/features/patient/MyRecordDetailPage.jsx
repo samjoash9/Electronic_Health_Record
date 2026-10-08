@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
   ArrowLeft, Download, Loader2, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
@@ -102,8 +102,8 @@ export default function MyRecordDetailPage() {
         const currentWidth = chunk.scrollWidth;
         const currentHeight = chunk.scrollHeight;
 
-        const dataUrl = await toPng(chunk, {
-          quality: 1,
+        const dataUrl = await toJpeg(chunk, {
+          quality: 0.9,
           backgroundColor: '#ffffff',
           pixelRatio: 2,
           width: currentWidth, // Capture full natural width
@@ -127,7 +127,7 @@ export default function MyRecordDetailPage() {
           currentY = 15; 
         }
 
-        pdf.addImage(dataUrl, 'PNG', marginX, currentY, usableWidth, imgHeight);
+        pdf.addImage(dataUrl, 'JPEG', marginX, currentY, usableWidth, imgHeight);
         
         // Add a small 6mm gap between chunks to mimic the website's gray spacing
         currentY += imgHeight + 6; 
