@@ -1,7 +1,8 @@
-import { useFieldArray } from 'react-hook-form';
+import { useFieldArray, useFormState } from 'react-hook-form';
 import { Plus, Trash2, Stethoscope } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import SectionCard from './SectionCard';
+import { validateYear } from '../../lib/yearBounds';
 
 const BLANK_ROW = {
   conditionOther: '', yearDiagnosed: '',
@@ -16,10 +17,13 @@ const COLUMNS = [
   { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[16%]' },
 ];
 
-const YEAR_MAX = new Date().getFullYear();
-
-export default function PastMedicalHistorySection({ control, register }) {
+/**
+ * `yearBounds` (from lib/yearBounds) limits Year Diagnosed to between the
+ * patient's birth year and the visit year; omitted, the year goes unchecked.
+ */
+export default function PastMedicalHistorySection({ control, register, yearBounds }) {
   const { fields, append, remove } = useFieldArray({ control, name: 'pastMedicalHistory' });
+  const { errors } = useFormState({ control, name: 'pastMedicalHistory' });
 
   // Keep at least one row on screen: emptying the last row resets it instead
   // of leaving the section with nothing to type into.
@@ -34,14 +38,25 @@ export default function PastMedicalHistorySection({ control, register }) {
 
   const addRow = () => append({ ...BLANK_ROW });
 
-  const fieldProps = (index, column) => ({
-    ...register(`pastMedicalHistory.${index}.${column.name}`),
-    placeholder: column.placeholder,
-    className: 'w-full',
-    ...(column.type === 'number'
-      ? { type: 'number', min: 1900, max: YEAR_MAX, inputMode: 'numeric' }
-      : {}),
-  });
+  const errorFor = (index, column) => errors.pastMedicalHistory?.[index]?.[column.name]?.message;
+
+  // No min/max on the year: the browser would block the submit with its own
+  // popup before the inline warning and the scroll to it ever ran.
+  const fieldProps = (index, column) => {
+    const error = errorFor(index, column);
+    const validate = column.type === 'number' && yearBounds
+      ? (value) => validateYear(value, yearBounds)
+      : undefined;
+    return {
+      ...register(`pastMedicalHistory.${index}.${column.name}`, { validate }),
+      placeholder: column.placeholder,
+      className: 'w-full',
+      error: Boolean(error),
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': error ? `pmh-${index}-${column.name}-error` : undefined,
+      ...(column.type === 'number' ? { type: 'number', inputMode: 'numeric' } : {}),
+    };
+  };
 
   return (
     <SectionCard
@@ -87,6 +102,14 @@ export default function PastMedicalHistorySection({ control, register }) {
                       {`${column.label}, row ${index + 1}`}
                     </label>
                     <Input id={`pmh-${index}-${column.name}`} {...fieldProps(index, column)} />
+                    {errorFor(index, column) && (
+                      <p
+                        id={`pmh-${index}-${column.name}-error`}
+                        className="mt-1 text-[11px] font-medium text-rose-600"
+                      >
+                        {errorFor(index, column)}
+                      </p>
+                    )}
                   </td>
                 ))}
                 <td className="px-2 py-2 align-middle">

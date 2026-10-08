@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FormEditPanel from './FormEditPanel';
 
@@ -26,6 +26,7 @@ const form = {
   rowVersion: 'AAAA',
   signedAt: '2026-10-01T03:00:00.000Z',
   formDate: '2026-10-01T00:00:00.000Z',
+  patient: { surname: 'DELA CRUZ', firstName: 'JUAN', birthdate: '1979-02-08' },
   physicianID: null,
   weightKg: 70,
   assessmentAnswers: [{ questionID: 11, optionID: 101 }],
@@ -38,10 +39,10 @@ const form = {
   managementTreatment: 'Medications:\n• Losartan — 50mg — Once Daily',
 };
 
-function renderPanel(onSave = vi.fn()) {
+function renderPanel(onSave = vi.fn(), overrides = {}) {
   render(
     <FormEditPanel
-      form={form}
+      form={{ ...form, ...overrides }}
       categories={categories}
       onSave={onSave}
       onCancel={vi.fn()}
@@ -110,5 +111,61 @@ describe('FormEditPanel', () => {
     renderPanel();
     expect(screen.getByText('No changes yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  });
+
+  describe("year fields bounded by the patient's birth year", () => {
+    beforeEach(() => {
+      // jsdom has no layout, so scrolling is only observable as a call.
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    it('warns about a year before the birth year as it is typed', async () => {
+      const user = userEvent.setup();
+      renderPanel();
+      await user.click(screen.getByRole('tab', { name: /Consultation/ }));
+
+      await user.type(screen.getByLabelText(/year started, row 1/i), '1970');
+
+      expect(screen.getByText("Before the patient's birth year (1979).")).toBeInTheDocument();
+    });
+
+    it('blocks Save and returns to the Consultation tab to show the bad year', async () => {
+      const user = userEvent.setup();
+      const onSave = renderPanel();
+      await user.click(screen.getByRole('tab', { name: /Consultation/ }));
+      await user.type(screen.getByLabelText(/type of exercise, row 1/i), 'Jogging');
+      await user.type(screen.getByLabelText(/year started, row 1/i), '1970');
+
+      // Saving from another tab, where the bad year is not on screen.
+      await user.click(screen.getByRole('tab', { name: /Vitals/ }));
+      await user.type(screen.getByLabelText(/Reason for this correction/), 'Paper intake sheet');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      expect(onSave).not.toHaveBeenCalled();
+      expect(screen.getByRole('tab', { name: /Consultation/ })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByText("Before the patient's birth year (1979).")).toBeInTheDocument();
+      const year = screen.getByLabelText(/year started, row 1/i);
+      await waitFor(() => expect(year).toHaveFocus());
+      expect(year.scrollIntoView).toHaveBeenCalled();
+    });
+
+    it('still saves an unrelated correction when an old bad year is left untouched', async () => {
+      const user = userEvent.setup();
+      const onSave = renderPanel(vi.fn(), {
+        exercise: [{ exerciseType: 'Jogging', exerciseFrequency: 'Daily', exerciseYearStarted: '1970' }],
+      });
+      await user.click(screen.getByRole('tab', { name: /Consultation/ }));
+
+      const impression = screen.getByLabelText('Impression / Clinical');
+      await user.clear(impression);
+      await user.type(impression, 'Stage 2 Hypertension');
+      await user.type(screen.getByLabelText(/Reason for this correction/), 'Typo at signing');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      expect(onSave).toHaveBeenCalledWith({
+        changes: { impressionClinical: 'Stage 2 Hypertension' },
+        reason: 'Typo at signing',
+      });
+    });
   });
 });

@@ -3,9 +3,13 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useForm } from 'react-hook-form';
 import SocialHistorySection from './SocialHistorySection';
+import { yearBounds } from '../../lib/yearBounds';
 
-function Harness() {
+const BOUNDS = yearBounds('1979-02-08', 2026);
+
+function Harness({ bounds = BOUNDS }) {
   const form = useForm({
+    mode: 'onChange',
     defaultValues: {
       socialHistory: {
         smokes: null,
@@ -18,7 +22,7 @@ function Harness() {
       exercise: [{ exerciseType: '', exerciseFrequency: '', exerciseYearStarted: '' }],
     },
   });
-  return <SocialHistorySection control={form.control} watch={form.watch} />;
+  return <SocialHistorySection control={form.control} watch={form.watch} yearBounds={bounds} />;
 }
 
 describe('SocialHistorySection', () => {
@@ -139,5 +143,57 @@ describe('SocialHistorySection', () => {
     await user.click(screen.getByRole('button', { name: /remove row 1/i }));
     expect(screen.getAllByLabelText(/type of exercise, row/i)).toHaveLength(1);
     expect(screen.getByLabelText(/type of exercise, row 1/i)).toHaveValue('');
+  });
+
+  describe("year started is bounded by the patient's birth year and the visit year", () => {
+    it('warns under the cigarette year when it is before the birth year', async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      await user.click(screen.getByRole('radio', { name: /^yes$/i, hidden: true }));
+      await user.click(screen.getByRole('checkbox', { name: /^cigarette$/i }));
+
+      const year = screen.getByLabelText(/cigarette.*year started/i);
+      await user.type(year, '1978');
+
+      expect(screen.getByText("Before the patient's birth year (1979).")).toBeInTheDocument();
+      expect(year).toHaveAttribute('aria-invalid', 'true');
+      expect(year).toHaveAccessibleDescription("Before the patient's birth year (1979).");
+    });
+
+    it('warns under the e-cigarette year when it is not a 4-digit year', async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      await user.click(screen.getByRole('radio', { name: /^yes$/i, hidden: true }));
+      await user.click(screen.getByRole('checkbox', { name: /^e-cigarette$/i }));
+
+      await user.type(screen.getByLabelText(/e-cigarette.*year started/i), '20a');
+
+      expect(screen.getByText('Enter a 4-digit year.')).toBeInTheDocument();
+    });
+
+    it('warns under an exercise row whose year is after the visit year', async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+
+      const year = screen.getByLabelText(/year started, row 1/i);
+      await user.type(year, '2027');
+
+      expect(screen.getByText("Can't be after 2026.")).toBeInTheDocument();
+      expect(year).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('clears the warning once the year is corrected', async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+
+      const year = screen.getByLabelText(/year started, row 1/i);
+      await user.type(year, '1970');
+      expect(screen.getByText("Before the patient's birth year (1979).")).toBeInTheDocument();
+
+      await user.clear(year);
+      await user.type(year, '1990');
+      expect(screen.queryByText(/birth year/i)).toBeNull();
+      expect(year).not.toHaveAttribute('aria-invalid', 'true');
+    });
   });
 });

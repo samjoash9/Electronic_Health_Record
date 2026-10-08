@@ -5,6 +5,7 @@ import {
   buildCharges, buildExercise, buildFamilyHistory, buildManagementTreatment,
   buildPastMedicalHistory, buildSocialHistory,
 } from '../../lib/station3Payload';
+import { validateYear } from '../../lib/yearBounds';
 
 /**
  * The superadmin correction page edits Station 2 and Station 3 through the
@@ -172,4 +173,41 @@ export function answersPayload(answers) {
 /** The visit date as the date input holds it: the stored value's calendar day. */
 export function formDateValue(form) {
   return form.formDate ? String(form.formDate).slice(0, 10) : '';
+}
+
+/**
+ * The year fields that fail `bounds`, as { name, message } in page order --
+ * read off the values rather than the inputs' own rules, because the inputs
+ * on a closed tab are not mounted and react-hook-form skips them.
+ *
+ * Only the sections in `keys` (the consultation keys being saved) are checked,
+ * matching the server, which validates only what a PATCH sends: an old bad
+ * year must not block an unrelated correction. A smoking year the form does
+ * not show is skipped too; the payload sends it as null.
+ */
+export function consultationYearErrors(values, bounds, keys) {
+  const sections = new Set(keys);
+  const errors = [];
+  const check = (name, value) => {
+    const message = validateYear(value, bounds);
+    if (message) errors.push({ name, message });
+  };
+
+  if (sections.has('pastMedicalHistory')) {
+    (values.pastMedicalHistory ?? []).forEach((row, i) =>
+      check(`pastMedicalHistory.${i}.yearDiagnosed`, row.yearDiagnosed));
+  }
+
+  const social = values.socialHistory ?? {};
+  if (sections.has('socialHistory') && social.smokes === true) {
+    if (social.smokesCigarette) check('socialHistory.cigaretteYearStarted', social.cigaretteYearStarted);
+    if (social.smokesEcig) check('socialHistory.ecigYearStarted', social.ecigYearStarted);
+  }
+
+  if (sections.has('exercise')) {
+    (values.exercise ?? []).forEach((row, i) =>
+      check(`exercise.${i}.exerciseYearStarted`, row.exerciseYearStarted));
+  }
+
+  return errors;
 }

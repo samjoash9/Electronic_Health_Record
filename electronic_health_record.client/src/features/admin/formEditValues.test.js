@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   consultationValuesFromForm, consultationChanges,
   answersFromForm, changedAnswerCount, answersPayload, formDateValue,
+  consultationYearErrors,
 } from './formEditValues';
+import { yearBounds } from '../../lib/yearBounds';
+import { DEFAULT_CONSULTATION_VALUES } from '../../lib/station3Payload';
 
 // A form as GET /wellnessforms/{id} returns it after Station 3 signed.
 const consulted = {
@@ -165,5 +168,59 @@ describe('formDateValue', () => {
   it('reads the stored visit date as its calendar day', () => {
     expect(formDateValue({ formDate: '2026-10-01T00:00:00.000Z' })).toBe('2026-10-01');
     expect(formDateValue({})).toBe('');
+  });
+});
+
+describe('consultationYearErrors', () => {
+  const bounds = yearBounds('1979-02-08', 2026);
+  const ALL = ['pastMedicalHistory', 'exercise', 'socialHistory'];
+  const values = (overrides) => ({ ...DEFAULT_CONSULTATION_VALUES, ...overrides });
+
+  it('finds nothing wrong with blank or in-range years', () => {
+    const v = values({
+      pastMedicalHistory: [{ ...DEFAULT_CONSULTATION_VALUES.pastMedicalHistory[0], yearDiagnosed: '2019' }],
+      exercise: [{ exerciseType: 'Jogging', exerciseFrequency: 'Daily', exerciseYearStarted: '' }],
+    });
+    expect(consultationYearErrors(v, bounds, ALL)).toEqual([]);
+  });
+
+  it('names each out-of-range year by its form field, in page order', () => {
+    const v = values({
+      pastMedicalHistory: [
+        { ...DEFAULT_CONSULTATION_VALUES.pastMedicalHistory[0], yearDiagnosed: '2019' },
+        { ...DEFAULT_CONSULTATION_VALUES.pastMedicalHistory[0], yearDiagnosed: '1975' },
+      ],
+      socialHistory: {
+        ...DEFAULT_CONSULTATION_VALUES.socialHistory,
+        smokes: true, smokesCigarette: true, cigaretteYearStarted: '2030',
+        smokesEcig: true, ecigYearStarted: '20x',
+      },
+      exercise: [{ exerciseType: 'Jogging', exerciseFrequency: 'Daily', exerciseYearStarted: '1970' }],
+    });
+
+    expect(consultationYearErrors(v, bounds, ALL)).toEqual([
+      { name: 'pastMedicalHistory.1.yearDiagnosed', message: "Before the patient's birth year (1979)." },
+      { name: 'socialHistory.cigaretteYearStarted', message: "Can't be after 2026." },
+      { name: 'socialHistory.ecigYearStarted', message: 'Enter a 4-digit year.' },
+      { name: 'exercise.0.exerciseYearStarted', message: "Before the patient's birth year (1979)." },
+    ]);
+  });
+
+  it('skips a smoking year the form does not show, since it is sent as null', () => {
+    const v = values({
+      socialHistory: {
+        ...DEFAULT_CONSULTATION_VALUES.socialHistory,
+        smokes: false, smokesCigarette: true, cigaretteYearStarted: '1970',
+      },
+    });
+    expect(consultationYearErrors(v, bounds, ALL)).toEqual([]);
+  });
+
+  it('checks only the sections being saved, so an old bad year cannot block an unrelated fix', () => {
+    const v = values({
+      exercise: [{ exerciseType: 'Jogging', exerciseFrequency: 'Daily', exerciseYearStarted: '1970' }],
+    });
+    expect(consultationYearErrors(v, bounds, ['impressionClinical'])).toEqual([]);
+    expect(consultationYearErrors(v, bounds, ['exercise'])).toHaveLength(1);
   });
 });

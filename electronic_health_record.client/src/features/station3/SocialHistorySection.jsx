@@ -7,6 +7,7 @@ import Field from '../../components/ui/Field';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import SectionCard, { SubPanel } from './SectionCard';
+import { validateYear } from '../../lib/yearBounds';
 
 const BLANK_EXERCISE_ROW = { exerciseType: '', exerciseFrequency: '', exerciseYearStarted: '' };
 
@@ -49,19 +50,35 @@ function IconSelect({ icon: Icon, control, name, id, options }) {
  * Free-text input with a leading glyph, matching IconSelect's layout so the
  * two can sit in the same row. Driven through useController for the same
  * reason as IconSelect: a controlled value to reflect a restored draft.
+ * A failed `rules` check shows under the input, so it works both inside a
+ * Field and in the exercise rows, which have no Field around each cell.
  */
-function IconInput({ icon: Icon, control, name, id, placeholder, ...props }) {
-  const { field } = useController({ control, name });
+function IconInput({ icon: Icon, control, name, id, placeholder, rules, ...props }) {
+  const { field, fieldState: { error } } = useController({ control, name, rules });
+  const errorId = error ? `${id}-error` : undefined;
 
   return (
-    <div className="relative">
-      <span
-        aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#0e7d6b]"
-      >
-        <Icon size={16} strokeWidth={1.9} />
-      </span>
-      <Input id={id} placeholder={placeholder} className="w-full pl-9" {...field} value={field.value ?? ''} {...props} />
+    <div>
+      <div className="relative">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#0e7d6b]"
+        >
+          <Icon size={16} strokeWidth={1.9} />
+        </span>
+        <Input
+          id={id}
+          placeholder={placeholder}
+          className="w-full pl-9"
+          {...field}
+          value={field.value ?? ''}
+          error={Boolean(error)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={errorId}
+          {...props}
+        />
+      </div>
+      {error && <p id={errorId} className="mt-1.5 text-[11px] font-medium text-rose-600">{error.message}</p>}
     </div>
   );
 }
@@ -180,12 +197,17 @@ function YesNoField({ control, name, label, htmlFor }) {
   );
 }
 
-export default function SocialHistorySection({ control, watch }) {
+/**
+ * `yearBounds` (from lib/yearBounds) limits every "year started" to between
+ * the patient's birth year and the visit year; omitted, the years go unchecked.
+ */
+export default function SocialHistorySection({ control, watch, yearBounds }) {
   const smokes = watch('socialHistory.smokes');
   const smokesCigarette = watch('socialHistory.smokesCigarette');
   const smokesEcig = watch('socialHistory.smokesEcig');
   const selectProps = (name) => ({ control, name: `socialHistory.${name}`, id: name });
   const inputProps = (name) => ({ control, name: `socialHistory.${name}`, id: name });
+  const yearRules = yearBounds ? { validate: (value) => validateYear(value, yearBounds) } : undefined;
 
   const { fields: exerciseFields, append: appendExercise, remove: removeExercise } = useFieldArray({
     control,
@@ -272,6 +294,7 @@ export default function SocialHistorySection({ control, watch }) {
                           placeholder="e.g. 2015"
                           inputMode="numeric"
                           maxLength={4}
+                          rules={yearRules}
                           {...inputProps('cigaretteYearStarted')}
                         />
                       </Field>
@@ -305,6 +328,7 @@ export default function SocialHistorySection({ control, watch }) {
                           placeholder="e.g. 2021"
                           inputMode="numeric"
                           maxLength={4}
+                          rules={yearRules}
                           {...inputProps('ecigYearStarted')}
                         />
                       </Field>
@@ -368,6 +392,7 @@ export default function SocialHistorySection({ control, watch }) {
                     placeholder="e.g. 2019"
                     inputMode="numeric"
                     maxLength={4}
+                    rules={yearRules}
                   />
                 </div>
                 <button
