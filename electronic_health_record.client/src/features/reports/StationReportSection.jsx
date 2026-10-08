@@ -422,7 +422,9 @@ export default function StationReportSection({
       <div
         className={
           kpiGridClassName ||
-          (kpis.length === 3
+          (kpis.length === 2
+            ? 'grid grid-cols-1 md:grid-cols-2 gap-6 mb-6'
+            : kpis.length === 3
             ? 'grid grid-cols-1 md:grid-cols-3 gap-6 mb-6'
             : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6')
         }

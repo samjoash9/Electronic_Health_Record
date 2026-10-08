@@ -13,13 +13,11 @@ import {
   Stethoscope,
   Pill,
   FlaskConical,
-  TriangleAlert,
   Smile,
   ShieldAlert,
   Wrench,
   Eye,
   Glasses,
-  CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
   Download,
@@ -575,18 +573,6 @@ export default function HealthReports() {
       badgeTone: 'positive',
       icon: Sparkles,
     },
-    {
-      label: 'Highest Scoring Aspect',
-      value: 'Physical (88 pts)',
-      badgeTone: 'positive',
-      icon: CheckCircle2,
-    },
-    {
-      label: 'Lowest Scoring Aspect',
-      value: 'Financial (60 pts)',
-      badgeTone: 'warning',
-      icon: AlertCircle,
-    },
   ];
 
   // Chart 1: Average scores across all 7 dimensions of wellness
@@ -648,12 +634,6 @@ export default function HealthReports() {
       value: '42.0%',
       badgeTone: 'warning',
       icon: FlaskConical,
-    },
-    {
-      label: 'Urgent Referrals Flagged',
-      value: 19,
-      badgeTone: 'alert',
-      icon: TriangleAlert,
     },
   ];
 
@@ -1164,6 +1144,7 @@ export default function HealthReports() {
             stationName="Wellness Assessment"
             stationSubtitle="Holistic screening across the 7 core dimensions of employee and community wellness"
             kpis={s2Kpis}
+            kpiGridClassName="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"
             chartData1={s2Chart1}
             chartData2={s2Chart2}
             chart1Ref={wellnessScoresChartRef}
@@ -1181,6 +1162,7 @@ export default function HealthReports() {
             stationName="Consultation"
             stationSubtitle="Attending physician impressions, primary clinical morbidity, pharmacotherapy, and care plan outcomes"
             kpis={s3Kpis}
+            kpiGridClassName="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
             chartData1={s3Chart1}
             chartData2={s3Chart2}
             chart1Ref={medicalHistoryRef}
