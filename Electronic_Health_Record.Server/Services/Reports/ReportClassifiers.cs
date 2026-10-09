@@ -43,7 +43,9 @@ namespace Electronic_Health_Record.Server.Services.Reports
             return "normal";
         }
 
-        // features/reports/IntakeFlagsCard.jsx FLAGS: adult resting cutoffs.
+        // Adult resting cutoffs for the dashboard's Station 1 intake flags
+        // (features/admin/stationReports/Station1Report.jsx shows the counts).
+        // The only copy: the client file that printed them was removed.
         // A null reading compares false, so it is never flagged.
         public static bool IsFever(decimal? tempCelsius) => tempCelsius >= 37.5m;
         public static bool IsTachycardia(short? heartRate) => heartRate > 100;

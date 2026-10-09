@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HealthReportsPage from './HealthReportsPage';
-import { getSampleVitalsReport } from './sampleVitalsReport';
 import {
   STATION1_HEALTH,
   STATION2_HEALTH,
@@ -276,23 +275,5 @@ describe('HealthReportsPage Quick Jump', () => {
     vi.advanceTimersByTime(2000);
 
     expect(station.animate).not.toHaveBeenCalled();
-  });
-});
-
-describe('getSampleVitalsReport', () => {
-  it('counts every patient once in both BMI and BP, for every office', () => {
-    for (const { office } of getSampleVitalsReport(null).byOffice) {
-      const r = getSampleVitalsReport(office);
-      const bpTotal = Object.values(r.bp).reduce((a, b) => a + b, 0);
-      expect(bpTotal, office).toBe(r.total);
-    }
-  });
-
-  it('ends the trend on the snapshot the other cards show', () => {
-    const r = getSampleVitalsReport(null);
-    const last = r.trend.at(-1);
-
-    expect(last.overweightPct).toBeCloseTo(((r.bmi.overweight + r.bmi.obese) / r.total) * 100, 1);
-    expect(last.highBpPct).toBeCloseTo(((r.bp.stage1 + r.bp.stage2 + r.bp.crisis) / r.total) * 100, 1);
   });
 });
