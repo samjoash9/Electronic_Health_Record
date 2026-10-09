@@ -31,3 +31,39 @@ export const STATION2_HEALTH = {
     { category: 'Social', score: 77.5, patients: 10, atRisk: 1 },
   ],
 };
+
+// 12 consultations from 10 patients; 8 prescribed something, 5 ordered labs.
+// Lists come ranked and capped, as the server sends them.
+export const STATION3_HEALTH = {
+  consultations: 12,
+  patients: 10,
+  withPrescription: 8,
+  withLabs: 5,
+  conditions: [
+    { name: 'Hypertension', patients: 4 },
+    { name: 'Diabetes', patients: 2 },
+  ],
+  maintenanceDrugs: [
+    { name: 'Amlodipine', patients: 3 },
+    { name: 'Metformin', patients: 2 },
+  ],
+  smoking: { nonSmoker: 6, cigarette: 2, ecig: 1, both: 1, unspecified: 0 },
+  exercise: {
+    patients: 6,
+    top: [
+      { name: 'Walking', patients: 4 },
+      { name: 'Jogging', patients: 2 },
+    ],
+  },
+  alcohol: { never: 5, occasional: 3, weekly: 1, frequent: 1 },
+  labs: [
+    { name: 'CBC', orders: 5 },
+    { name: 'Lipid Profile', orders: 3 },
+    { name: 'FBS', orders: 2 },
+    { name: 'Urinalysis', orders: 1 },
+  ],
+  medications: [
+    { name: 'Losartan', orders: 4 },
+    { name: 'Paracetamol', orders: 3 },
+  ],
+};
