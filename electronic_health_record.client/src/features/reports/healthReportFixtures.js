@@ -67,3 +67,27 @@ export const STATION3_HEALTH = {
     { name: 'Paracetamol', orders: 3 },
   ],
 };
+
+// 12 dental screenings from 10 patients. One left gum condition unanswered,
+// so the gum tally adds up to 9.
+export const STATION4_HEALTH = {
+  screenings: 12,
+  patients: 10,
+  hygiene: { good: 4, fair: 4, poor: 2 },
+  gum: { healthy: 5, gingivitis: 3, periodontal: 1 },
+  caries: { none: 4, present: 6 },
+  treatmentNeed: { none: 2, preventive: 3, restorative: 3, extraction: 1, other: 1 },
+};
+
+// 12 vision screenings from 10 patients. Two left near vision unanswered.
+export const STATION5_HEALTH = {
+  screenings: 12,
+  patients: 10,
+  symptoms: {
+    history: { yes: 2, answered: 10 },
+    eyePain: { yes: 1, answered: 10 },
+    blurred: { yes: 4, answered: 10 },
+    near: { yes: 3, answered: 8 },
+    distant: { yes: 2, answered: 10 },
+  },
+};
