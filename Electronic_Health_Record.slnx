@@ -3,5 +3,6 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="Electronic_Health_Record.Server.Tests/Electronic_Health_Record.Server.Tests.csproj" />
   <Project Path="Electronic_Health_Record.Server/Electronic_Health_Record.Server.csproj" />
 </Solution>
