@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HealthReportsPage from './HealthReportsPage';
 import { getSampleVitalsReport } from './sampleVitalsReport';
-import { STATION1_HEALTH } from './healthReportFixtures';
+import { STATION1_HEALTH, STATION2_HEALTH } from './healthReportFixtures';
 import { installFakeIntersectionObserver } from '../../test/fakeIntersectionObserver';
 
 // html-to-image needs a real canvas. A capture that never finishes holds the
@@ -27,8 +27,12 @@ function renderPage() {
   );
 }
 
-// Station 1 loads its figures from the server; its charts exist once they land.
-const station1Loaded = () => screen.findByText('Healthy Normal BMI');
+// Stations 1 and 2 load their figures from the server; their charts exist
+// once both land.
+async function liveStationsLoaded() {
+  await screen.findByText('Healthy Normal BMI');
+  await screen.findByText('71.4 / 100');
+}
 
 function preferReducedMotion(reduce) {
   vi.stubGlobal('matchMedia', (query) => ({
@@ -55,7 +59,9 @@ beforeEach(() => {
   scrollIntoView = vi.fn();
   Element.prototype.scrollIntoView = scrollIntoView;
   getHealthReport.mockReset();
-  getHealthReport.mockResolvedValue(STATION1_HEALTH);
+  getHealthReport.mockImplementation((station) =>
+    Promise.resolve(station === 1 ? STATION1_HEALTH : STATION2_HEALTH)
+  );
 });
 
 afterEach(() => {
@@ -79,7 +85,7 @@ describe('HealthReportsPage charts', () => {
   it('draws all 15 charts the moment a PDF export starts, scrolled to or not', async () => {
     installFakeIntersectionObserver();
     renderPage();
-    await station1Loaded();
+    await liveStationsLoaded();
     vi.useFakeTimers();
 
     startExport();
@@ -90,7 +96,7 @@ describe('HealthReportsPage charts', () => {
   it('shows which chart the export is capturing', async () => {
     installFakeIntersectionObserver();
     renderPage();
-    await station1Loaded();
+    await liveStationsLoaded();
     vi.useFakeTimers();
 
     startExport();
@@ -101,7 +107,7 @@ describe('HealthReportsPage charts', () => {
   });
 });
 
-describe('HealthReportsPage Station 1', () => {
+describe('HealthReportsPage live stations', () => {
   beforeEach(() => {
     // 2026-10-05 11:00 in Manila. Only Date is faked so react-query's timers
     // and findBy* polling still run on real time.
@@ -109,28 +115,28 @@ describe('HealthReportsPage Station 1', () => {
     vi.setSystemTime(new Date('2026-10-05T03:00:00Z'));
   });
 
-  it('opens Station 1 on the current month for every office', async () => {
+  it('opens Stations 1 and 2 on the current month for every office', async () => {
     renderPage();
 
-    await waitFor(() =>
-      expect(getHealthReport).toHaveBeenCalledWith(1, { from: '2026-10-01', to: '2026-10-31' })
-    );
+    const month = { from: '2026-10-01', to: '2026-10-31' };
+    await waitFor(() => {
+      expect(getHealthReport).toHaveBeenCalledWith(1, month);
+      expect(getHealthReport).toHaveBeenCalledWith(2, month);
+    });
   });
 
-  it('narrows Station 1 to the picked office', async () => {
+  it('narrows both live stations to the picked office', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click(screen.getByRole('button', { name: 'All offices' }));
     await user.click(screen.getByRole('option', { name: 'PROVINCIAL HEALTH OFFICE' }));
 
-    await waitFor(() =>
-      expect(getHealthReport).toHaveBeenCalledWith(1, {
-        from: '2026-10-01',
-        to: '2026-10-31',
-        office: 'PROVINCIAL HEALTH OFFICE',
-      })
-    );
+    const picked = { from: '2026-10-01', to: '2026-10-31', office: 'PROVINCIAL HEALTH OFFICE' };
+    await waitFor(() => {
+      expect(getHealthReport).toHaveBeenCalledWith(1, picked);
+      expect(getHealthReport).toHaveBeenCalledWith(2, picked);
+    });
   });
 
   it('shows Station 1 figures from the server', async () => {
@@ -139,10 +145,16 @@ describe('HealthReportsPage Station 1', () => {
     expect(await screen.findByText('33.3%')).toBeInTheDocument();
   });
 
-  it('says plainly that Stations 2–5 are still sample figures', () => {
+  it('shows Station 2 figures from the server', async () => {
     renderPage();
 
-    expect(screen.getByRole('note')).toHaveTextContent('Stations 2–5 still show sample figures');
+    expect(await screen.findByText('71.4 / 100')).toBeInTheDocument();
+  });
+
+  it('says plainly that Stations 3–5 are still sample figures', () => {
+    renderPage();
+
+    expect(screen.getByRole('note')).toHaveTextContent('Stations 3–5 still show sample figures');
   });
 });
 

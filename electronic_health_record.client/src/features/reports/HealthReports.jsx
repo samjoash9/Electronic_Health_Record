@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   UserCheck,
   Activity,
-  Sparkles,
   Stethoscope,
   Pill,
   FlaskConical,
@@ -27,6 +26,7 @@ import ReportFilterBar from '../admin/ReportFilterBar';
 import { useReportFilter } from '../admin/useReportFilter';
 import StationReportSection from './StationReportSection';
 import Station1HealthSection from './Station1HealthSection';
+import Station2HealthSection from './Station2HealthSection';
 import { pdfScopeText } from './pdfScope';
 import ChartReveal from './ChartReveal';
 import ExportProgress from './ExportProgress';
@@ -160,7 +160,7 @@ export default function HealthReports() {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [stationSelection, setStationSelection] = useState('');
 
-  // Period + office for the sections on live data (Station 1 so far).
+  // Period + office for the sections on live data (Stations 1–2 so far).
   const reportFilter = useReportFilter();
   // { done, total } while the export captures charts.
   const [exportProgress, setExportProgress] = useState(null);
@@ -328,7 +328,7 @@ export default function HealthReports() {
       const scopeLines = doc.splitTextToSize(
         pdfScopeText({
           selectedStations,
-          station1Scope: reportFilter.label,
+          liveScope: reportFilter.label,
           generated: dateStr,
         }),
         printableWidth
@@ -457,62 +457,6 @@ export default function HealthReports() {
       setIsGeneratingPDF(false);
       setExportProgress(null);
     }
-  };
-
-  // ==========================================
-  // STATION 2: STRICTLY 7-ASPECT WELLNESS DATA
-  // ==========================================
-  const s2Total = 336;
-  const s2Kpis = [
-    {
-      label: 'Total Assessments Completed',
-      value: s2Total,
-      badgeTone: 'positive',
-      icon: Activity,
-    },
-    {
-      label: 'Average Global Wellness Score',
-      value: '74.6 / 100',
-      badgeTone: 'positive',
-      icon: Sparkles,
-    },
-  ];
-
-  // Chart 1: Average scores across all 7 dimensions of wellness
-  const s2Chart1 = {
-    type: 'bar',
-    title: '7 Aspects of Wellness (Average Assessment Scores)',
-    subtitle: 'Holistic population well-being evaluation across 7 core dimensions (0–100 Scale)',
-    tag: 'Wellness Dimensions',
-    domain: [0, 100],
-    ticks: [0, 20, 40, 60, 80, 100],
-    yUnit: ' pts',
-    data: [
-      { name: 'Spiritual', value: 82, color: THEME.accentEmerald, subtext: 'High purpose & values' },
-      { name: 'Psychological', value: 74, color: THEME.vibrantTeal, subtext: 'Emotional resilience' },
-      { name: 'Mental', value: 68, color: THEME.accentBlue, subtext: 'Work stress & cognitive load' },
-      { name: 'Emotional', value: 71, color: '#14B8A6', subtext: 'Interpersonal balance' },
-      { name: 'Physical', value: 88, color: THEME.deepTeal, subtext: 'Highest scoring dimension' },
-      { name: 'Financial', value: 60, color: THEME.accentAmber, subtext: 'Lowest scoring dimension' },
-      { name: 'Social', value: 79, color: '#8B5CF6', subtext: 'Team & community bonding' },
-    ],
-  };
-
-  // Chart 2: At-Risk patients scoring critically low (< 50) per aspect
-  const s2Chart2 = {
-    type: 'horizontal-bar',
-    title: 'At-Risk Patients by Wellness Aspect (Score < 50)',
-    subtitle: 'Number of surveyed individuals scoring critically low in each respective category',
-    tag: 'Priority Interventions',
-    data: [
-      { name: 'Financial Wellness', value: 68, color: THEME.accentRose, subtext: 'Economic distress & debt concerns' },
-      { name: 'Mental Well-being', value: 42, color: '#F97316', subtext: 'Chronic fatigue & cognitive strain' },
-      { name: 'Emotional Health', value: 36, color: THEME.accentAmber, subtext: 'Stress management deficits' },
-      { name: 'Psychological', value: 28, color: '#EAB308', subtext: 'Anxiety & adjustment strain' },
-      { name: 'Social Wellness', value: 22, color: '#8B5CF6', subtext: 'Workplace & community isolation' },
-      { name: 'Spiritual Health', value: 14, color: '#64748B', subtext: 'Value misalignment & burnout' },
-      { name: 'Physical Wellness', value: 11, color: '#0D9488', subtext: 'Severe mobility / vitality limits' },
-    ],
   };
 
   // ==========================================
@@ -1006,8 +950,8 @@ export default function HealthReports() {
           role="note"
           className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800"
         >
-          Station 1 shows live records for the period and office picked above. Stations 2–5 still
-          show sample figures and ignore the filter.
+          Stations 1 and 2 show live records for the period and office picked above. Stations 3–5
+          still show sample figures and ignore the filter.
         </p>
 
         <div id="station-1" ref={station1Ref}>
@@ -1022,17 +966,9 @@ export default function HealthReports() {
             STATION 2: WELLNESS ASSESSMENT SECTION
         =========================================== */}
         <div id="station-2" ref={station2Ref}>
-          <StationReportSection
-            stationNumber={2}
-            stationName="Wellness Assessment"
-            stationSubtitle="Holistic screening across the 7 core dimensions of employee and community wellness"
-            kpis={s2Kpis}
-            kpiGridClassName="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"
-            chartData1={s2Chart1}
-            chartData2={s2Chart2}
-            chart1Ref={wellnessScoresChartRef}
-            chart2Ref={wellnessAtRiskChartRef}
-            stacked={true}
+          <Station2HealthSection
+            params={reportFilter.params}
+            chartRefs={{ scores: wellnessScoresChartRef, atRisk: wellnessAtRiskChartRef }}
             exporting={isGeneratingPDF}
           />
         </div>
