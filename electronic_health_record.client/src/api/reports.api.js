@@ -14,3 +14,17 @@ export async function getStationReport(station, params) {
     throw toApiError(error);
   }
 }
+
+/**
+ * One station's section of the Health Reports page (only station 1 so
+ * far), same params as getStationReport. Unlike the dashboard's reports,
+ * doctors may read these too.
+ */
+export async function getHealthReport(station, params) {
+  try {
+    const { data } = await client.get(`/health-reports/station${station}`, { params });
+    return data.data ?? data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
