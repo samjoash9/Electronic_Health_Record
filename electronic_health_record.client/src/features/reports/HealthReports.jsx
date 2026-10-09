@@ -23,7 +23,15 @@ import {
   Download,
   Loader2,
 } from 'lucide-react';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
 import StationReportSection from './StationReportSection';
+import ChartReveal from './ChartReveal';
+import ExportProgress from './ExportProgress';
+import QuickJumpNav from './QuickJumpNav';
+import { chartMotion } from './chartMotion';
+import { waitForChartsDrawn } from './chartExport';
 import {
   ResponsiveContainer,
   PieChart,
@@ -48,6 +56,14 @@ const THEME = {
   accentViolet: '#8B5CF6',
   accentSlate: '#64748B',
 };
+
+const STATIONS = [
+  { id: 'station-1', label: '1. Registration & Vitals' },
+  { id: 'station-2', label: '2. Wellness Assessment' },
+  { id: 'station-3', label: '3. Consultation' },
+  { id: 'station-4', label: '4. Dental' },
+  { id: 'station-5', label: '5. Vision' },
+];
 
 // Tooltip for Social History Recharts components
 function SocialChartTooltip({ active, payload, label }) {
@@ -142,6 +158,9 @@ export default function HealthReports() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [stationSelection, setStationSelection] = useState('');
+  // { done, total } while the export captures charts.
+  const [exportProgress, setExportProgress] = useState(null);
+  const stickyBarRef = useRef(null);
 
   // Individual Section Container Refs
   const station1Ref = useRef(null);
@@ -324,7 +343,12 @@ export default function HealthReports() {
       doc.line(margin, currentY, margin + printableWidth, currentY);
       currentY += 7;
 
-      for (const section of reportSections) {
+      // Stations never scrolled to have only just mounted their charts for
+      // this export; let them draw before capturing.
+      await waitForChartsDrawn(reportSections.map((section) => section.ref.current).filter(Boolean));
+
+      for (const [index, section] of reportSections.entries()) {
+        setExportProgress({ done: index, total: reportSections.length });
         if (!section.ref?.current) continue;
 
         // Render DOM node to high-res JPEG natively with 0.9 compression
@@ -384,6 +408,7 @@ export default function HealthReports() {
           doc.line(margin, currentY - 3, margin + printableWidth, currentY - 3);
         }
       }
+      setExportProgress({ done: reportSections.length, total: reportSections.length });
 
       // Apply Diagonal Security Watermark across all pages
       const pageCount = doc.internal.getNumberOfPages();
@@ -432,6 +457,7 @@ export default function HealthReports() {
       console.error('Failed to generate PDF report:', error);
     } finally {
       setIsGeneratingPDF(false);
+      setExportProgress(null);
     }
   };
 
@@ -1049,14 +1075,6 @@ export default function HealthReports() {
     { name: 'Difficulty Seeing Distant Objects', value: 78, yesCount: 78, pct: 29.1, color: '#0EA5E9' },
   ];
 
-  // Quick navigation anchor scroll helper
-  const scrollToStation = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-8 font-sans">
       <div className="mx-auto max-w-7xl">
@@ -1065,7 +1083,7 @@ export default function HealthReports() {
         =========================================== */}
         <div className="mb-8 border-b border-slate-200 pb-6">
           <div className="flex items-center gap-2 mb-1">
-            <span className="h-3 w-3 rounded-full bg-[#0A594D] animate-pulse" />
+            <span className="h-3 w-3 rounded-full bg-[#0A594D]" />
             <p className="text-xs font-bold uppercase tracking-wider text-[#0A594D]">
               Integrated EHR Surveillance
             </p>
@@ -1079,39 +1097,23 @@ export default function HealthReports() {
         </div>
 
         {/* Quick Station Navigation & Master PDF Export Sticky Bar */}
-        <div className="sticky top-3 z-30 mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md">
+        <div
+          ref={stickyBarRef}
+          className="sticky top-3 z-30 mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md"
+        >
           {/* Left: Quick Jump Navigation Links */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-6">
-            <span className="text-xs font-semibold text-slate-400 px-1 uppercase tracking-wider">
-              Quick Jump:
-            </span>
-            {[
-              { id: 'station-1', label: '1. Registration & Vitals' },
-              { id: 'station-2', label: '2. Wellness Assessment' },
-              { id: 'station-3', label: '3. Consultation' },
-              { id: 'station-4', label: '4. Dental' },
-              { id: 'station-5', label: '5. Vision' },
-            ].map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => scrollToStation(st.id)}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-[#0A594D]/10 hover:text-[#0A594D] active:scale-95 cursor-pointer"
-              >
-                {st.label}
-              </button>
-            ))}
-          </div>
+          <QuickJumpNav stations={STATIONS} stickyBarRef={stickyBarRef} />
 
           {/* Right: Master Download PDF Report Action Button */}
-          <button
+          <Button
             type="button"
+            size="md"
             onClick={() => setIsDownloadModalOpen(true)}
-            className="flex items-center gap-2 bg-[#0A594D] hover:bg-[#07463c] text-white px-4 py-2 rounded-md font-medium text-xs sm:text-sm transition-colors cursor-pointer shadow-xs shrink-0"
+            className="shrink-0"
           >
             <Download size={16} />
             <span>Download PDF Report</span>
-          </button>
+          </Button>
         </div>
 
         {/* ==========================================
@@ -1132,6 +1134,7 @@ export default function HealthReports() {
             chart3Ref={bmiChartRef}
             chart4Ref={bpChartRef}
             stacked={true}
+            exporting={isGeneratingPDF}
           />
         </div>
 
@@ -1150,6 +1153,7 @@ export default function HealthReports() {
             chart1Ref={wellnessScoresChartRef}
             chart2Ref={wellnessAtRiskChartRef}
             stacked={true}
+            exporting={isGeneratingPDF}
           />
         </div>
 
@@ -1168,6 +1172,7 @@ export default function HealthReports() {
             chart1Ref={medicalHistoryRef}
             chart2Ref={maintenanceDrugRef}
             stacked={true}
+            exporting={isGeneratingPDF}
           >
             {/* Lifestyle Risk & Social History (Nested inside Station 3 Master Card) */}
             <div
@@ -1201,7 +1206,7 @@ export default function HealthReports() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mb-3">Cigarettes vs. electronic vaping distribution</p>
-                    <div className="w-full h-52 flex items-center justify-center">
+                    <ChartReveal force={isGeneratingPDF} className="w-full h-52 flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -1213,6 +1218,7 @@ export default function HealthReports() {
                             paddingAngle={3}
                             dataKey="value"
                             nameKey="name"
+                            {...chartMotion('pie', isGeneratingPDF)}
                           >
                             {smokingData.map((entry, idx) => (
                               <Cell key={`smoke-${idx}`} fill={entry.color} />
@@ -1221,7 +1227,7 @@ export default function HealthReports() {
                           <Tooltip content={<SocialChartTooltip />} />
                         </PieChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartReveal>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 text-xs mt-2">
                     {smokingData.map((entry, idx) => (
@@ -1246,7 +1252,7 @@ export default function HealthReports() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mb-3">Case-insensitive aggregation of free-text inputs</p>
-                    <div className="w-full h-52">
+                    <ChartReveal force={isGeneratingPDF} className="w-full h-52">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           layout="vertical"
@@ -1272,7 +1278,13 @@ export default function HealthReports() {
                             width={88}
                           />
                           <Tooltip content={<SocialChartTooltip />} cursor={{ fill: '#F8FAFC' }} />
-                          <Bar dataKey="value" fill={THEME.deepTeal} radius={[0, 4, 4, 0]} maxBarSize={22}>
+                          <Bar
+                            dataKey="value"
+                            fill={THEME.deepTeal}
+                            radius={[0, 4, 4, 0]}
+                            maxBarSize={22}
+                            {...chartMotion('bar', isGeneratingPDF)}
+                          >
                             {exerciseData.map((entry, idx) => (
                               <Cell key={`ex-${idx}`} fill={entry.color} />
                             ))}
@@ -1280,7 +1292,7 @@ export default function HealthReports() {
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartReveal>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-[11px] text-slate-600 mt-2">
                     <span>Top: <strong className="text-slate-900">{exerciseData[0]?.name || 'N/A'}</strong></span>
@@ -1297,7 +1309,7 @@ export default function HealthReports() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mb-3">Categorical patient intake frequency breakdown</p>
-                    <div className="w-full h-52">
+                    <ChartReveal force={isGeneratingPDF} className="w-full h-52">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={alcoholData}
@@ -1320,7 +1332,13 @@ export default function HealthReports() {
                             allowDecimals={false}
                           />
                           <Tooltip content={<SocialChartTooltip />} cursor={{ fill: '#F8FAFC' }} />
-                          <Bar dataKey="value" fill={THEME.deepTeal} radius={[4, 4, 0, 0]} maxBarSize={30}>
+                          <Bar
+                            dataKey="value"
+                            fill={THEME.deepTeal}
+                            radius={[4, 4, 0, 0]}
+                            maxBarSize={30}
+                            {...chartMotion('bar', isGeneratingPDF)}
+                          >
                             {alcoholData.map((entry, idx) => (
                               <Cell key={`alc-${idx}`} fill={entry.color} />
                             ))}
@@ -1328,7 +1346,7 @@ export default function HealthReports() {
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartReveal>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 text-xs mt-2">
                     {alcoholData.map((entry, idx) => (
@@ -1348,7 +1366,7 @@ export default function HealthReports() {
             {/* Recommended Diagnostic & Laboratory Tests (Horizontal Bar Chart) */}
             <div
               ref={diagnosticsChartRef}
-              className="w-full rounded-xl border border-slate-100 bg-slate-50/40 p-5 flex flex-col justify-between transition-colors hover:border-[#37AF9B]/30 hover:bg-slate-50/60"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50/40 p-5 flex flex-col justify-between"
             >
               {/* Card Header */}
               <div className="mb-4 border-b border-slate-200/70 pb-3">
@@ -1361,7 +1379,7 @@ export default function HealthReports() {
               </div>
 
               {/* Chart Rendering */}
-              <div className="w-full h-80" style={{ marginTop: '0.5rem' }}>
+              <ChartReveal force={isGeneratingPDF} className="w-full h-80" style={{ marginTop: '0.5rem' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     layout="vertical"
@@ -1393,6 +1411,7 @@ export default function HealthReports() {
                       fill={THEME.deepTeal}
                       radius={[0, 4, 4, 0]}
                       maxBarSize={22}
+                      {...chartMotion('bar', isGeneratingPDF)}
                     >
                       {top10Diagnostics.map((entry, index) => (
                         <Cell
@@ -1410,7 +1429,7 @@ export default function HealthReports() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartReveal>
 
               {/* Standard 4-Column Legend */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2.5 pt-3 border-t border-slate-200/80 text-xs mt-3 max-h-48 overflow-y-auto">
@@ -1436,7 +1455,7 @@ export default function HealthReports() {
             {/* Top Prescribed Medications (Inventory Demand) */}
             <div
               ref={treatmentMedicationRef}
-              className="w-full rounded-xl border border-slate-100 bg-slate-50/40 p-5 flex flex-col justify-between transition-colors hover:border-[#37AF9B]/30 hover:bg-slate-50/60"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50/40 p-5 flex flex-col justify-between"
             >
               {/* Card Header */}
               <div className="mb-4 border-b border-slate-200/70 pb-3">
@@ -1449,7 +1468,7 @@ export default function HealthReports() {
               </div>
 
               {/* Chart Rendering */}
-              <div className="w-full h-80" style={{ marginTop: '0.5rem' }}>
+              <ChartReveal force={isGeneratingPDF} className="w-full h-80" style={{ marginTop: '0.5rem' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     layout="vertical"
@@ -1481,6 +1500,7 @@ export default function HealthReports() {
                       fill={THEME.deepTeal}
                       radius={[0, 4, 4, 0]}
                       maxBarSize={22}
+                      {...chartMotion('bar', isGeneratingPDF)}
                     >
                       {top10PrescribedMedications.map((entry, index) => (
                         <Cell
@@ -1498,7 +1518,7 @@ export default function HealthReports() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartReveal>
 
               {/* Standard 4-Column Legend */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2.5 pt-3 border-t border-slate-200/80 text-xs mt-3 max-h-48 overflow-y-auto">
@@ -1527,7 +1547,7 @@ export default function HealthReports() {
             STATION 4: DENTAL ASSESSMENT SECTION
         =========================================== */}
         <div id="station-4" ref={station4Ref}>
-          <section className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8 mb-10 transition-all">
+          <section className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8 mb-10">
             {/* Header Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4 mb-8">
               <div>
@@ -1552,7 +1572,7 @@ export default function HealthReports() {
                 return (
                   <div
                     key={idx}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-2xs transition-all hover:bg-slate-50 hover:shadow-xs"
+                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-2xs"
                   >
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
@@ -1586,7 +1606,7 @@ export default function HealthReports() {
                 </p>
               </div>
 
-              <div className="w-full h-72 flex items-center justify-center">
+              <ChartReveal force={isGeneratingPDF} className="w-full h-72 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1598,6 +1618,7 @@ export default function HealthReports() {
                       paddingAngle={4}
                       dataKey="value"
                       nameKey="name"
+                      {...chartMotion('pie', isGeneratingPDF)}
                     >
                       {oralHygieneData.map((entry, idx) => (
                         <Cell key={`oh-${idx}`} fill={entry.color} />
@@ -1606,7 +1627,7 @@ export default function HealthReports() {
                     <Tooltip content={<SocialChartTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartReveal>
 
               {/* Custom Flex-Wrap Legend */}
               <div className="flex flex-wrap items-center justify-center gap-6 pt-4 border-t border-slate-100 text-xs mt-3">
@@ -1638,7 +1659,7 @@ export default function HealthReports() {
                 </p>
               </div>
 
-              <div className="w-full h-80" style={{ marginTop: '0.5rem' }}>
+              <ChartReveal force={isGeneratingPDF} className="w-full h-80" style={{ marginTop: '0.5rem' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={gumConditionData}
@@ -1666,6 +1687,7 @@ export default function HealthReports() {
                       fill={THEME.deepTeal}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={50}
+                      {...chartMotion('bar', isGeneratingPDF)}
                     >
                       {gumConditionData.map((entry, index) => (
                         <Cell key={`gc-cell-${index}`} fill={entry.color} />
@@ -1680,7 +1702,7 @@ export default function HealthReports() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartReveal>
 
               {/* 4-Column Grid Custom Legend for clean alignment */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-slate-100 text-xs mt-3">
@@ -1709,7 +1731,7 @@ export default function HealthReports() {
             STATION 5: VISION SCREENING SECTION
         =========================================== */}
         <div id="station-5" ref={station5Ref}>
-          <section className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8 mb-10 transition-all">
+          <section className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8 mb-10">
             {/* Header Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4 mb-8">
               <div>
@@ -1734,7 +1756,7 @@ export default function HealthReports() {
                 return (
                   <div
                     key={idx}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-2xs transition-all hover:bg-slate-50 hover:shadow-xs"
+                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-2xs"
                   >
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
@@ -1768,7 +1790,7 @@ export default function HealthReports() {
                 </p>
               </div>
 
-              <div className="w-full h-80" style={{ marginTop: '0.5rem' }}>
+              <ChartReveal force={isGeneratingPDF} className="w-full h-80" style={{ marginTop: '0.5rem' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={visionSymptomsData}
@@ -1796,6 +1818,7 @@ export default function HealthReports() {
                       fill={THEME.deepTeal}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={44}
+                      {...chartMotion('bar', isGeneratingPDF)}
                     >
                       {visionSymptomsData.map((entry, index) => (
                         <Cell key={`vs-cell-${index}`} fill={entry.color} />
@@ -1810,7 +1833,7 @@ export default function HealthReports() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartReveal>
 
               {/* Standard Custom Legend */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 pt-4 border-t border-slate-100 text-sm mt-4">
@@ -1834,46 +1857,51 @@ export default function HealthReports() {
         </div>
 
         {/* Custom Report Download Modal */}
-        {isDownloadModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Download Custom Report</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Enter the stations you want to include in the PDF. Use commas for specific stations (e.g., <strong>1, 3, 5</strong>) or hyphens for a range (e.g., <strong>1-4</strong>). Leave blank to download all.
-              </p>
-              <input 
-                type="text" 
-                placeholder="e.g. 1-3, 5" 
-                value={stationSelection}
-                onChange={(e) => setStationSelection(e.target.value)}
-                className="w-full border border-gray-300 rounded-md p-2 mb-6 focus:ring-2 focus:ring-[#37AF9B] focus:border-transparent outline-none"
-              />
-              <div className="flex justify-end gap-3">
-                <button 
-                  onClick={() => setIsDownloadModalOpen(false)}
-                  disabled={isGeneratingPDF}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={generatePDF}
-                  disabled={isGeneratingPDF}
-                  className="px-4 py-2 bg-[#0A594D] hover:bg-[#07463c] text-white rounded-md font-medium transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGeneratingPDF ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Generating PDF...</span>
-                    </>
-                  ) : (
-                    'Generate PDF'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Escape and backdrop clicks are ignored mid-export so the PDF capture
+            isn't left running behind a closed modal. */}
+        <Modal
+          open={isDownloadModalOpen}
+          title="Download Custom Report"
+          onClose={() => {
+            if (!isGeneratingPDF) setIsDownloadModalOpen(false);
+          }}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => setIsDownloadModalOpen(false)}
+                disabled={isGeneratingPDF}
+              >
+                Cancel
+              </Button>
+              <Button type="button" size="md" onClick={generatePDF} disabled={isGeneratingPDF}>
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Generating PDF...</span>
+                  </>
+                ) : (
+                  'Generate PDF'
+                )}
+              </Button>
+            </>
+          }
+        >
+          <p className="mb-4 text-ink-500">
+            Enter the stations you want to include in the PDF. Use commas for specific stations (e.g., <strong>1, 3, 5</strong>) or hyphens for a range (e.g., <strong>1-4</strong>). Leave blank to download all.
+          </p>
+          <Input
+            type="text"
+            placeholder="e.g. 1-3, 5"
+            value={stationSelection}
+            onChange={(e) => setStationSelection(e.target.value)}
+            disabled={isGeneratingPDF}
+            className="w-full"
+          />
+          {exportProgress && <ExportProgress done={exportProgress.done} total={exportProgress.total} />}
+        </Modal>
       </div>
     </div>
   );

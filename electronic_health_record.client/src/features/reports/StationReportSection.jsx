@@ -14,6 +14,8 @@ import {
   Line,
   LabelList,
 } from 'recharts';
+import ChartReveal from './ChartReveal';
+import { chartMotion } from './chartMotion';
 
 const THEME = {
   deepTeal: '#0A594D',
@@ -108,6 +110,7 @@ export default function StationReportSection({
   chart2Ref,
   chart3Ref,
   chart4Ref,
+  exporting = false,
   children,
 }) {
   const isStacked = stacked !== false;
@@ -156,7 +159,7 @@ export default function StationReportSection({
           {/* Chart Rendering */}
           {isHorizontalBar ? (
             // Horizontal Bar Chart
-            <div className="w-full h-72" style={{ marginTop: '0.5rem' }}>
+            <ChartReveal force={exporting} className="w-full h-72" style={{ marginTop: '0.5rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   layout="vertical"
@@ -188,6 +191,7 @@ export default function StationReportSection({
                     fill={chart.barColor || '#EF4444'}
                     radius={[0, 4, 4, 0]}
                     maxBarSize={28}
+                    {...chartMotion('bar', exporting)}
                   >
                     {chart.data.map((entry, index) => (
                       <Cell
@@ -205,10 +209,11 @@ export default function StationReportSection({
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </ChartReveal>
           ) : isDonutOrPie ? (
             // Centered Donut / Pie Chart
-            <div
+            <ChartReveal
+              force={exporting}
               className={
                 isStacked
                   ? 'w-full h-72 flex items-center justify-center'
@@ -227,6 +232,7 @@ export default function StationReportSection({
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
+                    {...chartMotion('pie', exporting)}
                   >
                     {chart.data.map((entry, index) => (
                       <Cell
@@ -238,10 +244,10 @@ export default function StationReportSection({
                   <Tooltip content={<CustomPieTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </ChartReveal>
           ) : isLine ? (
             // Line Chart
-            <div className="w-full h-72" style={{ marginTop: '0.5rem' }}>
+            <ChartReveal force={exporting} className="w-full h-72" style={{ marginTop: '0.5rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={chart.data}
@@ -271,6 +277,7 @@ export default function StationReportSection({
                     strokeWidth={2.5}
                     dot={{ r: 4, fill: chart.lineColor || THEME.deepTeal, strokeWidth: 2, stroke: '#ffffff' }}
                     activeDot={{ r: 6, stroke: THEME.vibrantTeal, strokeWidth: 2 }}
+                    {...chartMotion('line', exporting)}
                   >
                     <LabelList
                       dataKey={chart.dataKey || 'value'}
@@ -283,11 +290,12 @@ export default function StationReportSection({
                   </Line>
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </ChartReveal>
           ) : (
             // Standard Vertical Bar Chart (with angled ticks if dense)
             <div className={isDense ? 'w-full overflow-x-auto pb-2' : 'w-full'}>
-              <div
+              <ChartReveal
+                force={exporting}
                 className={
                   isStacked
                     ? isDense
@@ -337,6 +345,7 @@ export default function StationReportSection({
                       fill={chart.barColor || THEME.deepTeal}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={isStacked ? 48 : 42}
+                      {...chartMotion('bar', exporting)}
                     >
                       {chart.data.map((entry, index) => (
                         <Cell
@@ -355,7 +364,7 @@ export default function StationReportSection({
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartReveal>
             </div>
           )}
         </div>
@@ -400,7 +409,7 @@ export default function StationReportSection({
   };
 
   return (
-    <section className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-6 mb-8 transition-all hover:shadow-md">
+    <section className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-6 mb-8">
       {/* 1. Station Section Header */}
       <div className="mb-6 border-b-2 border-[#37AF9B]/20 pb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
@@ -434,7 +443,7 @@ export default function StationReportSection({
           return (
             <div
               key={idx}
-              className="rounded-lg border border-slate-100 bg-slate-50/70 p-4 transition-colors hover:border-[#37AF9B]/30 hover:bg-slate-50"
+              className="rounded-lg border border-slate-100 bg-slate-50/70 p-4"
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold tracking-wider uppercase text-slate-500">
@@ -503,5 +512,6 @@ StationReportSection.propTypes = {
   chart2Ref: PropTypes.oneOfType([PropTypes.func, PropTypes.shape({ current: PropTypes.any })]),
   chart3Ref: PropTypes.oneOfType([PropTypes.func, PropTypes.shape({ current: PropTypes.any })]),
   chart4Ref: PropTypes.oneOfType([PropTypes.func, PropTypes.shape({ current: PropTypes.any })]),
+  exporting: PropTypes.bool,
   children: PropTypes.node,
 };
