@@ -194,11 +194,12 @@ export default function MyRecordDetailPage() {
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex flex-wrap items-center gap-3">
         {backButton}
-        <button
+        <Button
           type="button"
+          size="md"
           onClick={downloadPatientRecord}
           disabled={isGeneratingPDF}
-          className="ml-auto flex items-center gap-2 bg-[#0A594D] hover:bg-[#07463c] text-white px-4 py-2 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+          className="ml-auto"
         >
           {isGeneratingPDF ? (
             <>
@@ -211,7 +212,7 @@ export default function MyRecordDetailPage() {
               <span>Download Record</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       <div ref={demographicsRef} className="pdf-export-chunk overflow-hidden rounded-xl border border-line bg-surface shadow-sm">

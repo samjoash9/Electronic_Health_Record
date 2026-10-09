@@ -19,6 +19,7 @@ import { useAuth } from '../../auth/useAuth';
 import { homeRouteFor } from '../../auth/RequireAuth';
 import { loginSchema } from '../../lib/schemas';
 import { readStation } from '../../lib/stationStorage';
+import Button from '../../components/ui/Button';
 import ForgotPasswordModal from './ForgotPasswordModal';
 import phoLogo from '../../assets/images/PHO_logo.jpg';
 
@@ -321,13 +322,14 @@ export default function LoginPage() {
 
                 {loginError && <p className="text-xs text-rose-600 text-center">{loginError}</p>}
 
-                <button
+                <Button
                   type="submit"
+                  size="lg"
                   disabled={isSubmitting}
-                  className="mt-1 h-12 w-full bg-[#0A594D] hover:bg-[#07463c] text-white font-medium py-2 px-4 rounded-md transition-colors text-sm uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-60 shadow-sm cursor-pointer"
+                  className="mt-1 w-full uppercase tracking-wide"
                 >
                   {isSubmitting ? 'Signing in...' : 'LOG IN'}
-                </button>
+                </Button>
               </form>
             </div>
           </div>
