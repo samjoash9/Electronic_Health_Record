@@ -5,13 +5,6 @@ import {
   Clock,
   ShieldCheck,
   UserCheck,
-  Activity,
-  Smile,
-  ShieldAlert,
-  Wrench,
-  Eye,
-  Glasses,
-  AlertCircle,
   FileSpreadsheet,
   Download,
   Loader2,
@@ -24,37 +17,12 @@ import { useReportFilter } from '../admin/useReportFilter';
 import Station1HealthSection from './Station1HealthSection';
 import Station2HealthSection from './Station2HealthSection';
 import Station3HealthSection from './Station3HealthSection';
-import SocialChartTooltip from './SocialChartTooltip';
+import Station4HealthSection from './Station4HealthSection';
+import Station5HealthSection from './Station5HealthSection';
 import { pdfScopeText } from './pdfScope';
-import ChartReveal from './ChartReveal';
 import ExportProgress from './ExportProgress';
 import QuickJumpNav from './QuickJumpNav';
-import { chartMotion } from './chartMotion';
 import { waitForChartsDrawn } from './chartExport';
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  LabelList,
-} from 'recharts';
-
-const THEME = {
-  deepTeal: '#0A594D',
-  vibrantTeal: '#37AF9B',
-  accentBlue: '#0EA5E9',
-  accentAmber: '#F59E0B',
-  accentEmerald: '#10B981',
-  accentRose: '#EF4444',
-  accentViolet: '#8B5CF6',
-  accentSlate: '#64748B',
-};
 
 const STATIONS = [
   { id: 'station-1', label: '1. Registration & Vitals' },
@@ -96,7 +64,7 @@ export default function HealthReports() {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [stationSelection, setStationSelection] = useState('');
 
-  // Period + office for the sections on live data (Stations 1–3 so far).
+  // Period + office for every station section.
   const reportFilter = useReportFilter();
   // { done, total } while the export captures charts.
   const [exportProgress, setExportProgress] = useState(null);
@@ -264,7 +232,7 @@ export default function HealthReports() {
       const scopeLines = doc.splitTextToSize(
         pdfScopeText({
           selectedStations,
-          liveScope: reportFilter.label,
+          scope: reportFilter.label,
           generated: dateStr,
         }),
         printableWidth
@@ -395,88 +363,6 @@ export default function HealthReports() {
     }
   };
 
-  // ==========================================
-  // STATION 4: DENTAL ASSESSMENT DATA
-  // ==========================================
-  const s4Total = 276;
-  const dentalKpis = [
-    {
-      label: 'DENTAL SCREENINGS',
-      value: s4Total,
-      badgeTone: 'positive',
-      icon: Smile,
-    },
-    {
-      label: 'ACTIVE DENTAL CARIES RATE',
-      value: '57.2%',
-      badgeTone: 'alert',
-      icon: ShieldAlert,
-    },
-    {
-      label: 'PERIODONTAL / GINGIVITIS',
-      value: '33.7%',
-      badgeTone: 'warning',
-      icon: Activity,
-    },
-    {
-      label: 'RESTORATIVE & EXTRACTION NEEDED',
-      value: 114,
-      badgeTone: 'warning',
-      icon: Wrench,
-    },
-  ];
-
-  const oralHygieneData = [
-    { name: 'Good', value: 102, pct: 37.0, color: THEME.accentEmerald },
-    { name: 'Fair', value: 118, pct: 42.8, color: THEME.accentAmber },
-    { name: 'Poor', value: 56, pct: 20.3, color: THEME.accentRose },
-  ];
-
-  const gumConditionData = [
-    { name: 'Healthy', value: 142, pct: 51.4, color: THEME.accentEmerald },
-    { name: 'Gingivitis', value: 93, pct: 33.7, color: THEME.accentAmber },
-    { name: 'Suspected Periodontal Problem', value: 41, pct: 14.9, color: THEME.accentRose },
-  ];
-
-  // ==========================================
-  // STATION 5: VISION SCREENING DATA
-  // ==========================================
-  const s5Total = 268;
-  const visionKpis = [
-    {
-      label: 'VISION SCREENINGS PERFORMED',
-      value: s5Total,
-      badgeTone: 'positive',
-      icon: Eye,
-    },
-    {
-      label: 'REPORTED EYE PAIN / DISCOMFORT',
-      value: '14.2%',
-      badgeTone: 'alert',
-      icon: AlertCircle,
-    },
-    {
-      label: 'NEAR VISION DIFFICULTY (PRESBYOPIA RISK)',
-      value: 92,
-      badgeTone: 'warning',
-      icon: Glasses,
-    },
-    {
-      label: 'DISTANT VISION DIFFICULTY (MYOPIA RISK)',
-      value: 78,
-      badgeTone: 'warning',
-      icon: Activity,
-    },
-  ];
-
-  const visionSymptomsData = [
-    { name: 'History of Eye Problems', value: 52, yesCount: 52, pct: 19.4, color: THEME.deepTeal },
-    { name: 'Eye Pain / Discomfort', value: 38, yesCount: 38, pct: 14.2, color: THEME.accentRose },
-    { name: 'Blurred Vision', value: 112, yesCount: 112, pct: 41.8, color: THEME.accentAmber },
-    { name: 'Difficulty Seeing Near Objects', value: 92, yesCount: 92, pct: 34.3, color: THEME.vibrantTeal },
-    { name: 'Difficulty Seeing Distant Objects', value: 78, yesCount: 78, pct: 29.1, color: '#0EA5E9' },
-  ];
-
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-8 font-sans">
       <div className="mx-auto max-w-7xl">
@@ -527,14 +413,6 @@ export default function HealthReports() {
         {/* ==========================================
             STATION 1: REGISTRATION & VITALS SECTION
         =========================================== */}
-        <p
-          role="note"
-          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800"
-        >
-          Stations 1–3 show live records for the period and office picked above. Stations 4–5
-          still show sample figures and ignore the filter.
-        </p>
-
         <div id="station-1" ref={station1Ref}>
           <Station1HealthSection
             params={reportFilter.params}
@@ -575,313 +453,22 @@ export default function HealthReports() {
             STATION 4: DENTAL ASSESSMENT SECTION
         =========================================== */}
         <div id="station-4" ref={station4Ref}>
-          <section className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8 mb-10">
-            {/* Header Banner */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4 mb-8">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0A594D] text-xs font-bold text-white shadow-2xs">
-                    4
-                  </span>
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900">
-                    Station 4: Dental Assessment Graphical Reports
-                  </h2>
-                </div>
-                <p className="mt-1 text-xs text-slate-500 pl-10 max-w-2xl">
-                  Oral hygiene indexing, caries prevalence, periodontal evaluation, and recommended dental interventions
-                </p>
-              </div>
-            </div>
-
-            {/* 1. Top KPI Summary (4-Column Grid) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-              {dentalKpis.map((kpi, idx) => {
-                const Icon = kpi.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                        {kpi.label}
-                      </p>
-                      {Icon && (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0A594D]/10 text-[#0A594D]">
-                          <Icon size={16} strokeWidth={2.2} />
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
-                      {kpi.value}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 2. Chart 1: Oral Hygiene Status (Donut Chart) */}
-            <div
-              ref={oralHygieneRef}
-              className="w-full bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-8"
-            >
-              <div className="mb-4 border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Oral Hygiene Status Distribution
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Categorical distribution of patient oral hygiene status based on plaque and calculus evaluation
-                </p>
-              </div>
-
-              <ChartReveal force={isGeneratingPDF} className="w-full h-72 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={oralHygieneData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={65}
-                      outerRadius={95}
-                      paddingAngle={4}
-                      dataKey="value"
-                      nameKey="name"
-                      {...chartMotion('pie', isGeneratingPDF)}
-                    >
-                      {oralHygieneData.map((entry, idx) => (
-                        <Cell key={`oh-${idx}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<SocialChartTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartReveal>
-
-              {/* Custom Flex-Wrap Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-6 pt-4 border-t border-slate-100 text-xs mt-3">
-                {oralHygieneData.map((entry, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="text-slate-700 font-medium">{entry.name}</span>
-                    <span className="text-slate-400">({entry.pct}%)</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">{entry.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 3. Chart 2: Gum Condition (Vertical Bar Chart) */}
-            <div
-              ref={gumConditionRef}
-              className="w-full bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-8"
-            >
-              <div className="mb-4 border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Periodontal & Gum Condition Assessment
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Clinical assessment of periodontal health, tracking the prevalence of gingivitis and suspected periodontal disease
-                </p>
-              </div>
-
-              <ChartReveal force={isGeneratingPDF} className="w-full h-80" style={{ marginTop: '0.5rem' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={gumConditionData}
-                    margin={{ top: 20, right: 24, left: 0, bottom: 10 }}
-                  >
-                    <CartesianGrid vertical={false} stroke="#E2E8F0" />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#64748B"
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={11}
-                      interval={0}
-                    />
-                    <YAxis
-                      stroke="#64748B"
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={11}
-                      allowDecimals={false}
-                    />
-                    <Tooltip content={<SocialChartTooltip />} cursor={{ fill: '#F8FAFC' }} />
-                    <Bar
-                      dataKey="value"
-                      fill={THEME.deepTeal}
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={50}
-                      {...chartMotion('bar', isGeneratingPDF)}
-                    >
-                      {gumConditionData.map((entry, index) => (
-                        <Cell key={`gc-cell-${index}`} fill={entry.color} />
-                      ))}
-                      <LabelList
-                        dataKey="value"
-                        position="top"
-                        fill="#334155"
-                        fontSize={11}
-                        fontWeight={600}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartReveal>
-
-              {/* 4-Column Grid Custom Legend for clean alignment */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-3 border-t border-slate-100 text-xs mt-3">
-                {gumConditionData.map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between text-[11px] gap-1.5 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0 truncate">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: entry.color }}
-                      />
-                      <span className="truncate text-slate-700" title={entry.name}>
-                        {entry.name}
-                      </span>
-                    </div>
-                    <span className="font-semibold text-slate-900 tabular-nums shrink-0">
-                      {entry.value} ({entry.pct}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          <Station4HealthSection
+            params={reportFilter.params}
+            chartRefs={{ hygiene: oralHygieneRef, gum: gumConditionRef }}
+            exporting={isGeneratingPDF}
+          />
         </div>
 
         {/* ==========================================
             STATION 5: VISION SCREENING SECTION
         =========================================== */}
         <div id="station-5" ref={station5Ref}>
-          <section className="w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 md:p-8 mb-10">
-            {/* Header Banner */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4 mb-8">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0A594D] text-xs font-bold text-white shadow-2xs">
-                    5
-                  </span>
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900">
-                    Station 5: Vision Screening Graphical Reports
-                  </h2>
-                </div>
-                <p className="mt-1 text-xs text-slate-500 pl-10 max-w-2xl">
-                  Prevalence of reported ocular symptoms, history of eye conditions, and visual acuity impairment screening
-                </p>
-              </div>
-            </div>
-
-            {/* 1. Top KPI Summary (4-Column Grid) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-              {visionKpis.map((kpi, idx) => {
-                const Icon = kpi.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                        {kpi.label}
-                      </p>
-                      {Icon && (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0A594D]/10 text-[#0A594D]">
-                          <Icon size={16} strokeWidth={2.2} />
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
-                      {kpi.value}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 2. Chart 1: Visual Symptoms Prevalence (Vertical Bar Chart) */}
-            <div
-              ref={visionSymptomsRef}
-              className="w-full bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-8"
-            >
-              <div className="mb-4 border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Prevalence of Reported Visual Symptoms
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Distribution of positive responses across the 5 primary ocular symptom screening categories
-                </p>
-              </div>
-
-              <ChartReveal force={isGeneratingPDF} className="w-full h-80" style={{ marginTop: '0.5rem' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={visionSymptomsData}
-                    margin={{ top: 20, right: 24, left: 0, bottom: 10 }}
-                  >
-                    <CartesianGrid vertical={false} stroke="#E2E8F0" />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#64748B"
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={10}
-                      interval={0}
-                    />
-                    <YAxis
-                      stroke="#64748B"
-                      tickLine={false}
-                      axisLine={false}
-                      fontSize={11}
-                      allowDecimals={false}
-                    />
-                    <Tooltip content={<SocialChartTooltip />} cursor={{ fill: '#F8FAFC' }} />
-                    <Bar
-                      dataKey="value"
-                      fill={THEME.deepTeal}
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={44}
-                      {...chartMotion('bar', isGeneratingPDF)}
-                    >
-                      {visionSymptomsData.map((entry, index) => (
-                        <Cell key={`vs-cell-${index}`} fill={entry.color} />
-                      ))}
-                      <LabelList
-                        dataKey="value"
-                        position="top"
-                        fill="#334155"
-                        fontSize={11}
-                        fontWeight={600}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartReveal>
-
-              {/* Standard Custom Legend */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 pt-4 border-t border-slate-100 text-sm mt-4">
-                {visionSymptomsData.map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 text-sm">
-                    <div className="flex items-center justify-start gap-2.5 text-sm text-slate-700">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: entry.color }}
-                      />
-                      <span>{entry.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-900 tabular-nums shrink-0">
-                      {entry.value} ({entry.pct}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          <Station5HealthSection
+            params={reportFilter.params}
+            chartRefs={{ symptoms: visionSymptomsRef }}
+            exporting={isGeneratingPDF}
+          />
         </div>
 
         {/* Custom Report Download Modal */}
