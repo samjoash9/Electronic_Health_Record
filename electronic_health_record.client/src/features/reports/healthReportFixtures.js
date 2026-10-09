@@ -14,3 +14,20 @@ export const STATION1_HEALTH = {
     { office: null, patients: 1 },
   ],
 };
+
+// 12 assessments from 10 patients, aspects in DisplayOrder. Emotional has no
+// answers (the older four-aspect questionnaire), so it has no score.
+export const STATION2_HEALTH = {
+  assessments: 12,
+  patients: 10,
+  overallScore: 71.4,
+  aspects: [
+    { category: 'Spiritual', score: 82.5, patients: 10, atRisk: 0 },
+    { category: 'Psychological', score: 74, patients: 8, atRisk: 1 },
+    { category: 'Mental', score: 66.3, patients: 10, atRisk: 2 },
+    { category: 'Emotional', score: null, patients: 0, atRisk: 0 },
+    { category: 'Physical', score: 90, patients: 10, atRisk: 0 },
+    { category: 'Financial', score: 48.8, patients: 8, atRisk: 4 },
+    { category: 'Social', score: 77.5, patients: 10, atRisk: 1 },
+  ],
+};
