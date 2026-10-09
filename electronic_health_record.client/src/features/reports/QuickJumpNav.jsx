@@ -33,6 +33,19 @@ function placePill(list, pill, glide) {
   }
 }
 
+/**
+ * Scrolls a narrow bar sideways so the current chip stays in view. Sets
+ * `scrollLeft` rather than calling scrollIntoView, which would also nudge
+ * the page mid-glide.
+ */
+function revealChip(list) {
+  const chip = list?.querySelector('[aria-current="location"]');
+  if (!chip) return;
+  const { offsetLeft: left, offsetWidth: width } = chip;
+  if (left < list.scrollLeft) list.scrollLeft = left;
+  else if (left + width > list.scrollLeft + list.clientWidth) list.scrollLeft = left + width - list.clientWidth;
+}
+
 /** Rings `card` once the current glide ends. Returns a cancel function. */
 function ringOnLanding(card) {
   let timer;
@@ -80,10 +93,11 @@ export default function QuickJumpNav({ stations, stickyBarRef }) {
   // Slides between stations; the first placement snaps.
   useLayoutEffect(() => {
     placePill(listRef.current, pillRef.current, placedRef.current);
+    revealChip(listRef.current);
     placedRef.current = true;
   }, [activeId]);
 
-  // Snaps along when the bar rewraps.
+  // Snaps along when the bar resizes.
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return undefined;
     const list = listRef.current;
@@ -106,31 +120,37 @@ export default function QuickJumpNav({ stations, stickyBarRef }) {
   };
 
   return (
-    <nav aria-label="Stations" ref={listRef} className="relative flex flex-wrap items-center gap-2 sm:gap-6">
-      <span
-        ref={pillRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-0 rounded-lg bg-[#0A594D] motion-safe:transition-[transform,width,height] motion-safe:duration-200 motion-safe:ease-out"
-      />
-      <span className="text-xs font-semibold text-slate-400 px-1 uppercase tracking-wider">
+    <nav aria-label="Stations" className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="hidden shrink-0 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400 sm:inline">
         Quick Jump:
       </span>
-      {stations.map(({ id, label }) => {
-        const current = id === activeId;
-        return (
-          <button
-            key={id}
-            type="button"
-            aria-current={current ? 'location' : undefined}
-            onClick={() => jumpTo(id)}
-            className={`relative rounded-lg px-3 py-1.5 text-xs font-medium transition-colors active:scale-95 cursor-pointer ${
-              current ? 'text-white' : 'text-slate-600 hover:bg-[#0A594D]/10 hover:text-[#0A594D]'
-            }`}
-          >
-            {label}
-          </button>
-        );
-      })}
+      {/* One row that scrolls sideways when the bar is too narrow to fit it. */}
+      <div
+        ref={listRef}
+        className="relative flex min-w-0 items-center gap-1 overflow-x-auto p-0.5 motion-safe:scroll-smooth scrollbar-none sm:gap-2 lg:gap-4 [&::-webkit-scrollbar]:hidden"
+      >
+        <span
+          ref={pillRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 rounded-lg bg-brand-600 shadow-sm motion-safe:transition-[transform,width,height] motion-safe:duration-200 motion-safe:ease-out"
+        />
+        {stations.map(({ id, label }) => {
+          const current = id === activeId;
+          return (
+            <button
+              key={id}
+              type="button"
+              aria-current={current ? 'location' : undefined}
+              onClick={() => jumpTo(id)}
+              className={`relative shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors active:scale-95 cursor-pointer ${
+                current ? 'text-white' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-700'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

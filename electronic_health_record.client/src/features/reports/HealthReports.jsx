@@ -387,7 +387,7 @@ export default function HealthReports() {
         {/* Quick Station Navigation & Master PDF Export Sticky Bar */}
         <div
           ref={stickyBarRef}
-          className="sticky top-3 z-30 mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md"
+          className="sticky top-3 z-30 mb-8 flex flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md"
         >
           {/* Left: Quick Jump Navigation Links */}
           <QuickJumpNav stations={STATIONS} stickyBarRef={stickyBarRef} />
@@ -398,15 +398,16 @@ export default function HealthReports() {
             <ReportFilterBar filter={reportFilter} />
           </div>
 
-          {/* Right: Master Download PDF Report Action Button */}
+          {/* Right: Master Download PDF Report Action Button -- icon-only on phones */}
           <Button
             type="button"
             size="md"
             onClick={() => setIsDownloadModalOpen(true)}
             className="shrink-0"
+            title="Download PDF Report"
           >
-            <Download size={16} />
-            <span>Download PDF Report</span>
+            <Download size={16} aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only">Download PDF Report</span>
           </Button>
         </div>
 
