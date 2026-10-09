@@ -20,6 +20,18 @@ namespace Electronic_Health_Record.Server.Services.Reports
             return "obese";
         }
 
+        // The Health Reports page's five-way split: BmiClass with obese cut
+        // at 30, the WPRO Obese Class II line. Built on BmiClass so the two
+        // can never disagree -- obese1 + obese2 is always the dashboard's
+        // obese. The page prints these ranges in BMI_FIVE_CLASSES
+        // (features/reports/station1Health.js); change them together.
+        public static string? BmiClassDetailed(decimal? bmi)
+        {
+            var bmiClass = BmiClass(bmi);
+            if (bmiClass != "obese") return bmiClass;
+            return bmi >= 30m ? "obese2" : "obese1";
+        }
+
         // lib/bloodPressure.js bpClass: 2017 ACC/AHA, the worse reading decides.
         public static string? BpClass(short? systolic, short? diastolic)
         {
