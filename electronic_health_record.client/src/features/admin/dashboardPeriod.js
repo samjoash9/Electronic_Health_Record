@@ -62,6 +62,19 @@ export function periodRange(granularity, { year, month, date }) {
   return { from: isoDate(year, 1, 1), to: isoDate(year, 12, 31) };
 }
 
+/**
+ * The period as it reads in a heading: "October 5, 2026", "October 2026"
+ * or "2026". `date` is yyyy-MM-dd for Day, as in periodRange.
+ */
+export function periodLabel(granularity, { year, month, date }) {
+  if (granularity === 'day') {
+    const [y, m, d] = date.split('-').map(Number);
+    return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+  }
+  if (granularity === 'month') return `${MONTH_NAMES[month - 1]} ${year}`;
+  return String(year);
+}
+
 /** The current year and the `count - 1` before it, newest first. */
 export const recentYears = (currentYear, count = 5) =>
   Array.from({ length: count }, (_, i) => currentYear - i);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isoDate, periodRange, recentYears } from './dashboardPeriod';
+import { isoDate, periodLabel, periodRange, recentYears } from './dashboardPeriod';
 
 describe('isoDate', () => {
   it('zero-pads month and day', () => {
@@ -20,6 +20,14 @@ describe('periodRange', () => {
 
   it('covers the calendar year for Year', () => {
     expect(periodRange('year', { year: 2026 })).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+  });
+});
+
+describe('periodLabel', () => {
+  it('names a day, a month or a year the way a heading reads', () => {
+    expect(periodLabel('day', { date: '2026-10-05' })).toBe('October 5, 2026');
+    expect(periodLabel('month', { year: 2026, month: 10 })).toBe('October 2026');
+    expect(periodLabel('year', { year: 2026 })).toBe('2026');
   });
 });
 
