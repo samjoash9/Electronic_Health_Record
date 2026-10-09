@@ -1,15 +1,34 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HealthReportsPage from './HealthReportsPage';
 import { getSampleVitalsReport } from './sampleVitalsReport';
+import { STATION1_HEALTH } from './healthReportFixtures';
 import { installFakeIntersectionObserver } from '../../test/fakeIntersectionObserver';
 
 // html-to-image needs a real canvas. A capture that never finishes holds the
 // export on its first chart, which is where these tests look.
 vi.mock('html-to-image', () => ({ toJpeg: vi.fn(() => new Promise(() => {})) }));
 
+vi.mock('../../api/reports.api', () => ({ getHealthReport: vi.fn() }));
+
+import { getHealthReport } from '../../api/reports.api';
+
 const chartsMounted = () => document.querySelectorAll('.recharts-responsive-container').length;
 const jumpButton = (name) => screen.getByRole('button', { name });
+
+function renderPage() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <HealthReportsPage />
+    </QueryClientProvider>
+  );
+}
+
+// Station 1 loads its figures from the server; its charts exist once they land.
+const station1Loaded = () => screen.findByText('Healthy Normal BMI');
 
 function preferReducedMotion(reduce) {
   vi.stubGlobal('matchMedia', (query) => ({
@@ -35,6 +54,8 @@ beforeEach(() => {
   // jsdom does no layout, so it has no scrollIntoView.
   scrollIntoView = vi.fn();
   Element.prototype.scrollIntoView = scrollIntoView;
+  getHealthReport.mockReset();
+  getHealthReport.mockResolvedValue(STATION1_HEALTH);
 });
 
 afterEach(() => {
@@ -46,7 +67,7 @@ afterEach(() => {
 describe('HealthReportsPage charts', () => {
   it('draws no chart until its box scrolls into view', () => {
     const io = installFakeIntersectionObserver();
-    render(<HealthReportsPage />);
+    renderPage();
 
     expect(chartsMounted()).toBe(0);
 
@@ -55,33 +76,80 @@ describe('HealthReportsPage charts', () => {
     expect(chartsMounted()).toBe(1);
   });
 
-  it('draws all 16 charts the moment a PDF export starts, scrolled to or not', async () => {
-    vi.useFakeTimers();
+  it('draws all 15 charts the moment a PDF export starts, scrolled to or not', async () => {
     installFakeIntersectionObserver();
-    render(<HealthReportsPage />);
+    renderPage();
+    await station1Loaded();
+    vi.useFakeTimers();
 
     startExport();
 
-    expect(chartsMounted()).toBe(16);
+    expect(chartsMounted()).toBe(15);
   });
 
   it('shows which chart the export is capturing', async () => {
-    vi.useFakeTimers();
     installFakeIntersectionObserver();
-    render(<HealthReportsPage />);
+    renderPage();
+    await station1Loaded();
+    vi.useFakeTimers();
 
     startExport();
     // jsdom never sizes a chart, so the export waits out its full allowance.
     await act(() => vi.advanceTimersByTimeAsync(2100));
 
-    expect(screen.getByText(/chart 1 of 14/i)).toBeInTheDocument();
+    expect(screen.getByText(/chart 1 of 13/i)).toBeInTheDocument();
+  });
+});
+
+describe('HealthReportsPage Station 1', () => {
+  beforeEach(() => {
+    // 2026-10-05 11:00 in Manila. Only Date is faked so react-query's timers
+    // and findBy* polling still run on real time.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-05T03:00:00Z'));
+  });
+
+  it('opens Station 1 on the current month for every office', async () => {
+    renderPage();
+
+    await waitFor(() =>
+      expect(getHealthReport).toHaveBeenCalledWith(1, { from: '2026-10-01', to: '2026-10-31' })
+    );
+  });
+
+  it('narrows Station 1 to the picked office', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'All offices' }));
+    await user.click(screen.getByRole('option', { name: 'PROVINCIAL HEALTH OFFICE' }));
+
+    await waitFor(() =>
+      expect(getHealthReport).toHaveBeenCalledWith(1, {
+        from: '2026-10-01',
+        to: '2026-10-31',
+        office: 'PROVINCIAL HEALTH OFFICE',
+      })
+    );
+  });
+
+  it('shows Station 1 figures from the server', async () => {
+    renderPage();
+
+    expect(await screen.findByText('33.3%')).toBeInTheDocument();
+  });
+
+  it('says plainly that Stations 2–5 are still sample figures', () => {
+    renderPage();
+
+    expect(screen.getByRole('note')).toHaveTextContent('Stations 2–5 still show sample figures');
   });
 });
 
 describe('HealthReportsPage Quick Jump', () => {
   it('marks the station being read', () => {
     const io = installFakeIntersectionObserver();
-    render(<HealthReportsPage />);
+    renderPage();
 
     expect(jumpButton('1. Registration & Vitals')).toHaveAttribute('aria-current', 'location');
 
@@ -93,7 +161,7 @@ describe('HealthReportsPage Quick Jump', () => {
 
   it('glides to the picked station', () => {
     preferReducedMotion(false);
-    render(<HealthReportsPage />);
+    renderPage();
 
     fireEvent.click(jumpButton('4. Dental'));
 
@@ -104,7 +172,7 @@ describe('HealthReportsPage Quick Jump', () => {
 
   it('jumps without gliding when reduced motion is asked for', () => {
     preferReducedMotion(true);
-    render(<HealthReportsPage />);
+    renderPage();
 
     fireEvent.click(jumpButton('4. Dental'));
 
@@ -112,7 +180,7 @@ describe('HealthReportsPage Quick Jump', () => {
   });
 
   it('lands the station clear of the sticky bar', () => {
-    render(<HealthReportsPage />);
+    renderPage();
     const stickyBar = screen.getByRole('navigation', { name: /stations/i }).parentElement;
     Object.defineProperty(stickyBar, 'offsetHeight', { value: 56 });
 
@@ -125,7 +193,7 @@ describe('HealthReportsPage Quick Jump', () => {
   it('rings the station once, after the glide settles', () => {
     vi.useFakeTimers();
     preferReducedMotion(false);
-    render(<HealthReportsPage />);
+    renderPage();
     const station = document.querySelector('#station-5 > section');
     station.animate = vi.fn();
 
@@ -142,7 +210,7 @@ describe('HealthReportsPage Quick Jump', () => {
   it('still rings where the browser never reports the glide ending', () => {
     vi.useFakeTimers();
     preferReducedMotion(false);
-    render(<HealthReportsPage />);
+    renderPage();
     const station = document.querySelector('#station-5 > section');
     station.animate = vi.fn();
 
@@ -155,7 +223,7 @@ describe('HealthReportsPage Quick Jump', () => {
   it('skips the ring when reduced motion is asked for', () => {
     vi.useFakeTimers();
     preferReducedMotion(true);
-    render(<HealthReportsPage />);
+    renderPage();
     const station = document.querySelector('#station-5 > section');
     station.animate = vi.fn();
 

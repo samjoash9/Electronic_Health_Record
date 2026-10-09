@@ -2,13 +2,10 @@ import { useState, useRef } from 'react';
 import { toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
-  Users,
   Clock,
   ShieldCheck,
   UserCheck,
   Activity,
-  HeartPulse,
-  Weight,
   Sparkles,
   Stethoscope,
   Pill,
@@ -26,7 +23,11 @@ import {
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
+import ReportFilterBar from '../admin/ReportFilterBar';
+import { useReportFilter } from '../admin/useReportFilter';
 import StationReportSection from './StationReportSection';
+import Station1HealthSection from './Station1HealthSection';
+import { pdfScopeText } from './pdfScope';
 import ChartReveal from './ChartReveal';
 import ExportProgress from './ExportProgress';
 import QuickJumpNav from './QuickJumpNav';
@@ -158,6 +159,9 @@ export default function HealthReports() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [stationSelection, setStationSelection] = useState('');
+
+  // Period + office for the sections on live data (Station 1 so far).
+  const reportFilter = useReportFilter();
   // { done, total } while the export captures charts.
   const [exportProgress, setExportProgress] = useState(null);
   const stickyBarRef = useRef(null);
@@ -171,7 +175,6 @@ export default function HealthReports() {
 
   // Individual Chart Refs for Detailed Clinical PDF Export
   const agencyChartRef = useRef(null);
-  const classificationChartRef = useRef(null);
   const bmiChartRef = useRef(null);
   const bpChartRef = useRef(null);
   const wellnessScoresChartRef = useRef(null);
@@ -223,12 +226,6 @@ export default function HealthReports() {
           ref: agencyChartRef,
           title: 'Station 1: Intake Volume by Agency / Office',
           desc: 'This chart illustrates the distribution of patient registrations across local provincial agencies, highlighting the primary sources of patient volume across the workforce.',
-        },
-        {
-          station: 1,
-          ref: classificationChartRef,
-          title: 'Station 1: Patient Classification Breakdown',
-          desc: 'Granular breakdown of patient employment status (Permanent, Contract of Service, Job Order, Casual) to assist in administrative tracking, eligibility verification, and health resource planning.',
         },
         {
           station: 1,
@@ -327,16 +324,17 @@ export default function HealthReports() {
         month: 'long',
         day: 'numeric',
       });
-      const stationScopeText =
-        selectedStations.length === 5
-          ? 'Stations 1–5'
-          : `Station(s): ${selectedStations.join(', ')}`;
-      doc.text(
-        `Official Clinical Surveillance Report  |  Scope: All Provincial Offices & Departments (${stationScopeText})  |  Generated: ${dateStr}`,
-        margin,
-        currentY
+      // Wrapped: with an office name in it the line can outrun the page.
+      const scopeLines = doc.splitTextToSize(
+        pdfScopeText({
+          selectedStations,
+          station1Scope: reportFilter.label,
+          generated: dateStr,
+        }),
+        printableWidth
       );
-      currentY += 8;
+      doc.text(scopeLines, margin, currentY);
+      currentY += 4.2 * scopeLines.length + 3.8;
 
       doc.setDrawColor(226, 232, 240); // slate-200
       doc.setLineWidth(0.4);
@@ -459,127 +457,6 @@ export default function HealthReports() {
       setIsGeneratingPDF(false);
       setExportProgress(null);
     }
-  };
-
-  // ==========================================
-  // STATION 1: REGISTRATION & VITALS DATA
-  // ==========================================
-  const s1Total = 388;
-  const s1Kpis = [
-    {
-      label: 'Patients Registered & Screened',
-      value: s1Total,
-      badgeTone: 'positive',
-      icon: Users,
-    },
-    {
-      label: 'Healthy Normal BMI',
-      value: '35.7%',
-      badgeTone: 'positive',
-      icon: Weight,
-    },
-    {
-      label: 'High BP Flagged (Stage 1+)',
-      value: '44.6%',
-      badgeTone: 'alert',
-      icon: HeartPulse,
-    },
-  ];
-
-  // 1. Explicit, un-grouped list of all local provincial agencies
-  const s1Chart1 = {
-    type: 'bar',
-    title: 'Intake Volume by Agency / Office',
-    subtitle: 'Registrations across all local provincial agencies (Full Breakdown)',
-    tag: 'All Agencies',
-    barColor: THEME.deepTeal,
-    scrollable: true,
-    data: [
-      { name: 'Prov. Health Office (PHO)', value: 58, color: THEME.deepTeal },
-      { name: 'Prov. Engineering Office (PEO)', value: 44, color: THEME.vibrantTeal },
-      { name: 'Prov. Governor’s Office (PGO)', value: 38, color: THEME.accentBlue },
-      { name: 'Disaster Risk Reduction (PDRRMO)', value: 31, color: '#14B8A6' },
-      { name: 'Social Welfare & Dev (PSWDO)', value: 28, color: THEME.accentAmber },
-      { name: 'Agriculture & Veterinary (PAVO)', value: 26, color: '#10B981' },
-      { name: 'Assessment & Treasury (PASTO)', value: 24, color: '#0284C7' },
-      { name: 'Provincial Budget Office', value: 22, color: '#F97316' },
-      { name: 'Correctional & Security (PCSMO)', value: 20, color: '#6366F1' },
-      { name: 'Environment & Natural Resources', value: 18, color: '#059669' },
-      { name: 'General Services Office (PGSO)', value: 16, color: '#D97706' },
-      { name: 'Planning & Development (PPDO)', value: 15, color: '#8B5CF6' },
-      { name: 'Provincial Accounting Office', value: 14, color: '#EC4899' },
-      { name: 'D.O.P. Memorial Hospital', value: 13, color: '#0D9488' },
-      { name: 'Provincial Legal Office', value: 11, color: '#7C3AED' },
-      { name: 'Human Resource Mgt (PHRMO)', value: 9, color: '#64748B' },
-    ],
-  };
-
-  // 2. Patient Classification Breakdown: 4 Core Employment Categories
-  const s1Chart2 = {
-    type: 'donut',
-    title: 'Patient Classification Breakdown',
-    subtitle: 'Distribution across official public sector employment categories',
-    tag: 'Employment Status',
-    data: [
-      {
-        name: 'Permanent',
-        value: 145,
-        pct: 37.4,
-        color: '#0A594D', // Primary Deep Teal
-        desc: 'Permanent plantilla civil service personnel',
-      },
-      {
-        name: 'Contract of Service (COS)',
-        value: 98,
-        pct: 25.3,
-        color: '#37AF9B', // Vibrant Teal
-        desc: 'Contract of service project appointments',
-      },
-      {
-        name: 'Job Order (JO)',
-        value: 112,
-        pct: 28.9,
-        color: '#F59E0B', // Amber / Gold
-        desc: 'Job order operational & support workforce',
-      },
-      {
-        name: 'Casual',
-        value: 33,
-        pct: 8.5,
-        color: '#64748B', // Soft Slate / Blue-gray
-        desc: 'Temporary / casual appointment employees',
-      },
-    ],
-  };
-
-  // 3. Asia-Pacific BMI Distribution (Transferred to Station 1)
-  const s1Chart3 = {
-    type: 'bar',
-    title: 'Asia-Pacific BMI Classification',
-    subtitle: 'WHO Western Pacific Region cutoff metrics evaluated during registration triage',
-    tag: 'Nutritional Triage',
-    data: [
-      { name: 'Underweight', value: 21, pct: 5.4, color: THEME.accentAmber, subtext: '< 18.5 kg/m²' },
-      { name: 'Normal', value: 138, pct: 35.7, color: THEME.accentEmerald, subtext: '18.5 – 22.9 kg/m²' },
-      { name: 'Overweight', value: 95, pct: 24.5, color: THEME.accentAmber, subtext: '23.0 – 24.9 kg/m²' },
-      { name: 'Obese Class I', value: 97, pct: 25.0, color: THEME.accentRose, subtext: '25.0 – 29.9 kg/m²' },
-      { name: 'Obese Class II', value: 37, pct: 9.4, color: '#991B1B', subtext: '≥ 30.0 kg/m²' },
-    ],
-  };
-
-  // 4. Blood Pressure Stage Distribution (Transferred to Station 1)
-  const s1Chart4 = {
-    type: 'donut',
-    title: 'Blood Pressure Stage Distribution',
-    subtitle: 'ACC/AHA 2017 Guidelines measured during intake screening',
-    tag: 'Cardiovascular Risk',
-    data: [
-      { name: 'Normal (<120/<80)', value: 155, pct: 39.9, color: THEME.accentEmerald, desc: 'Optimal cardiovascular status' },
-      { name: 'Elevated (120-129)', value: 60, pct: 15.5, color: THEME.accentAmber, desc: 'Lifestyle intervention indicated' },
-      { name: 'Stage 1 HTN', value: 99, pct: 25.5, color: '#EA580C', desc: '130-139 / 80-89 mmHg' },
-      { name: 'Stage 2 HTN', value: 62, pct: 16.0, color: THEME.accentRose, desc: '≥ 140 / ≥ 90 mmHg' },
-      { name: 'Hypertensive Crisis', value: 12, pct: 3.1, color: '#7F1D1D', desc: '> 180 and/or > 120 mmHg' },
-    ],
   };
 
   // ==========================================
@@ -1104,6 +981,12 @@ export default function HealthReports() {
           {/* Left: Quick Jump Navigation Links */}
           <QuickJumpNav stations={STATIONS} stickyBarRef={stickyBarRef} />
 
+          {/* Middle: period + office for the sections on live data. Below xl it
+              takes a row of its own, under the station chips and the button. */}
+          <div className="order-last w-full xl:order-none xl:w-auto">
+            <ReportFilterBar filter={reportFilter} />
+          </div>
+
           {/* Right: Master Download PDF Report Action Button */}
           <Button
             type="button"
@@ -1119,21 +1002,18 @@ export default function HealthReports() {
         {/* ==========================================
             STATION 1: REGISTRATION & VITALS SECTION
         =========================================== */}
+        <p
+          role="note"
+          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800"
+        >
+          Station 1 shows live records for the period and office picked above. Stations 2–5 still
+          show sample figures and ignore the filter.
+        </p>
+
         <div id="station-1" ref={station1Ref}>
-          <StationReportSection
-            stationNumber={1}
-            stationName="Registration & Vitals"
-            stationSubtitle="Patient intake volume, triage vital signs, BMI classification, and cardiovascular staging"
-            kpis={s1Kpis}
-            chartData1={s1Chart1}
-            chartData2={s1Chart2}
-            chartData3={s1Chart3}
-            chartData4={s1Chart4}
-            chart1Ref={agencyChartRef}
-            chart2Ref={classificationChartRef}
-            chart3Ref={bmiChartRef}
-            chart4Ref={bpChartRef}
-            stacked={true}
+          <Station1HealthSection
+            params={reportFilter.params}
+            chartRefs={{ byOffice: agencyChartRef, bmi: bmiChartRef, bp: bpChartRef }}
             exporting={isGeneratingPDF}
           />
         </div>

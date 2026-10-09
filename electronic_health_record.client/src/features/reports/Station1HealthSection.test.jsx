@@ -9,6 +9,7 @@ vi.mock('../../api/reports.api', () => ({ getHealthReport: vi.fn() }));
 import { getHealthReport } from '../../api/reports.api';
 import Station1HealthSection from './Station1HealthSection';
 import { STATION1_HEALTH } from './healthReportFixtures';
+import { installFakeIntersectionObserver } from '../../test/fakeIntersectionObserver';
 
 const PARAMS = { from: '2026-10-01', to: '2026-10-31' };
 
@@ -72,6 +73,14 @@ describe('Station1HealthSection', () => {
     expect(chartRefs.byOffice.current).toHaveTextContent('Intake Volume by Agency / Office');
     expect(chartRefs.bmi.current).toHaveTextContent('Asia-Pacific BMI Classification');
     expect(chartRefs.bp.current).toHaveTextContent('Blood Pressure Stage Distribution');
+  });
+
+  it('draws its charts at once while a PDF export runs, scrolled to or not', async () => {
+    installFakeIntersectionObserver();
+    renderSection({ exporting: true });
+
+    await screen.findByText('Intake Volume by Agency / Office');
+    expect(document.querySelectorAll('.recharts-responsive-container')).toHaveLength(3);
   });
 
   it('says so when the period has no visits, instead of drawing empty charts', async () => {

@@ -28,9 +28,10 @@ function ClassificationPlaceholder() {
 
 /**
  * Station 1 on the Health Reports page, from GET /api/health-reports/station1.
- * chartRefs ({ byOffice, bmi, bp }) hand the chart cards to the PDF export.
+ * chartRefs ({ byOffice, bmi, bp }) hand the chart cards to the PDF export;
+ * exporting draws the charts at once, as the page's other stations do.
  */
-export default function Station1HealthSection({ params, chartRefs = {} }) {
+export default function Station1HealthSection({ params, chartRefs = {}, exporting = false }) {
   const query = useHealthReport(1, params);
 
   if (query.isPending) {
@@ -70,6 +71,7 @@ export default function Station1HealthSection({ params, chartRefs = {} }) {
         { ...charts.bp, ref: chartRefs.bp },
       ]}
       stacked
+      exporting={exporting}
     >
       <ClassificationPlaceholder />
     </StationReportSection>
