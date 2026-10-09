@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HealthReportsPage from './HealthReportsPage';
 import { getSampleVitalsReport } from './sampleVitalsReport';
-import { STATION1_HEALTH, STATION2_HEALTH } from './healthReportFixtures';
+import { STATION1_HEALTH, STATION2_HEALTH, STATION3_HEALTH } from './healthReportFixtures';
 import { installFakeIntersectionObserver } from '../../test/fakeIntersectionObserver';
 
 // html-to-image needs a real canvas. A capture that never finishes holds the
@@ -27,11 +27,14 @@ function renderPage() {
   );
 }
 
-// Stations 1 and 2 load their figures from the server; their charts exist
-// once both land.
+const LIVE_REPORTS = { 1: STATION1_HEALTH, 2: STATION2_HEALTH, 3: STATION3_HEALTH };
+
+// Stations 1-3 load their figures from the server; their charts exist once
+// all three land.
 async function liveStationsLoaded() {
   await screen.findByText('Healthy Normal BMI');
   await screen.findByText('71.4 / 100');
+  await screen.findByText(/8 of 12 consultations/);
 }
 
 function preferReducedMotion(reduce) {
@@ -59,9 +62,7 @@ beforeEach(() => {
   scrollIntoView = vi.fn();
   Element.prototype.scrollIntoView = scrollIntoView;
   getHealthReport.mockReset();
-  getHealthReport.mockImplementation((station) =>
-    Promise.resolve(station === 1 ? STATION1_HEALTH : STATION2_HEALTH)
-  );
+  getHealthReport.mockImplementation((station) => Promise.resolve(LIVE_REPORTS[station]));
 });
 
 afterEach(() => {
@@ -115,17 +116,16 @@ describe('HealthReportsPage live stations', () => {
     vi.setSystemTime(new Date('2026-10-05T03:00:00Z'));
   });
 
-  it('opens Stations 1 and 2 on the current month for every office', async () => {
+  it('opens Stations 1–3 on the current month for every office', async () => {
     renderPage();
 
     const month = { from: '2026-10-01', to: '2026-10-31' };
     await waitFor(() => {
-      expect(getHealthReport).toHaveBeenCalledWith(1, month);
-      expect(getHealthReport).toHaveBeenCalledWith(2, month);
+      for (const station of [1, 2, 3]) expect(getHealthReport).toHaveBeenCalledWith(station, month);
     });
   });
 
-  it('narrows both live stations to the picked office', async () => {
+  it('narrows every live station to the picked office', async () => {
     const user = userEvent.setup();
     renderPage();
 
@@ -134,8 +134,7 @@ describe('HealthReportsPage live stations', () => {
 
     const picked = { from: '2026-10-01', to: '2026-10-31', office: 'PROVINCIAL HEALTH OFFICE' };
     await waitFor(() => {
-      expect(getHealthReport).toHaveBeenCalledWith(1, picked);
-      expect(getHealthReport).toHaveBeenCalledWith(2, picked);
+      for (const station of [1, 2, 3]) expect(getHealthReport).toHaveBeenCalledWith(station, picked);
     });
   });
 
@@ -151,10 +150,16 @@ describe('HealthReportsPage live stations', () => {
     expect(await screen.findByText('71.4 / 100')).toBeInTheDocument();
   });
 
-  it('says plainly that Stations 3–5 are still sample figures', () => {
+  it('shows Station 3 figures from the server', async () => {
     renderPage();
 
-    expect(screen.getByRole('note')).toHaveTextContent('Stations 3–5 still show sample figures');
+    expect(await screen.findByText(/8 of 12 consultations/)).toBeInTheDocument();
+  });
+
+  it('says plainly that Stations 4–5 are still sample figures', () => {
+    renderPage();
+
+    expect(screen.getByRole('note')).toHaveTextContent('Stations 4–5 still show sample figures');
   });
 });
 
