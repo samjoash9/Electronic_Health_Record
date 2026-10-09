@@ -49,5 +49,43 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
 
             return Ok(Station1HealthReport.Build(visits, range.Office));
         }
+
+        // GET /api/health-reports/station2?from=&to=&office=
+        // Picks each patient's latest assessed visit as the dashboard's
+        // Station 2 does, so the two agree on patients and on the weakest
+        // aspect; Station2HealthReport.Build scores what they answered.
+        [HttpGet("station2")]
+        public async Task<IActionResult> GetStation2(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var assessed = await _context.FormsInRange(range)
+                .Where(f => _context.AssessmentAnswers.Any(a => a.FormID == f.FormID))
+                .Select(f => new { f.FormID, f.PatientID, f.FormDate })
+                .ToListAsync();
+            var latestIds = ReportQueries.LatestPerPatient(assessed, v => v.PatientID, v => v.FormDate, v => v.FormID)
+                .Select(v => v.FormID)
+                .ToList();
+
+            var answers = await (
+                from a in _context.AssessmentAnswers
+                join o in _context.AssessmentOptions on a.OptionID equals o.OptionID
+                join q in _context.AssessmentQuestions on a.QuestionID equals q.QuestionID
+                where latestIds.Contains(a.FormID)
+                select new Station2Answer(a.FormID, a.QuestionID, q.CategoryID, (int)o.Score)
+            ).ToListAsync();
+
+            // A question's best option is what an answer to it could have scored.
+            var bestByQuestion = await _context.AssessmentOptions
+                .GroupBy(o => o.QuestionID)
+                .Select(g => new { QuestionID = g.Key, Best = g.Max(o => (int)o.Score) })
+                .ToDictionaryAsync(q => q.QuestionID, q => q.Best);
+
+            var categories = await _context.AssessmentCategories.ToListAsync();
+
+            return Ok(Station2HealthReport.Build(assessed.Count, answers, bestByQuestion, categories));
+        }
     }
 }
