@@ -60,3 +60,11 @@ Authorization: Bearer {{token}}
 ### Health Reports, Station 3 -- consultations and patients should match /api/reports/station3's completed and patients
 GET https://localhost:7165/api/health-reports/station3?from=2026-01-01&to=2026-12-31
 Authorization: Bearer {{token}}
+
+### Health Reports, Station 4 -- patients and hygiene should match /api/reports/station4's patients and hygiene
+GET https://localhost:7165/api/health-reports/station4?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+### Health Reports, Station 5 -- patients and the blurred / near / distant / eyePain yes counts should match /api/reports/station5
+GET https://localhost:7165/api/health-reports/station5?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}

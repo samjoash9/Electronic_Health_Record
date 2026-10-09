@@ -135,5 +135,50 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
 
             return Ok(Station3HealthReport.Build(consults, charges, histories, social, exercises));
         }
+
+        // GET /api/health-reports/station4?from=&to=&office=
+        // Every visit in range with a dental assessment, as the dashboard's
+        // Station 4 takes them; Station4HealthReport.Build keeps each
+        // patient's latest and tallies its answers.
+        [HttpGet("station4")]
+        public async Task<IActionResult> GetStation4(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var exams = await (
+                from f in _context.FormsInRange(range)
+                join d in _context.DentalAssessments on f.FormID equals d.FormID
+                select new Station4Exam(
+                    f.FormID, f.PatientID, f.FormDate,
+                    d.OralHygieneStatus, d.DentalCaries, d.GumCondition, d.DentalTreatmentNeed)
+            ).ToListAsync();
+
+            return Ok(Station4HealthReport.Build(exams));
+        }
+
+        // GET /api/health-reports/station5?from=&to=&office=
+        // Every visit in range with a vision assessment, as the dashboard's
+        // Station 5 takes them; Station5HealthReport.Build keeps each
+        // patient's latest and counts its symptoms.
+        [HttpGet("station5")]
+        public async Task<IActionResult> GetStation5(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var exams = await (
+                from f in _context.FormsInRange(range)
+                join v in _context.VisionAssessments on f.FormID equals v.FormID
+                select new Station5Exam(
+                    f.FormID, f.PatientID, f.FormDate,
+                    v.HistoryOfEyeProblems, v.EyePainDiscomfort, v.BlurredVision,
+                    v.DifficultySeeingNear, v.DifficultySeeingDistant)
+            ).ToListAsync();
+
+            return Ok(Station5HealthReport.Build(exams));
+        }
     }
 }
