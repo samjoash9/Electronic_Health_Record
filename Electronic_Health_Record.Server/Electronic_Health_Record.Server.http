@@ -56,3 +56,7 @@ Authorization: Bearer {{token}}
 ### Health Reports, Station 2 -- patients and the lowest aspect score should match /api/reports/station2's patients and focusArea
 GET https://localhost:7165/api/health-reports/station2?from=2026-01-01&to=2026-12-31
 Authorization: Bearer {{token}}
+
+### Health Reports, Station 3 -- consultations and patients should match /api/reports/station3's completed and patients
+GET https://localhost:7165/api/health-reports/station3?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}

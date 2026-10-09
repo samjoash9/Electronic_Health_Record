@@ -87,5 +87,53 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
 
             return Ok(Station2HealthReport.Build(assessed.Count, answers, bestByQuestion, categories));
         }
+
+        // GET /api/health-reports/station3?from=&to=&office=
+        // Completed consultations only. History and lifestyle are loaded for
+        // each patient's latest one, as the dashboard's Station 3 does;
+        // Station3HealthReport.Build does the counting.
+        [HttpGet("station3")]
+        public async Task<IActionResult> GetStation3(
+            [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
+        {
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
+                return BadRequest(new { message = error });
+
+            var completed = _context.FormsInRange(range).Where(f => f.Station3SubmittedAt != null);
+
+            var consults = await completed
+                .Select(f => new Station3Consult(f.FormID, f.PatientID, f.FormDate))
+                .ToListAsync();
+            var latestIds = ReportQueries.LatestPerPatient(consults, c => c.PatientID, c => c.FormDate, c => c.FormID)
+                .Select(c => c.FormID)
+                .ToList();
+
+            var charges = await (
+                from c in _context.WellnessFormCharges
+                join f in completed on c.FormID equals f.FormID
+                select new Station3Charge(c.FormID, c.ItemType, c.Name)
+            ).ToListAsync();
+
+            var histories = await (
+                from h in _context.PastMedicalHistories
+                join m in _context.MedicalConditions on h.ConditionID equals (int?)m.ConditionID into catalog
+                from m in catalog.DefaultIfEmpty()
+                where latestIds.Contains(h.FormID)
+                select new Station3History(
+                    h.FormID, m == null ? null : m.ConditionName, h.ConditionOther, h.MaintenanceDrugGeneric)
+            ).ToListAsync();
+
+            var social = await _context.SocialHistories
+                .Where(s => latestIds.Contains(s.FormID))
+                .Select(s => new Station3Social(s.FormID, s.Smokes, s.SmokesCigarette, s.SmokesEcig, s.DrinkFrequency))
+                .ToListAsync();
+
+            var exercises = await _context.Exercises
+                .Where(e => latestIds.Contains(e.FormID))
+                .Select(e => new Station3Exercise(e.FormID, e.ExerciseType))
+                .ToListAsync();
+
+            return Ok(Station3HealthReport.Build(consults, charges, histories, social, exercises));
+        }
     }
 }
