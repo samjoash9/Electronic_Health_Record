@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Ban, Trash2, Undo2, CalendarRange, X } from 'lucide-react';
+import { Ban, Trash2, Undo2 } from 'lucide-react';
 import { getAllForms, cancelForm, deleteForm, revertStation } from '../../api/forms.api';
 import { FORM_STATUS, STATUS_LABEL, STATUS_TONE, isSuperAdmin } from '../../lib/constants';
 import { fullName, formatDate } from '../../lib/formatters';
@@ -16,6 +16,8 @@ import DataTable from '../../components/ui/DataTable';
 import TableFooter from '../../components/ui/TableFooter';
 import SearchInput from '../../components/ui/SearchInput';
 import Select from '../../components/ui/Select';
+import DateRangePicker from '../../components/ui/DateRangePicker';
+import { isoDate, manilaToday } from './dashboardPeriod';
 import CancelFormModal from './CancelFormModal';
 import DeleteFormModal from './DeleteFormModal';
 import RevertFormModal from './RevertFormModal';
@@ -59,27 +61,6 @@ const searchFields = (f) => {
 
 const filterField = (f) => f.status;
 
-// Chromium's native calendar glyph is ~12px -- too small a target to hit
-// reliably. The glyph is enlarged to fill the field's height, and a click
-// anywhere in the field opens the picker too, so the glyph no longer has to
-// be aimed at at all.
-const DATE_INPUT_CLASS = [
-  'h-7 w-full min-w-0 cursor-pointer rounded border-none bg-transparent text-sm text-ink-900 outline-none @4xl:w-auto',
-  '[&::-webkit-calendar-picker-indicator]:size-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer',
-  '[&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:p-0.5',
-  '[&::-webkit-calendar-picker-indicator:hover]:bg-gray-100',
-].join(' ');
-
-// showPicker() is missing on older browsers and throws without a user
-// gesture; either way the input's native behaviour still stands.
-const openDatePicker = (e) => {
-  try {
-    e.currentTarget.showPicker?.();
-  } catch {
-    /* fall back to native behaviour */
-  }
-};
-
 export default function FormsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -93,6 +74,9 @@ export default function FormsPage() {
   // list needs to answer -- these two dates are inclusive on both ends.
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // The picker's presets count back from the clinic's day, as FormDate does.
+  const manila = manilaToday();
+  const todayIso = isoDate(manila.year, manila.month, manila.day);
 
   const { data: forms, isLoading, error, refetch } = useQuery({
     queryKey: ['forms'],
@@ -100,7 +84,7 @@ export default function FormsPage() {
   });
 
   // FormDate is a plain "date" column server-side (no time component), so a
-  // string compare against the <input type="date"> value is exact -- no
+  // string compare against the picker's yyyy-MM-dd values is exact -- no
   // timezone conversion to get wrong.
   const dateFiltered = useMemo(() => {
     if (!forms) return forms;
@@ -115,7 +99,6 @@ export default function FormsPage() {
   }, [forms, dateFrom, dateTo]);
 
   const hasDateFilter = Boolean(dateFrom || dateTo);
-  const clearDateFilter = () => { setDateFrom(''); setDateTo(''); };
 
   const cancelMutation = useMutation({
     mutationFn: ({ formID, reason, rowVersion }) =>
@@ -186,38 +169,14 @@ export default function FormsPage() {
               options={STATUS_FILTER_OPTIONS}
               className="w-full @4xl:w-56"
             />
-            <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5">
-              <CalendarRange size={15} className="shrink-0 text-ink-400" />
-              <input
-                type="date"
-                aria-label="Visit date from"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                onClick={openDatePicker}
-                max={dateTo || undefined}
-                className={DATE_INPUT_CLASS}
-              />
-              <span className="shrink-0 text-ink-400">–</span>
-              <input
-                type="date"
-                aria-label="Visit date to"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                onClick={openDatePicker}
-                min={dateFrom || undefined}
-                className={DATE_INPUT_CLASS}
-              />
-              {hasDateFilter && (
-                <button
-                  type="button"
-                  onClick={clearDateFilter}
-                  aria-label="Clear date filter"
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-400 hover:bg-gray-100 hover:text-ink-700"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
+            <DateRangePicker
+              label="Visit date"
+              from={dateFrom}
+              to={dateTo}
+              today={todayIso}
+              onChange={({ from, to }) => { setDateFrom(from); setDateTo(to); }}
+              className="min-w-0 @4xl:w-72"
+            />
           </div>
         }
       >

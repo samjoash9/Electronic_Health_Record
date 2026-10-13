@@ -12,6 +12,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { peso, formatDate } from '../../lib/formatters';
+import Button from '../../components/ui/Button';
 import ChargeLineItems from './ChargeLineItems';
 
 /**
@@ -230,14 +231,10 @@ export default function BillingFormSlidePanel({ detail, onClose, onEdit }) {
               Close
             </button>
 
-            <button
-              type="button"
-              onClick={onEdit}
-              className="flex items-center gap-2 bg-[#0A594D] hover:bg-[#07463c] text-white font-medium py-2 px-4 rounded-md transition-colors text-xs active:scale-[0.98] cursor-pointer shadow-sm"
-            >
+            <Button type="button" size="md" onClick={onEdit}>
               <Pencil size={14} />
               <span>Edit Period</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

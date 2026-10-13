@@ -9,11 +9,14 @@
      where a 600-767px Android tablet was falling back to phone layout. */
   --breakpoint-tab: 600px;
 
-  --color-brand-50:  #eef4fb;
-  --color-brand-100: #d6e4f5;
-  --color-brand-500: #2f6fb5;
-  --color-brand-600: #255a94;
-  --color-brand-700: #1d4674;
+  /* Teal ramp anchored on the action-button teal (#129883 at 600). Button's
+     primary variant reads from it, so this is the one place to recolor
+     every main action button. */
+  --color-brand-50:  #e9f6f4;
+  --color-brand-100: #cdebe6;
+  --color-brand-500: #37af9b;
+  --color-brand-600: #129883;
+  --color-brand-700: #0e7d6b;
 
   /* Full ramp: the 200–600 steps were already in use across the app but had
      no definition, so those utilities silently rendered without a color. */

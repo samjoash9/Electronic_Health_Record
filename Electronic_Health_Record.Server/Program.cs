@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Electronic_Health_Record.Server.BackgroundJobs;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Filters;
+using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Serialization;
 using Electronic_Health_Record.Server.Services;
 
@@ -267,6 +268,12 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    // Admins, superadmins and physicians; never a patient. TokenService
+    // stamps every token with PrincipalType, and physicians carry no Role
+    // claim, so a Roles check cannot admit them.
+    options.AddPolicy(AuthPolicies.Staff, policy =>
+        policy.RequireClaim("PrincipalType", "Admin", "Physician"));
 });
 
 

@@ -40,3 +40,31 @@ Authorization: Bearer {{token}}
 ###
 GET https://localhost:7165/api/reports/station6?from=2026-10-01&to=2026-10-31
 Authorization: Bearer {{token}}
+
+### Health Reports, Station 1 -- an admin's or physician's token; a patient's gets 403
+GET https://localhost:7165/api/health-reports/station1?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+###
+GET https://localhost:7165/api/health-reports/station1?from=2026-01-01&to=2026-12-31&office=PROVINCIAL%20HEALTH%20OFFICE
+Authorization: Bearer {{token}}
+
+###
+GET https://localhost:7165/api/health-reports/station1?from=2026-12-31&to=2026-01-01
+Authorization: Bearer {{token}}
+
+### Health Reports, Station 2 -- patients and the lowest aspect score should match /api/reports/station2's patients and focusArea
+GET https://localhost:7165/api/health-reports/station2?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+### Health Reports, Station 3 -- consultations and patients should match /api/reports/station3's completed and patients
+GET https://localhost:7165/api/health-reports/station3?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+### Health Reports, Station 4 -- patients and hygiene should match /api/reports/station4's patients and hygiene
+GET https://localhost:7165/api/health-reports/station4?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}
+
+### Health Reports, Station 5 -- patients and the blurred / near / distant / eyePain yes counts should match /api/reports/station5
+GET https://localhost:7165/api/health-reports/station5?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{token}}

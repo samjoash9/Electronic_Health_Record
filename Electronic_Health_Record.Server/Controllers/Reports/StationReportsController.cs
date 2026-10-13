@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Linq.Expressions;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Models;
@@ -46,10 +45,10 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         public async Task<IActionResult> GetStation1(
             [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
         {
-            if (!TryParseRange(from, to, office, out var range, out var error))
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
                 return BadRequest(new { message = error });
 
-            var visits = await FormsInRange(range)
+            var visits = await _context.FormsInRange(range)
                 .Select(f => new
                 {
                     f.FormID, f.PatientID, f.FormDate,
@@ -57,7 +56,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                 })
                 .ToListAsync();
 
-            var latest = LatestPerPatient(visits, v => v.PatientID, v => v.FormDate, v => v.FormID);
+            var latest = ReportQueries.LatestPerPatient(visits, v => v.PatientID, v => v.FormDate, v => v.FormID);
 
             return Ok(new
             {
@@ -86,17 +85,17 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         public async Task<IActionResult> GetStation2(
             [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
         {
-            if (!TryParseRange(from, to, office, out var range, out var error))
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
                 return BadRequest(new { message = error });
 
             var (completed, medianMinutes) = await ThroughputAsync(range,
                 f => new StationSpan { Start = f.Station2StartedAt, End = f.Station2SubmittedAt });
 
-            var assessed = await FormsInRange(range)
+            var assessed = await _context.FormsInRange(range)
                 .Where(f => _context.AssessmentAnswers.Any(a => a.FormID == f.FormID))
                 .Select(f => new { f.FormID, f.PatientID, f.FormDate })
                 .ToListAsync();
-            var latestIds = LatestPerPatient(assessed, v => v.PatientID, v => v.FormDate, v => v.FormID)
+            var latestIds = ReportQueries.LatestPerPatient(assessed, v => v.PatientID, v => v.FormDate, v => v.FormID)
                 .Select(v => v.FormID)
                 .ToList();
 
@@ -155,10 +154,10 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         public async Task<IActionResult> GetStation3(
             [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
         {
-            if (!TryParseRange(from, to, office, out var range, out var error))
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
                 return BadRequest(new { message = error });
 
-            var consults = await FormsInRange(range)
+            var consults = await _context.FormsInRange(range)
                 .Where(f => f.Station3SubmittedAt != null)
                 .Select(f => new
                 {
@@ -167,13 +166,13 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                 })
                 .ToListAsync();
 
-            var latestIds = LatestPerPatient(consults, v => v.PatientID, v => v.FormDate, v => v.FormID)
+            var latestIds = ReportQueries.LatestPerPatient(consults, v => v.PatientID, v => v.FormDate, v => v.FormID)
                 .Select(v => v.FormID)
                 .ToList();
 
             var charges = await (
                 from c in _context.WellnessFormCharges
-                join f in FormsInRange(range) on c.FormID equals f.FormID
+                join f in _context.FormsInRange(range) on c.FormID equals f.FormID
                 select new { c.ItemType, c.Name }
             ).ToListAsync();
 
@@ -230,14 +229,14 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         public async Task<IActionResult> GetStation4(
             [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
         {
-            if (!TryParseRange(from, to, office, out var range, out var error))
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
                 return BadRequest(new { message = error });
 
             var (completed, medianMinutes) = await ThroughputAsync(range,
                 f => new StationSpan { Start = f.Station4StartedAt, End = f.Station4SubmittedAt });
 
             var exams = await (
-                from f in FormsInRange(range)
+                from f in _context.FormsInRange(range)
                 join d in _context.DentalAssessments on f.FormID equals d.FormID
                 select new
                 {
@@ -247,7 +246,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                 }
             ).ToListAsync();
 
-            var latest = LatestPerPatient(exams, v => v.PatientID, v => v.FormDate, v => v.FormID);
+            var latest = ReportQueries.LatestPerPatient(exams, v => v.PatientID, v => v.FormDate, v => v.FormID);
 
             return Ok(new
             {
@@ -293,14 +292,14 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         public async Task<IActionResult> GetStation5(
             [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
         {
-            if (!TryParseRange(from, to, office, out var range, out var error))
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
                 return BadRequest(new { message = error });
 
             var (completed, medianMinutes) = await ThroughputAsync(range,
                 f => new StationSpan { Start = f.Station5StartedAt, End = f.Station5SubmittedAt });
 
             var exams = await (
-                from f in FormsInRange(range)
+                from f in _context.FormsInRange(range)
                 join v in _context.VisionAssessments on f.FormID equals v.FormID
                 select new
                 {
@@ -312,7 +311,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
                 }
             ).ToListAsync();
 
-            var latest = LatestPerPatient(exams, v => v.PatientID, v => v.FormDate, v => v.FormID);
+            var latest = ReportQueries.LatestPerPatient(exams, v => v.PatientID, v => v.FormDate, v => v.FormID);
 
             return Ok(new
             {
@@ -363,7 +362,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         public async Task<IActionResult> GetStation6(
             [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? office)
         {
-            if (!TryParseRange(from, to, office, out var range, out var error))
+            if (!ReportRange.TryParse(from, to, office, out var range, out var error))
                 return BadRequest(new { message = error });
 
             var today = PhilippineTime.Today;
@@ -438,8 +437,8 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
         }
 
         // ---- shared helpers ------------------------------------------------
-
-        private sealed record ReportRange(DateTime From, DateTime To, string? Office);
+        // Range parsing, FormsInRange and LatestPerPatient live in
+        // Services/Reports/ReportScope.cs, shared with HealthReportsController.
 
         // Set from a projection so EF can translate it; see ThroughputAsync.
         private sealed class StationSpan
@@ -448,53 +447,13 @@ namespace Electronic_Health_Record.Server.Controllers.Reports
             public DateTime? End { get; init; }
         }
 
-        private static bool TryParseRange(
-            string? from, string? to, string? office, out ReportRange range, out string error)
-        {
-            range = null!;
-            if (!TryParseDate(from, out var fromDate) || !TryParseDate(to, out var toDate))
-            {
-                error = "from and to are required as yyyy-MM-dd.";
-                return false;
-            }
-            if (fromDate > toDate)
-            {
-                error = "from must not be after to.";
-                return false;
-            }
-
-            error = string.Empty;
-            range = new ReportRange(fromDate, toDate, string.IsNullOrWhiteSpace(office) ? null : office.Trim());
-            return true;
-        }
-
-        private static bool TryParseDate(string? value, out DateTime date) =>
-            DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
-
-        // Non-cancelled visits dated inside the range, limited to the office when one is given.
-        private IQueryable<WellnessForm> FormsInRange(ReportRange range) =>
-            from f in _context.WellnessForms
-            join p in _context.Patients on f.PatientID equals p.PatientID
-            where f.Status != "Cancelled"
-               && f.FormDate >= range.From
-               && f.FormDate <= range.To
-               && (range.Office == null || p.AgencyOffice == range.Office)
-            select f;
-
-        // One row per patient: their latest visit, FormID breaking same-day ties.
-        private static List<T> LatestPerPatient<T>(
-            IEnumerable<T> rows, Func<T, int> patientId, Func<T, DateTime> formDate, Func<T, int> formId) =>
-            rows.GroupBy(patientId)
-                .Select(g => g.OrderByDescending(formDate).ThenByDescending(formId).First())
-                .ToList();
-
         // Forms in range that finished the station, and the median minutes spent at it.
         // The finished filter runs in memory: two columns per visit is cheap,
         // and EF cannot filter on a member of an object it just constructed.
         private async Task<(int Completed, double? MedianMinutes)> ThroughputAsync(
             ReportRange range, Expression<Func<WellnessForm, StationSpan>> span)
         {
-            var spans = await FormsInRange(range).Select(span).ToListAsync();
+            var spans = await _context.FormsInRange(range).Select(span).ToListAsync();
             var finished = spans.Where(s => s.End != null).ToList();
             return (finished.Count, ReportClassifiers.MedianMinutes(finished.Select(s => (s.Start, s.End))));
         }
