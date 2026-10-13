@@ -24,6 +24,7 @@ import VisionAssessmentDetail from '../station3/VisionAssessmentDetail';
 // Mirrors Station3ConsultationPage's PATIENT_FIELDS — the physician sees this
 // same identity grid when they open the record, so the patient's own copy
 // reads as the same document rather than a lighter substitute.
+
 const PATIENT_FIELDS = [
   { key: 'position', label: 'Position', icon: Briefcase },
   { key: 'agencyOffice', label: 'Agency/Office', icon: Building2 },
