@@ -46,7 +46,9 @@ export default function OnboardingPage() {
   const Panel = PANELS[tab] ?? DoctorsPanel;
 
   return (
-    <div className="flex flex-col gap-4 p-5">
+    // No side padding on a phone: the shell's own gutter is enough, and the
+    // record cards need every pixel of width.
+    <div className="flex flex-col gap-4 pb-4 md:p-5">
       <h1 className="text-lg font-semibold text-ink-900">Onboarding</h1>
 
       <div className="@container">

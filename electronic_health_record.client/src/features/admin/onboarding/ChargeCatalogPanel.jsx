@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Check, X, Pencil, Ban, RotateCcw } from 'lucide-react';
+import {
+  Plus, Check, X, Pencil, Ban, RotateCcw, FlaskConical, Pill,
+} from 'lucide-react';
 import { getChargeItems, createChargeItem, updateChargeItem, retireChargeItem } from '../../../api/chargeItems.api';
 import { useTableControls } from '../../../hooks/useTableControls';
+import { useCardLayout } from '../../../hooks/useCardLayout';
 import { peso } from '../../../lib/formatters';
 import Card from '../../../components/ui/Card';
+import RecordCardList from '../../../components/ui/RecordCardList';
 import Skeleton from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import Badge from '../../../components/ui/Badge';
@@ -25,6 +29,20 @@ const TYPE_FILTER_OPTIONS = [
 const searchFields = (item) => [item.name, item.category];
 const filterField = (item) => item.itemType;
 
+// Card width the five columns, an open price editor and the retire icon need
+// side by side; below it the catalog shows as cards.
+const TABLE_MIN_WIDTH = 800;
+
+const typeBadge = (item) => (
+  <Badge tone={item.itemType === 'Lab' ? 'info' : 'success'}>
+    {item.itemType === 'Lab' ? 'Lab' : 'Medication'}
+  </Badge>
+);
+
+const statusBadge = (item) => (item.isActive
+  ? <Badge tone="success" dot>Active</Badge>
+  : <Badge tone="danger" dot>Retired</Badge>);
+
 /** Editable price cell: click to type a new amount, Enter/checkmark to save. */
 function PriceCell({ item, onSave, saving }) {
   const [editing, setEditing] = useState(false);
@@ -43,7 +61,8 @@ function PriceCell({ item, onSave, saving }) {
         {item.unitPrice == null
           ? <span className="text-amber-600">Quote per patient</span>
           : peso(item.unitPrice)}
-        <Pencil size={12} className="text-ink-300 opacity-0 transition group-hover:opacity-100" />
+        {/* Hover reveals the pencil; a touch screen has no hover, so it stays shown there. */}
+        <Pencil size={12} className="text-ink-300 opacity-0 transition group-hover:opacity-100 [@media(hover:none)]:opacity-100" />
       </button>
     );
   }
@@ -172,6 +191,7 @@ function CreateItemModal({ onSubmit, onClose, isPending, error }) {
 export default function ChargeCatalogPanel() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data: items, isLoading, error, refetch } = useQuery({
     queryKey: ['chargeitems', 'all'],
@@ -222,6 +242,25 @@ export default function ChargeCatalogPanel() {
           displayOrder: item.displayOrder,
         });
 
+  const priceCell = (item) => (
+    <PriceCell
+      item={item}
+      saving={updateMutation.isPending}
+      onSave={(price) => savePrice(item, price)}
+    />
+  );
+
+  // The one row action, shared by the table's icon button and the card's.
+  const retireAction = (item) => ({
+    key: 'retire',
+    label: item.isActive ? 'Retire this item' : 'Restore this item',
+    icon: item.isActive ? Ban : RotateCcw,
+    tone: item.isActive
+      ? 'text-ink-400 hover:bg-rose-50 hover:text-rose-600'
+      : 'text-ink-400 hover:bg-emerald-50 hover:text-emerald-600',
+    onSelect: () => toggleActive(item),
+  });
+
   const columns = [
     {
       key: 'name',
@@ -230,39 +269,21 @@ export default function ChargeCatalogPanel() {
         <span className={item.isActive ? '' : 'text-ink-400 line-through'}>{item.name}</span>
       ),
     },
-    {
-      key: 'itemType',
-      header: 'Type',
-      render: (item) => (
-        <Badge tone={item.itemType === 'Lab' ? 'info' : 'success'}>
-          {item.itemType === 'Lab' ? 'Lab' : 'Medication'}
-        </Badge>
-      ),
-    },
+    { key: 'itemType', header: 'Type', render: typeBadge },
     { key: 'category', header: 'Category', render: (item) => item.category || '—' },
-    {
-      key: 'unitPrice',
-      header: 'Unit Price',
-      render: (item) => (
-        <PriceCell
-          item={item}
-          saving={updateMutation.isPending}
-          onSave={(price) => savePrice(item, price)}
-        />
-      ),
-    },
-    {
-      key: 'isActive',
-      header: 'Status',
-      render: (item) => (item.isActive
-        ? <Badge tone="success" dot>Active</Badge>
-        : <Badge tone="danger" dot>Retired</Badge>),
-    },
+    { key: 'unitPrice', header: 'Unit Price', render: priceCell },
+    { key: 'isActive', header: 'Status', render: statusBadge },
   ];
+
+  const emptyMessage = table.isSearching || table.isFiltered
+    ? 'No catalog items match your search.'
+    : 'No catalog items yet.';
 
   return (
     <Card
+      ref={cardRef}
       flush
+      bare={isMobile}
       title="Billing Catalog"
       actions={
         <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
@@ -295,28 +316,48 @@ export default function ChargeCatalogPanel() {
       }
     >
       <div className="flex flex-col gap-3">
-        <DataTable
-          columns={columns}
-          rows={table.pageRows.map((item) => ({ ...item, id: item.chargeItemID }))}
-          rowActionsHeader="Actions"
-          rowActions={(item) => (
-            <button
-              type="button"
-              title={item.isActive ? 'Retire this item' : 'Restore this item'}
-              onClick={() => toggleActive(item)}
-              className={`mx-auto flex h-11 w-11 items-center justify-center rounded-lg transition ${
-                item.isActive
-                  ? 'text-ink-400 hover:bg-rose-50 hover:text-rose-600'
-                  : 'text-ink-400 hover:bg-emerald-50 hover:text-emerald-600'
-              }`}
-            >
-              {item.isActive ? <Ban size={15} /> : <RotateCcw size={15} />}
-            </button>
-          )}
-          empty={table.isSearching || table.isFiltered
-            ? 'No catalog items match your search.'
-            : 'No catalog items yet.'}
-        />
+        {showCards ? (
+          <RecordCardList
+            rows={table.pageRows}
+            rowKey={(item) => item.chargeItemID}
+            empty={emptyMessage}
+            card={(item) => ({
+              icon: item.itemType === 'Lab' ? FlaskConical : Pill,
+              iconClass: item.itemType === 'Lab' ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600',
+              title: item.name,
+              titleClass: item.isActive ? '' : 'text-ink-400 line-through',
+              subtitle: item.category,
+              badges: <>{typeBadge(item)}{statusBadge(item)}</>,
+              children: (
+                <div className="flex items-center gap-2 text-xs text-ink-500">
+                  Unit price
+                  {priceCell(item)}
+                </div>
+              ),
+              actions: [retireAction(item)],
+            })}
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={table.pageRows.map((item) => ({ ...item, id: item.chargeItemID }))}
+            rowActionsHeader="Actions"
+            rowActions={(item) => {
+              const { label, icon: Icon, tone, onSelect } = retireAction(item);
+              return (
+                <button
+                  type="button"
+                  title={label}
+                  onClick={onSelect}
+                  className={`mx-auto flex h-11 w-11 items-center justify-center rounded-lg transition ${tone}`}
+                >
+                  <Icon size={15} />
+                </button>
+              );
+            }}
+            empty={emptyMessage}
+          />
+        )}
 
         <TableFooter
           page={table.page}
@@ -324,6 +365,7 @@ export default function ChargeCatalogPanel() {
           total={table.total}
           noun="item"
           onPageChange={table.setPage}
+          compact={isMobile}
         />
       </div>
 

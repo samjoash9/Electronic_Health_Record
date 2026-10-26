@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { UserPlus, Pencil } from 'lucide-react';
+import { UserPlus, Pencil, Briefcase, Building2, Cake } from 'lucide-react';
 import { listEmployees, createEmployee, updateEmployee } from '../../../api/onboarding.api';
 import { listPatientAccounts } from '../../../api/patients.api';
 import { useTableControls } from '../../../hooks/useTableControls';
+import { useCardLayout } from '../../../hooks/useCardLayout';
 import { formatDate } from '../../../lib/formatters';
 import Card from '../../../components/ui/Card';
+import RecordCardList from '../../../components/ui/RecordCardList';
 import Skeleton from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import Badge from '../../../components/ui/Badge';
@@ -16,8 +18,14 @@ import TableFooter from '../../../components/ui/TableFooter';
 import SearchInput from '../../../components/ui/SearchInput';
 import EmployeeFormModal from './EmployeeFormModal';
 
+const employeeName = (e) => `${e.firstName} ${e.middleName ? `${e.middleName} ` : ''}${e.surname}`;
+
+const sourceBadge = (e) => (e.isLocallyAdded
+  ? <Badge tone="info">Added here</Badge>
+  : <Badge>HR record</Badge>);
+
 const COLUMNS = [
-  { key: 'name', header: 'Name', render: (e) => `${e.firstName} ${e.middleName ? `${e.middleName} ` : ''}${e.surname}` },
+  { key: 'name', header: 'Name', render: employeeName },
   // Employee ID is deliberately not a column -- see the same note in
   // PatientsPanel. It stays in searchFields below, so it remains findable.
   {
@@ -32,20 +40,19 @@ const COLUMNS = [
   { key: 'position', header: 'Position', render: (e) => e.position || '—' },
   { key: 'agencyOffice', header: 'Agency/Office', render: (e) => e.agencyOffice || '—' },
   { key: 'birthdate', header: 'Birthdate', render: (e) => formatDate(e.birthdate) },
-  {
-    key: 'source',
-    header: 'Source',
-    render: (e) => (e.isLocallyAdded
-      ? <Badge tone="info">Added here</Badge>
-      : <Badge>HR record</Badge>),
-  },
+  { key: 'source', header: 'Source', render: sourceBadge },
 ];
+
+// Card width the six columns and the edit icon need side by side; below it
+// the directory shows as cards.
+const TABLE_MIN_WIDTH = 900;
 
 const searchFields = (e) => [e.surname, e.firstName, e.middleName, e.externalEmployeeId, e.position, e.username];
 
 export default function EmployeesPanel() {
   const queryClient = useQueryClient();
   const [formTarget, setFormTarget] = useState(null);
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data: employees, isLoading, error, refetch } = useQuery({
     queryKey: ['employees'],
@@ -100,9 +107,15 @@ export default function EmployeesPanel() {
 
   const editing = formTarget && formTarget !== 'create' ? formTarget : null;
 
+  const emptyMessage = table.isSearching
+    ? 'No employees match your search.'
+    : 'The directory is empty.';
+
   return (
     <Card
+      ref={cardRef}
       flush
+      bare={isMobile}
       title="Employee Directory"
       actions={
         <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
@@ -132,23 +145,46 @@ export default function EmployeesPanel() {
           until Station 1 registers them — the username issued there shows under Portal Account.
         </p>
 
-        <DataTable
-          columns={COLUMNS}
-          rows={table.pageRows.map((e) => ({ ...e, id: e.externalEmployeeId }))}
-          rowActions={(row) => (
-            <Button
-              type="button"
-              variant="ghost"
-              title="Edit record"
-              onClick={() => setFormTarget(row)}
-            >
-              <Pencil size={15} />
-            </Button>
-          )}
-          empty={table.isSearching
-            ? 'No employees match your search.'
-            : 'The directory is empty.'}
-        />
+        {showCards ? (
+          <RecordCardList
+            rows={table.pageRows}
+            rowKey={(e) => e.externalEmployeeId}
+            empty={emptyMessage}
+            card={(e) => ({
+              avatarName: `${e.firstName} ${e.surname}`,
+              title: employeeName(e),
+              subtitle: e.username ?? <span className="text-ink-400">Not onboarded</span>,
+              badges: sourceBadge(e),
+              meta: [
+                e.position && { icon: Briefcase, label: e.position },
+                e.agencyOffice && { icon: Building2, label: e.agencyOffice },
+                e.birthdate && { icon: Cake, label: formatDate(e.birthdate) },
+              ].filter(Boolean),
+              actions: [{
+                key: 'edit',
+                label: 'Edit record',
+                icon: Pencil,
+                onSelect: () => setFormTarget(e),
+              }],
+            })}
+          />
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            rows={table.pageRows.map((e) => ({ ...e, id: e.externalEmployeeId }))}
+            rowActions={(row) => (
+              <Button
+                type="button"
+                variant="ghost"
+                title="Edit record"
+                onClick={() => setFormTarget(row)}
+              >
+                <Pencil size={15} />
+              </Button>
+            )}
+            empty={emptyMessage}
+          />
+        )}
 
         <TableFooter
           page={table.page}
@@ -156,6 +192,7 @@ export default function EmployeesPanel() {
           total={table.total}
           noun="employee"
           onPageChange={table.setPage}
+          compact={isMobile}
         />
       </div>
 

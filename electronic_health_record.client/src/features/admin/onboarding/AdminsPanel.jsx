@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { UserPlus, KeyRound, UserX, UserCheck, Trash2 } from 'lucide-react';
+import { UserPlus, KeyRound, UserX, UserCheck, Trash2, Phone } from 'lucide-react';
 import {
   listAdmins, createAdmin, setAdminActive, deleteAdmin,
 } from '../../../api/admins.api';
 import { useTableControls } from '../../../hooks/useTableControls';
+import { useCardLayout } from '../../../hooks/useCardLayout';
 import { ADMIN_ROLES, isSuperAdmin } from '../../../lib/constants';
 import { useAuth } from '../../../auth/useAuth';
 import Card from '../../../components/ui/Card';
+import RecordCardList from '../../../components/ui/RecordCardList';
 import Skeleton from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import Badge from '../../../components/ui/Badge';
@@ -28,27 +30,27 @@ const ROLE_FILTER_OPTIONS = [
   { value: ADMIN_ROLES.SUPERADMIN, label: 'Superadmins' },
 ];
 
+const roleBadge = (a) => (a.role === ADMIN_ROLES.SUPERADMIN
+  ? <Badge tone="info">Superadmin</Badge>
+  : <Badge>Admin</Badge>);
+
+const statusBadge = (a) => {
+  if (!a.isActive) return <Badge tone="danger" dot>Deactivated</Badge>;
+  if (a.mustChangePassword) return <Badge tone="warn" dot>Password not set</Badge>;
+  return <Badge tone="success" dot>Active</Badge>;
+};
+
 const COLUMNS = [
   { key: 'fullName', header: 'Name' },
   { key: 'username', header: 'Username' },
-  {
-    key: 'role',
-    header: 'Role',
-    render: (a) => (a.role === ADMIN_ROLES.SUPERADMIN
-      ? <Badge tone="info">Superadmin</Badge>
-      : <Badge>Admin</Badge>),
-  },
+  { key: 'role', header: 'Role', render: roleBadge },
   { key: 'contactNo', header: 'Contact No.', render: (a) => a.contactNo || '—' },
-  {
-    key: 'status',
-    header: 'Status',
-    render: (a) => {
-      if (!a.isActive) return <Badge tone="danger" dot>Deactivated</Badge>;
-      if (a.mustChangePassword) return <Badge tone="warn" dot>Password not set</Badge>;
-      return <Badge tone="success" dot>Active</Badge>;
-    },
-  },
+  { key: 'status', header: 'Status', render: statusBadge },
 ];
+
+// Card width the five columns and the two action icons need side by side;
+// below it the accounts show as cards.
+const TABLE_MIN_WIDTH = 760;
 
 const searchFields = (a) => [a.fullName, a.username, a.contactNo];
 const filterField = (a) => a.role;
@@ -79,6 +81,7 @@ export default function AdminsPanel() {
   // Typing the username is what arms the delete button: the row actions sit next
   // to Deactivate, and the two are one icon apart.
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data: admins, isLoading, error, refetch } = useQuery({
     queryKey: ['admins'],
@@ -128,9 +131,44 @@ export default function AdminsPanel() {
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
+  // Your own account is not actionable from here: deactivating or deleting the
+  // session you are using cannot be undone from inside the app, and the server
+  // refuses both anyway.
+  const isSelf = (row) => row.adminID === currentAdminID;
+
+  const emptyMessage = table.isSearching || table.isFiltered
+    ? 'No accounts match your search.'
+    : 'No staff accounts yet.';
+
+  // One list of a row's actions, rendered as icon buttons in the table and as
+  // a menu on the cards.
+  const actionsFor = (row) => [
+    {
+      key: 'active',
+      label: row.isActive ? 'Deactivate' : 'Reactivate',
+      icon: row.isActive ? UserX : UserCheck,
+      tone: row.isActive ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50',
+      title: row.isActive ? 'Deactivate account' : 'Reactivate account',
+      onSelect: () => setActiveTarget(row),
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      icon: Trash2,
+      tone: 'text-rose-600 hover:bg-rose-50',
+      title: 'Delete account permanently',
+      onSelect: () => {
+        setDeleteConfirmation('');
+        setDeleteTarget(row);
+      },
+    },
+  ];
+
   return (
     <Card
+      ref={cardRef}
       flush
+      bare={isMobile}
       title="Staff Accounts"
       actions={
         <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
@@ -163,47 +201,46 @@ export default function AdminsPanel() {
       }
     >
       <div className="flex flex-col gap-3">
-        <DataTable
-          columns={COLUMNS}
-          rows={table.pageRows.map((a) => ({ ...a, id: a.adminID }))}
-          rowActionsHeader={canManage ? 'Actions' : undefined}
-          rowActions={canManage ? (row) => {
-            // Your own account is not actionable from here: deactivating or
-            // deleting the session you are using cannot be undone from inside
-            // the app, and the server refuses both anyway.
-            if (row.adminID === currentAdminID) {
-              return <span className="text-xs text-ink-400">Your account</span>;
-            }
-            return (
-              <div className="flex items-center justify-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className={row.isActive ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50'}
-                  title={row.isActive ? 'Deactivate account' : 'Reactivate account'}
-                  onClick={() => setActiveTarget(row)}
-                >
-                  {row.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-rose-600 hover:bg-rose-50"
-                  title="Delete account permanently"
-                  onClick={() => {
-                    setDeleteConfirmation('');
-                    setDeleteTarget(row);
-                  }}
-                >
-                  <Trash2 size={15} />
-                </Button>
-              </div>
-            );
-          } : undefined}
-          empty={table.isSearching || table.isFiltered
-            ? 'No accounts match your search.'
-            : 'No staff accounts yet.'}
-        />
+        {showCards ? (
+          <RecordCardList
+            rows={table.pageRows}
+            rowKey={(a) => a.adminID}
+            empty={emptyMessage}
+            card={(a) => ({
+              avatarName: a.fullName,
+              title: a.fullName,
+              subtitle: a.username,
+              badges: <>{roleBadge(a)}{statusBadge(a)}</>,
+              meta: a.contactNo ? [{ icon: Phone, label: a.contactNo }] : [],
+              actions: canManage && !isSelf(a) ? actionsFor(a) : [],
+              actionsLabel: `Actions for ${a.fullName}`,
+              trailing: canManage && isSelf(a)
+                ? <span className="mt-2 text-xs text-ink-400">Your account</span>
+                : null,
+            })}
+          />
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            rows={table.pageRows.map((a) => ({ ...a, id: a.adminID }))}
+            rowActionsHeader={canManage ? 'Actions' : undefined}
+            rowActions={canManage ? (row) => {
+              if (isSelf(row)) {
+                return <span className="text-xs text-ink-400">Your account</span>;
+              }
+              return (
+                <div className="flex items-center justify-center gap-1">
+                  {actionsFor(row).map(({ key, icon: Icon, tone, title, onSelect }) => (
+                    <Button key={key} type="button" variant="ghost" className={tone} title={title} onClick={onSelect}>
+                      <Icon size={15} />
+                    </Button>
+                  ))}
+                </div>
+              );
+            } : undefined}
+            empty={emptyMessage}
+          />
+        )}
 
         <TableFooter
           page={table.page}
@@ -211,6 +248,7 @@ export default function AdminsPanel() {
           total={table.total}
           noun="account"
           onPageChange={table.setPage}
+          compact={isMobile}
         />
       </div>
 

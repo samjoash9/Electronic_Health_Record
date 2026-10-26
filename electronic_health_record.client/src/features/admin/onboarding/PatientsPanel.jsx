@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { UserX, UserCheck, Trash2 } from 'lucide-react';
+import {
+  UserX, UserCheck, Trash2, Briefcase, LogIn, CalendarCheck,
+} from 'lucide-react';
 import {
   listPatientAccounts, setPatientAccountActive, deletePatient,
 } from '../../../api/patients.api';
 import { useTableControls } from '../../../hooks/useTableControls';
+import { useCardLayout } from '../../../hooks/useCardLayout';
 import { formatDate, formatDateTime } from '../../../lib/formatters';
 import { isSuperAdmin } from '../../../lib/constants';
 import { useAuth } from '../../../auth/useAuth';
 import Card from '../../../components/ui/Card';
+import RecordCardList from '../../../components/ui/RecordCardList';
 import Skeleton from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import Badge from '../../../components/ui/Badge';
@@ -55,12 +59,18 @@ function accountState(p) {
   return p.account.mustChangePassword ? 'never-signed-in' : 'onboarded';
 }
 
+const patientName = (p) => `${p.firstName} ${p.middleName ? `${p.middleName} ` : ''}${p.surname}`;
+
+const accountBadge = (p) => {
+  const state = accountState(p);
+  if (state === 'not-onboarded') return <Badge dot>Not onboarded</Badge>;
+  if (state === 'suspended') return <Badge tone="danger" dot>Suspended</Badge>;
+  if (state === 'never-signed-in') return <Badge tone="warn" dot>Never signed in</Badge>;
+  return <Badge tone="success" dot>Active</Badge>;
+};
+
 const COLUMNS = [
-  {
-    key: 'name',
-    header: 'Name',
-    render: (p) => `${p.firstName} ${p.middleName ? `${p.middleName} ` : ''}${p.surname}`,
-  },
+  { key: 'name', header: 'Name', render: patientName },
   // Employee ID is deliberately not a column: it identifies the person outside
   // this system, and nothing on this panel needs it. It stays in searchFields
   // below, so an admin holding the ID can still find the row.
@@ -74,17 +84,7 @@ const COLUMNS = [
       : <span className="text-ink-400">—</span>),
   },
   { key: 'position', header: 'Position', render: (p) => p.position || '—' },
-  {
-    key: 'status',
-    header: 'Account',
-    render: (p) => {
-      const state = accountState(p);
-      if (state === 'not-onboarded') return <Badge dot>Not onboarded</Badge>;
-      if (state === 'suspended') return <Badge tone="danger" dot>Suspended</Badge>;
-      if (state === 'never-signed-in') return <Badge tone="warn" dot>Never signed in</Badge>;
-      return <Badge tone="success" dot>Active</Badge>;
-    },
-  },
+  { key: 'status', header: 'Account', render: accountBadge },
   {
     key: 'lastLoginAt',
     header: 'Last Sign-in',
@@ -101,6 +101,10 @@ const searchFields = (p) => [
   p.surname, p.firstName, p.middleName, p.externalEmployeeId, p.account?.username,
 ];
 
+// Card width the six columns and the two action icons need side by side;
+// below it the patients show as cards.
+const TABLE_MIN_WIDTH = 950;
+
 export default function PatientsPanel() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -111,6 +115,7 @@ export default function PatientsPanel() {
   // Deleting a patient destroys their medical history, so the confirmation is
   // typed rather than a single click.
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data: patients, isLoading, error, refetch } = useQuery({
     queryKey: ['patient-accounts'],
@@ -151,9 +156,50 @@ export default function PatientsPanel() {
   if (isLoading) return <Skeleton />;
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
+  const emptyMessage = table.isSearching || table.isFiltered
+    ? 'No patients match your search.'
+    : 'No patients registered yet.';
+
+  // One list of a row's actions, rendered as icon buttons in the table and as
+  // a menu on the cards.
+  const actionsFor = (row) => {
+    const active = isAccountActive(row.account);
+    return [
+      {
+        key: 'suspend',
+        label: active ? 'Suspend sign-in' : 'Restore sign-in',
+        icon: active ? UserX : UserCheck,
+        // No login to suspend on a patient Station 1 has never registered, so
+        // the control is disabled rather than hidden -- keeping the table's
+        // icon row the same width down the column.
+        disabled: !row.account,
+        tone: !row.account
+          ? undefined
+          : active ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50',
+        title: !row.account
+          ? 'No portal account to suspend'
+          : active ? 'Suspend portal sign-in' : 'Restore portal sign-in',
+        onSelect: () => setSuspendTarget(row),
+      },
+      {
+        key: 'delete',
+        label: 'Delete',
+        icon: Trash2,
+        tone: 'text-rose-600 hover:bg-rose-50',
+        title: 'Delete patient and all their records',
+        onSelect: () => {
+          setDeleteConfirmation('');
+          setDeleteTarget(row);
+        },
+      },
+    ];
+  };
+
   return (
     <Card
+      ref={cardRef}
       flush
+      bare={isMobile}
       title="Patient Accounts"
       actions={
         <div className="flex w-full flex-col gap-2 @2xl:flex-row @2xl:items-center">
@@ -180,50 +226,54 @@ export default function PatientsPanel() {
           afterwards.
         </p>
 
-        <DataTable
-          columns={COLUMNS}
-          rows={table.pageRows.map((p) => ({ ...p, id: p.patientID }))}
-          rowActionsHeader={canManage ? 'Actions' : undefined}
-          rowActions={canManage ? (row) => {
-            const active = isAccountActive(row.account);
-            return (
+        {showCards ? (
+          <RecordCardList
+            rows={table.pageRows}
+            rowKey={(p) => p.patientID}
+            empty={emptyMessage}
+            card={(p) => ({
+              avatarName: `${p.firstName} ${p.surname}`,
+              title: patientName(p),
+              subtitle: p.account?.username ?? '—',
+              badges: accountBadge(p),
+              meta: [
+                p.position && { icon: Briefcase, label: p.position },
+                p.account?.lastLoginAt && {
+                  icon: LogIn, label: `Last sign-in ${formatDateTime(p.account.lastLoginAt)}`,
+                },
+                p.account?.provisionedAt && {
+                  icon: CalendarCheck, label: `Registered ${formatDate(p.account.provisionedAt)}`,
+                },
+              ].filter(Boolean),
+              actions: canManage ? actionsFor(p) : [],
+              actionsLabel: `Actions for ${patientName(p)}`,
+            })}
+          />
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            rows={table.pageRows.map((p) => ({ ...p, id: p.patientID }))}
+            rowActionsHeader={canManage ? 'Actions' : undefined}
+            rowActions={canManage ? (row) => (
               <div className="flex items-center justify-center gap-1">
-                {/* No login to suspend on a patient Station 1 has never
-                    registered, so the control is disabled rather than hidden --
-                    keeping the icon row the same width down the column. */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={!row.account}
-                  className={!row.account
-                    ? ''
-                    : active ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50'}
-                  title={!row.account
-                    ? 'No portal account to suspend'
-                    : active ? 'Suspend portal sign-in' : 'Restore portal sign-in'}
-                  onClick={() => setSuspendTarget(row)}
-                >
-                  {active ? <UserX size={15} /> : <UserCheck size={15} />}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-rose-600 hover:bg-rose-50"
-                  title="Delete patient and all their records"
-                  onClick={() => {
-                    setDeleteConfirmation('');
-                    setDeleteTarget(row);
-                  }}
-                >
-                  <Trash2 size={15} />
-                </Button>
+                {actionsFor(row).map(({ key, icon: Icon, tone, title, disabled, onSelect }) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    variant="ghost"
+                    disabled={disabled}
+                    className={tone}
+                    title={title}
+                    onClick={onSelect}
+                  >
+                    <Icon size={15} />
+                  </Button>
+                ))}
               </div>
-            );
-          } : undefined}
-          empty={table.isSearching || table.isFiltered
-            ? 'No patients match your search.'
-            : 'No patients registered yet.'}
-        />
+            ) : undefined}
+            empty={emptyMessage}
+          />
+        )}
 
         <TableFooter
           page={table.page}
@@ -231,6 +281,7 @@ export default function PatientsPanel() {
           total={table.total}
           noun="patient"
           onPageChange={table.setPage}
+          compact={isMobile}
         />
       </div>
 

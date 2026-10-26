@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { UserPlus, Pencil, KeyRound, UserX, UserCheck, Trash2 } from 'lucide-react';
+import {
+  UserPlus, Pencil, KeyRound, UserX, UserCheck, Trash2, Stethoscope, IdCard, Phone,
+} from 'lucide-react';
 import {
   listPhysicians, createPhysician, updatePhysician,
   setPhysicianActive, resetPhysicianPassword, deletePhysician,
 } from '../../../api/onboarding.api';
 import { useTableControls } from '../../../hooks/useTableControls';
+import { useCardLayout } from '../../../hooks/useCardLayout';
 import Card from '../../../components/ui/Card';
+import RecordCardList from '../../../components/ui/RecordCardList';
 import Skeleton from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import Badge from '../../../components/ui/Badge';
@@ -34,22 +38,27 @@ const STATION_LABEL = Object.fromEntries(
   DOCTOR_STATIONS.map((s) => [s.value, `Station ${s.value} — ${s.subtitle}`]),
 );
 
+const doctorName = (d) => `Dr. ${d.firstName} ${d.middleName ? `${d.middleName} ` : ''}${d.surname}`;
+
+const statusBadge = (d) => {
+  if (!d.isActive) return <Badge tone="danger" dot>Deactivated</Badge>;
+  if (d.mustChangePassword) return <Badge tone="warn" dot>Password not set</Badge>;
+  return <Badge tone="success" dot>Active</Badge>;
+};
+
 const COLUMNS = [
-  { key: 'name', header: 'Name', render: (d) => `Dr. ${d.firstName} ${d.middleName ? `${d.middleName} ` : ''}${d.surname}` },
+  { key: 'name', header: 'Name', render: doctorName },
   { key: 'prcLicenseNo', header: 'PRC License No.' },
   { key: 'station', header: 'Station', render: (d) => STATION_LABEL[d.station] ?? '—' },
   { key: 'username', header: 'Username' },
   { key: 'contactNo', header: 'Contact No.', render: (d) => d.contactNo || '—' },
-  {
-    key: 'status',
-    header: 'Status',
-    render: (d) => {
-      if (!d.isActive) return <Badge tone="danger" dot>Deactivated</Badge>;
-      if (d.mustChangePassword) return <Badge tone="warn" dot>Password not set</Badge>;
-      return <Badge tone="success" dot>Active</Badge>;
-    },
-  },
+  { key: 'status', header: 'Status', render: statusBadge },
 ];
+
+// Card width the six columns (the station's is long: "Station 3 —
+// Consultation") and up to four action icons need side by side; below it the
+// doctors show as cards.
+const TABLE_MIN_WIDTH = 1000;
 
 const searchFields = (d) => [d.surname, d.firstName, d.middleName, d.prcLicenseNo, d.username];
 const filterField = (d) => (d.isActive ? 'active' : 'inactive');
@@ -70,6 +79,7 @@ export default function DoctorsPanel() {
   // Typing the surname is what arms the delete button: the row actions sit next
   // to Deactivate, and the two are one icon apart.
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data: doctors, isLoading, error, refetch } = useQuery({
     queryKey: ['physicians'],
@@ -147,9 +157,51 @@ export default function DoctorsPanel() {
 
   const editing = formTarget && formTarget !== 'create' ? formTarget : null;
 
+  const emptyMessage = table.isSearching || table.isFiltered
+    ? 'No doctors match your search.'
+    : 'No doctors registered yet.';
+
+  // One list of a row's actions, rendered as icon buttons in the table and as
+  // a menu on the cards.
+  const actionsFor = (row) => [
+    {
+      key: 'edit',
+      label: 'Edit details',
+      icon: Pencil,
+      onSelect: () => setFormTarget(row),
+    },
+    {
+      key: 'reset',
+      label: 'Reset password',
+      icon: KeyRound,
+      onSelect: () => setResetTarget(row),
+    },
+    {
+      key: 'active',
+      label: row.isActive ? 'Deactivate' : 'Reactivate',
+      icon: row.isActive ? UserX : UserCheck,
+      tone: row.isActive ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50',
+      title: row.isActive ? 'Deactivate account' : 'Reactivate account',
+      onSelect: () => setActiveTarget(row),
+    },
+    canDelete && {
+      key: 'delete',
+      label: 'Delete',
+      icon: Trash2,
+      tone: 'text-rose-600 hover:bg-rose-50',
+      title: 'Delete account permanently',
+      onSelect: () => {
+        setDeleteConfirmation('');
+        setDeleteTarget(row);
+      },
+    },
+  ].filter(Boolean);
+
   return (
     <Card
+      ref={cardRef}
       flush
+      bare={isMobile}
       title="Registered Doctors"
       actions={
         <div className="flex w-full flex-col gap-2 @4xl:flex-row @4xl:items-center">
@@ -191,57 +243,42 @@ export default function DoctorsPanel() {
       }
     >
       <div className="flex flex-col gap-3">
-        <DataTable
-          columns={COLUMNS}
-          rows={table.pageRows.map((d) => ({ ...d, id: d.physicianID }))}
-          rowActionsHeader="Actions"
-          rowActions={(row) => (
-            <div className="flex items-center justify-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                title="Edit details"
-                onClick={() => setFormTarget(row)}
-              >
-                <Pencil size={15} />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                title="Reset password"
-                onClick={() => setResetTarget(row)}
-              >
-                <KeyRound size={15} />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className={row.isActive ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50'}
-                title={row.isActive ? 'Deactivate account' : 'Reactivate account'}
-                onClick={() => setActiveTarget(row)}
-              >
-                {row.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
-              </Button>
-              {canDelete && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-rose-600 hover:bg-rose-50"
-                  title="Delete account permanently"
-                  onClick={() => {
-                    setDeleteConfirmation('');
-                    setDeleteTarget(row);
-                  }}
-                >
-                  <Trash2 size={15} />
-                </Button>
-              )}
-            </div>
-          )}
-          empty={table.isSearching || table.isFiltered
-            ? 'No doctors match your search.'
-            : 'No doctors registered yet.'}
-        />
+        {showCards ? (
+          <RecordCardList
+            rows={table.pageRows}
+            rowKey={(d) => d.physicianID}
+            empty={emptyMessage}
+            card={(d) => ({
+              avatarName: `${d.firstName} ${d.surname}`,
+              title: doctorName(d),
+              subtitle: d.username,
+              badges: statusBadge(d),
+              meta: [
+                { icon: Stethoscope, label: STATION_LABEL[d.station] ?? 'No station' },
+                { icon: IdCard, label: `PRC ${d.prcLicenseNo}` },
+                d.contactNo && { icon: Phone, label: d.contactNo },
+              ].filter(Boolean),
+              actions: actionsFor(d),
+              actionsLabel: `Actions for ${doctorName(d)}`,
+            })}
+          />
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            rows={table.pageRows.map((d) => ({ ...d, id: d.physicianID }))}
+            rowActionsHeader="Actions"
+            rowActions={(row) => (
+              <div className="flex items-center justify-center gap-1">
+                {actionsFor(row).map(({ key, label, icon: Icon, tone, title, onSelect }) => (
+                  <Button key={key} type="button" variant="ghost" className={tone} title={title ?? label} onClick={onSelect}>
+                    <Icon size={15} />
+                  </Button>
+                ))}
+              </div>
+            )}
+            empty={emptyMessage}
+          />
+        )}
 
         <TableFooter
           page={table.page}
@@ -249,6 +286,7 @@ export default function DoctorsPanel() {
           total={table.total}
           noun="doctor"
           onPageChange={table.setPage}
+          compact={isMobile}
         />
       </div>
 
