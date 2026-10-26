@@ -10,9 +10,15 @@ const ACCOUNT_FIELDS = [
   { key: 'adminRole', label: 'Admin Tier', icon: ShieldCheck, className: 'capitalize', adminOnly: true },
 ];
 
-export default function Topbar({ collapsed, isTabletDown = false, onToggleSidebar }) {
+export default function Topbar({ collapsed, isTabletDown = false, isMobile = false, drawerOpen = false, onToggleSidebar }) {
   const { user } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
+
+  // On a phone the button opens/closes the off-canvas drawer rather than
+  // switching the rail between collapsed and expanded.
+  const toggleLabel = isMobile
+    ? (drawerOpen ? 'Close sidebar' : 'Open sidebar')
+    : (collapsed ? 'Expand sidebar' : 'Collapse sidebar');
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-black/10 bg-[#0A594D] px-4 text-white">
@@ -20,8 +26,9 @@ export default function Topbar({ collapsed, isTabletDown = false, onToggleSideba
         <button
           type="button"
           onClick={onToggleSidebar}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={toggleLabel}
+          aria-label={toggleLabel}
+          aria-expanded={isMobile ? drawerOpen : undefined}
           className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
         >
           {isTabletDown

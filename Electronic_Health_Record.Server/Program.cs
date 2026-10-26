@@ -23,10 +23,7 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ============================================================
 // SERVICES
-// ============================================================
-
 // All DateTime columns are datetime2 (offset-less) holding UTC values, so the
 // converters tag them with "Z" on the way out -- without it the client parses
 // them as local time and every timestamp renders 8 hours behind in Manila.
@@ -37,28 +34,16 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeConverter());
     });
 
-
-// ============================================================
 // DATABASE
-// ============================================================
-
 builder.Services.AddDbContext<ElectronicHealthRecordDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
 
-
-// ============================================================
 // HTTP CONTEXT
-// ============================================================
-
 builder.Services.AddHttpContextAccessor();
 
-
-// ============================================================
 // CORS
-// ============================================================
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactFrontend", policy =>
@@ -76,30 +61,17 @@ builder.Services.AddCors(options =>
     });
 });
 
-
-// ============================================================
 // OPENAPI
-// ============================================================
-
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
 });
 
-
-// ============================================================
 // APPLICATION SERVICES
-// ============================================================
-
 builder.Services.AddScoped<TokenService>();
-
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
-
-// ============================================================
 // JWT CONFIGURATION
-// ============================================================
-
 var jwtSection = builder.Configuration.GetSection("Jwt");
 
 // The signing key is a secret and is never committed: it comes from user
@@ -149,24 +121,17 @@ var jwtAudience = jwtSection["Audience"]
     );
 
 
-// ============================================================
 // JWT AUTHENTICATION
-// ============================================================
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.RequireHttpsMetadata = true;
-
         options.SaveToken = false;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            // ------------------------------------------------
             // SIGNATURE
-            // ------------------------------------------------
-
             ValidateIssuerSigningKey = true,
 
             IssuerSigningKey =
@@ -174,32 +139,19 @@ builder.Services
                     Encoding.UTF8.GetBytes(jwtKey)
                 ),
 
-            // ------------------------------------------------
             // ISSUER
-            // ------------------------------------------------
-
             ValidateIssuer = true,
             ValidIssuer = jwtIssuer,
 
-            // ------------------------------------------------
             // AUDIENCE
-            // ------------------------------------------------
-
             ValidateAudience = true,
             ValidAudience = jwtAudience,
 
-            // ------------------------------------------------
             // EXPIRATION
-            // ------------------------------------------------
-
             ValidateLifetime = true,
-
             ClockSkew = TimeSpan.FromMinutes(1),
 
-            // ------------------------------------------------
             // CLAIM MAPPING
-            // ------------------------------------------------
-
             NameClaimType =
                 System.Security.Claims.ClaimTypes.Name,
 
@@ -210,18 +162,11 @@ builder.Services
 
     });
 
-
-
-// ============================================================
 // Employee API HttpClient
-// ============================================================
 // Registers the HttpClient used by the EHR application to
 // communicate with the external iHRIS Employee API.
-//
 // The timeout is increased because the Employee API may return
 // a large list of active employees.
-// ============================================================
-
 builder.Services.AddHttpClient<IEmployeeService, EmployeeService>(
     client =>
     {
@@ -236,25 +181,16 @@ builder.Services.AddHttpClient<IEmployeeService, EmployeeService>(
 // Stand-in until the real HR API accepts writes -- see IEmployeeDirectory.
 builder.Services.AddScoped<IEmployeeDirectory, SeededEmployeeDirectory>();
 
-
-// ============================================================
 // Employee Sync Background Service
-// ============================================================
 // Runs on a timer (every 4 minutes) and pulls employee data
 // from the external HR API into the local database. This is
 // the ONLY place in the app that calls the external HR API —
 // all controller reads (GET /api/Employees) are served from
 // the local database only, so the app keeps working even if
 // the HR source is slow or temporarily unreachable.
-// ============================================================
-
 builder.Services.AddHostedService<EmployeeSyncBackgroundService>();
 
-
-// ============================================================
 // AUTHORIZATION
-// ============================================================
-
 // Every endpoint requires an authenticated caller unless it opts out with
 // [AllowAnonymous]. This is deliberately the default rather than a per-class
 // [Authorize]: a controller added without the attribute would otherwise serve
@@ -277,10 +213,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 
-// ============================================================
 // RATE LIMITING
-// ============================================================
-
 // AuthController's login action carries [EnableRateLimiting("login")]. Naming a
 // policy that was never registered throws when the endpoint is first hit, so
 // without this block the one anonymous endpoint in the app fails at runtime --
@@ -316,17 +249,10 @@ builder.Services.AddRateLimiter(options =>
 });
 
 
-// ============================================================
 // BUILD APPLICATION
-// ============================================================
-
 var app = builder.Build();
 
-
-// ============================================================
 // DATABASE SEEDER
-// ============================================================
-
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -347,11 +273,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-
-// ============================================================
 // STATIC FILES
-// ============================================================
-
 app.UseDefaultFiles();
 
 // The SPA's own assets must stay reachable to an anonymous browser: the
@@ -359,11 +281,7 @@ app.UseDefaultFiles();
 // login page itself would 401 before the user has any token to present.
 app.MapStaticAssets().AllowAnonymous();
 
-
-// ============================================================
 // OPENAPI + SCALAR
-// ============================================================
-
 if (app.Environment.IsDevelopment())
 {
     // Development only, and anonymous so the docs UI loads before you have a
@@ -377,72 +295,36 @@ if (app.Environment.IsDevelopment())
     }).AllowAnonymous();
 }
 
-
-// ============================================================
 // HTTPS
-// ============================================================
-
 app.UseHttpsRedirection();
 
-
-// ============================================================
 // CORS
-// ============================================================
-
 app.UseCors("AllowReactFrontend");
 
-
-// ============================================================
 // RATE LIMITING
-// ============================================================
-
 // Ahead of authentication so unauthenticated login floods are turned away
 // before they reach a password hash comparison, which is deliberately slow.
 app.UseRateLimiter();
 
-
-// ============================================================
 // AUTHENTICATION
-// ============================================================
-
 app.UseAuthentication();
 
-
-// ============================================================
 // AUTHORIZATION
-// ============================================================
-
 app.UseAuthorization();
 
-
-// ============================================================
 // CONTROLLERS
-// ============================================================
-
 app.MapControllers();
 
-
-// ============================================================
 // REACT SPA FALLBACK
-// ============================================================
-
 // Anonymous for the same reason as the static assets above: this serves the
 // React shell for any non-API route, including /login. Authorization for what
 // the SPA then displays is enforced per API call, not here.
 app.MapFallbackToFile("/index.html").AllowAnonymous();
 
-
-// ============================================================
 // RUN
-// ============================================================
-
 app.Run();
 
-
-// ============================================================
 // OPENAPI BEARER SECURITY SCHEME TRANSFORMER
-// ============================================================
-
 internal sealed class BearerSecuritySchemeTransformer(
     IAuthenticationSchemeProvider authenticationSchemeProvider)
     : IOpenApiDocumentTransformer

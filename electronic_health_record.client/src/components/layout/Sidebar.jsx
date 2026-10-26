@@ -66,7 +66,7 @@ const SUPERADMIN_LINKS = [
   STATION6_LINK,
 ];
 
-export default function Sidebar({ collapsed }) {
+export default function Sidebar({ collapsed, mobile = false, open = false, onNavigate }) {
   const { user, signOut } = useAuth();
   const { station } = useStationChoice();
   const navigate = useNavigate();
@@ -111,78 +111,92 @@ export default function Sidebar({ collapsed }) {
   const labelClass = `transition-all duration-300 overflow-hidden whitespace-nowrap truncate ${collapsed ? 'w-0 opacity-0 ml-0' : 'w-48 opacity-100 ml-3'
     }`;
 
+  // On a phone the nav is an off-canvas drawer pinned over the page, so it
+  // never takes width from the content; elsewhere it is an in-flow rail.
+  const placementClass = mobile
+    ? `fixed inset-y-0 left-0 z-50 w-72 shadow-xl transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'
+    }`
+    : `transition-all duration-300 ${collapsed ? 'w-16' : 'w-72'}`;
+
   return (
-    <nav
-      // h-full + min-h-0: without a height bound the nav grows to fit every
-      // link, which stretches the shell past the viewport and leaves blank
-      // space below the fold. Bounded, the link list below scrolls instead.
-      className={`flex h-full min-h-0 shrink-0 flex-col gap-1 border-r border-black/10 bg-[#0A594D] p-3 transition-all duration-300 ${collapsed ? 'w-16' : 'w-72'
-        }`}
-    >
-      <div className={`flex items-center py-2 ${collapsed ? 'justify-center' : 'px-1'}`}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center p-1">
-          <img src={phoLogo} alt="Provincial Health Office" className="h-full w-full rounded-md object-contain" />
+    <>
+      <nav
+        // h-full + min-h-0: without a height bound the nav grows to fit every
+        // link, which stretches the shell past the viewport and leaves blank
+        // space below the fold. Bounded, the link list below scrolls instead.
+        className={`flex h-full min-h-0 shrink-0 flex-col gap-1 border-r border-black/10 bg-[#0A594D] p-3 ${placementClass}`}
+        // A closed drawer is only slid off-screen, so keep its links out of the
+        // tab order and the accessibility tree until it opens.
+        inert={mobile && !open}
+      >
+        <div className={`flex items-center py-2 ${collapsed ? 'justify-center' : 'px-1'}`}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center p-1">
+            <img src={phoLogo} alt="Provincial Health Office" className="h-full w-full rounded-md object-contain" />
+          </div>
+          <span
+            className={`transition-all duration-300 overflow-hidden whitespace-nowrap truncate text-base font-bold text-white ${collapsed ? 'w-0 opacity-0 ml-0' : 'w-48 opacity-100 ml-3'
+              }`}
+          >
+            eHPR <span className="text-xs font-semibold tracking-wide text-white/70">SYSTEM</span>
+          </span>
         </div>
-        <span
-          className={`transition-all duration-300 overflow-hidden whitespace-nowrap truncate text-base font-bold text-white ${collapsed ? 'w-0 opacity-0 ml-0' : 'w-48 opacity-100 ml-3'
-            }`}
-        >
-          eHPR <span className="text-xs font-semibold tracking-wide text-white/70">SYSTEM</span>
-        </span>
-      </div>
 
-      <div className="mb-2 border-t border-white/15" />
+        <div className="mb-2 border-t border-white/15" />
 
-      {/* min-h-0 lets this shrink below its content height so the overflow
-          scrolls here, keeping the Settings/Log Out block below always
-          visible rather than pushed off the bottom of the screen. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-        {links.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} title={label} className={linkClass}>
-            <Icon size={18} className="shrink-0" />
-            <span className={labelClass}>{label}</span>
-          </NavLink>
-        ))}
-      </div>
+        {/* min-h-0 lets this shrink below its content height so the overflow
+            scrolls here, keeping the Settings/Log Out block below always
+            visible rather than pushed off the bottom of the screen. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+          {links.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} title={label} className={linkClass} onClick={onNavigate}>
+              <Icon size={18} className="shrink-0" />
+              <span className={labelClass}>{label}</span>
+            </NavLink>
+          ))}
+        </div>
 
-      <div className="border-t border-white/15 pt-3">
-        {user?.role === ROLES.ADMIN && !superAdmin && (
-          <NavLink to={CHANGE_STATION_LINK.to} title={CHANGE_STATION_LINK.label} className={linkClass}>
-            <CHANGE_STATION_LINK.icon size={18} className="shrink-0" />
-            <span className={labelClass}>{CHANGE_STATION_LINK.label}</span>
-          </NavLink>
-        )}
-        <button
-          type="button"
-          title="Settings"
-          onClick={() => setChangePasswordOpen(true)}
-          className={buttonClass}
-        >
-          <Settings size={18} className="shrink-0" />
-          <span className={`${labelClass} text-left`}>Settings</span>
-        </button>
-        {!superAdmin && (
+        <div className="border-t border-white/15 pt-3">
+          {user?.role === ROLES.ADMIN && !superAdmin && (
+            <NavLink to={CHANGE_STATION_LINK.to} title={CHANGE_STATION_LINK.label} className={linkClass} onClick={onNavigate}>
+              <CHANGE_STATION_LINK.icon size={18} className="shrink-0" />
+              <span className={labelClass}>{CHANGE_STATION_LINK.label}</span>
+            </NavLink>
+          )}
           <button
             type="button"
-            title="Support"
+            title="Settings"
+            onClick={() => setChangePasswordOpen(true)}
             className={buttonClass}
           >
-            <LifeBuoy size={18} className="shrink-0" />
-            <span className={`${labelClass} text-left`}>Support</span>
+            <Settings size={18} className="shrink-0" />
+            <span className={`${labelClass} text-left`}>Settings</span>
           </button>
-        )}
-        <button
-          type="button"
-          title="Log Out"
-          onClick={() => setSignOutOpen(true)}
-          className={`flex h-11 w-full cursor-pointer items-center rounded-md px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition-all duration-200 hover:bg-[#F87171]/15 hover:text-[#F87171] ${collapsed ? 'justify-center' : ''
-            }`}
-        >
-          <LogOut size={18} className="shrink-0" />
-          <span className={`${labelClass} text-left`}>Log Out</span>
-        </button>
-      </div>
+          {!superAdmin && (
+            <button
+              type="button"
+              title="Support"
+              className={buttonClass}
+            >
+              <LifeBuoy size={18} className="shrink-0" />
+              <span className={`${labelClass} text-left`}>Support</span>
+            </button>
+          )}
+          <button
+            type="button"
+            title="Log Out"
+            onClick={() => setSignOutOpen(true)}
+            className={`flex h-11 w-full cursor-pointer items-center rounded-md px-3 py-2 text-base font-medium whitespace-nowrap text-white/80 transition-all duration-200 hover:bg-[#F87171]/15 hover:text-[#F87171] ${collapsed ? 'justify-center' : ''
+              }`}
+          >
+            <LogOut size={18} className="shrink-0" />
+            <span className={`${labelClass} text-left`}>Log Out</span>
+          </button>
+        </div>
+      </nav>
 
+      {/* Outside the nav: the drawer's transform would otherwise become the
+          containing block for the modals' `fixed` overlay and trap it inside
+          the 18rem-wide drawer. */}
       <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
 
       <SignOutModal
@@ -191,6 +205,6 @@ export default function Sidebar({ collapsed }) {
         onConfirm={handleSignOut}
         onClose={() => setSignOutOpen(false)}
       />
-    </nav>
+    </>
   );
 }

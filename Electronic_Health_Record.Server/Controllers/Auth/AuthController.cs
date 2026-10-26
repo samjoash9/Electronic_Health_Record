@@ -37,11 +37,7 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
     }
 
-
-    // =========================================================
     // LOGIN
-    // =========================================================
-
     [AllowAnonymous]
     [EnableRateLimiting("login")]
     [HttpPost("login")]
@@ -64,20 +60,13 @@ public class AuthController : ControllerBase
 
         var username = request.Username.Trim();
 
-
-        // =========================================================
         // 1. ADMIN
-        // =========================================================
-
         var admin = await _db.Admins
             .FirstOrDefaultAsync(a => a.Username == username);
 
         if (admin != null)
         {
-            // -----------------------------------------------------
             // Account status
-            // -----------------------------------------------------
-
             if (!admin.IsActive)
             {
                 return Unauthorized(new
@@ -86,10 +75,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Validate role
-            // -----------------------------------------------------
-
             if (!AdminRoles.IsValid(admin.Role))
             {
                 return Unauthorized(new
@@ -98,10 +84,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Verify password
-            // -----------------------------------------------------
-
             var passwordResult =
                 _adminPasswordHasher.VerifyHashedPassword(
                     admin,
@@ -118,10 +101,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Rehash password if required
-            // -----------------------------------------------------
-
             if (passwordResult ==
                 PasswordVerificationResult.SuccessRehashNeeded)
             {
@@ -132,26 +112,17 @@ public class AuthController : ControllerBase
                     );
             }
 
-            // -----------------------------------------------------
             // Update login information
-            // -----------------------------------------------------
-
             admin.LastLoginAt = DateTime.UtcNow;
             admin.UpdatedAt = DateTime.UtcNow;
 
-            // -----------------------------------------------------
             // Generate JWT + AdminSession
-            // -----------------------------------------------------
-
             var (token, expiresAt) =
                 await _tokenService.GenerateTokenAsync(admin);
 
             await _db.SaveChangesAsync();
 
-            // -----------------------------------------------------
             // Response
-            // -----------------------------------------------------
-
             return Ok(new LoginResponse
             {
                 Token = token,
@@ -1370,11 +1341,7 @@ public async Task<IActionResult> GetUser()
         );
     }
 
-
-    // =========================================================
     // PATIENT FULL NAME
-    // =========================================================
-
     private static string BuildPatientFullName(
         Patient patient)
     {

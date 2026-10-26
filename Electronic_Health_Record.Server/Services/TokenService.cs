@@ -24,19 +24,9 @@ public class TokenService
         _context = context;
     }
 
-
-    // =========================================================
     // ADMIN TOKEN
-    // =========================================================
-    //
-    // Admin has two permission levels:
-    //
-    //     admin
-    //     superadmin
-    //
+    // Admin has two permission levels: admin & superadmin
     // Role is therefore stored in the JWT.
-    // =========================================================
-
     public async Task<(string token, DateTime expiresAt)>
         GenerateTokenAsync(Admin admin)
     {
@@ -48,10 +38,7 @@ public class TokenService
             principalType: "Admin"
         );
 
-        // ---------------------------------------------------------
         // Store Admin Session
-        // ---------------------------------------------------------
-
         var session = new AdminSession
         {
             AdminID = admin.AdminID,
@@ -66,25 +53,14 @@ public class TokenService
         return result;
     }
 
-
-    // =========================================================
     // PHYSICIAN TOKEN
-    // =========================================================
-    //
     // Physician table DOES NOT have a Role column.
-    //
     // Therefore:
-    //
     //     Role = null
     //     PrincipalType = Physician
-    //
     // Authorization for Physician can use:
-    //
     //     [Authorize]
-    //
     // together with PrincipalType checks.
-    // =========================================================
-
     public async Task<(string token, DateTime expiresAt)>
         GenerateTokenAsync(Physician physician)
     {
@@ -96,10 +72,7 @@ public class TokenService
             principalType: "Physician"
         );
 
-        // ---------------------------------------------------------
         // Store Physician Session
-        // ---------------------------------------------------------
-
         var session = new PhysicianSession
         {
             PhysicianID = physician.PhysicianID,
@@ -114,18 +87,11 @@ public class TokenService
         return result;
     }
 
-
-    // =========================================================
     // PATIENT TOKEN
-    // =========================================================
-    //
     // Patient also does not need an application role.
     //
     // PrincipalType identifies the authenticated account:
-    //
     //     Patient
-    // =========================================================
-
     public async Task<(string token, DateTime expiresAt)>
         GenerateTokenAsync(
             PatientAccount patientAccount,
@@ -139,10 +105,7 @@ public class TokenService
             principalType: "Patient"
         );
 
-        // ---------------------------------------------------------
         // Store Patient Session
-        // ---------------------------------------------------------
-
         var session = new PatientSession
         {
             PatientAccountID =
@@ -162,11 +125,7 @@ public class TokenService
         return result;
     }
 
-
-    // =========================================================
     // COMMON JWT GENERATION
-    // =========================================================
-
     private (string token, DateTime expiresAt)
         GenerateToken(
             int userId,
@@ -177,11 +136,7 @@ public class TokenService
     {
         var jwtSection = _config.GetSection("Jwt");
 
-
-        // =========================================================
         // JWT CONFIGURATION
-        // =========================================================
-
         var keyValue = jwtSection["Key"];
 
         if (string.IsNullOrWhiteSpace(keyValue))
@@ -218,11 +173,7 @@ public class TokenService
             );
         }
 
-
-        // =========================================================
         // SIGNING KEY
-        // =========================================================
-
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(keyValue)
         );
@@ -232,18 +183,10 @@ public class TokenService
             SecurityAlgorithms.HmacSha256
         );
 
-
-        // =========================================================
         // UNIQUE TOKEN ID
-        // =========================================================
-
         var jti = Guid.NewGuid().ToString();
 
-
-        // =========================================================
         // BASE CLAIMS
-        // =========================================================
-
         var claims = new List<Claim>
         {
             // Account ID
@@ -290,16 +233,9 @@ public class TokenService
             )
         };
 
-
-        // =========================================================
         // ADMIN ROLE
-        // =========================================================
-        //
         // Only Admin has a Role.
-        //
         // Physician and Patient do not receive a Role claim.
-        // =========================================================
-
         if (!string.IsNullOrWhiteSpace(role))
         {
             claims.Add(
@@ -310,21 +246,13 @@ public class TokenService
             );
         }
 
-
-        // =========================================================
         // EXPIRATION
-        // =========================================================
-
         var expiresAt =
             DateTime.UtcNow.AddMinutes(
                 expiresInMinutes
             );
 
-
-        // =========================================================
         // CREATE JWT
-        // =========================================================
-
         var token = new JwtSecurityToken(
             issuer: issuer,
             audience: audience,
@@ -333,15 +261,10 @@ public class TokenService
             signingCredentials: credentials
         );
 
-
-        // =========================================================
         // SERIALIZE TOKEN
-        // =========================================================
-
         var tokenString =
             new JwtSecurityTokenHandler()
                 .WriteToken(token);
-
 
         return (
             tokenString,
@@ -349,19 +272,9 @@ public class TokenService
         );
     }
 
-
-    // =========================================================
     // HASH TOKEN
-    // =========================================================
-    //
     // The raw JWT is NEVER stored in the database.
-    //
-    // Session table stores:
-    //
-    //     SHA256(JWT)
-    //
-    // =========================================================
-
+    // Session table stores: SHA256(JWT)
     public static string HashToken(string token)
     {
         var bytes = SHA256.HashData(

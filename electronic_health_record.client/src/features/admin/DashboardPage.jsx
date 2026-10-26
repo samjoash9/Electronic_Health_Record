@@ -154,19 +154,19 @@ export default function DashboardPage() {
 
       {/* 1. Main Grid Restructuring (Top Section): 5 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
-        {/* Left Side: 6 Summary Stat Cards in 3 Columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:col-span-3">
+        {/* Left Side: 6 Summary Stat Cards -- 2 columns on a phone, 3 from md */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:col-span-3">
           <StatCard
-            label="Total Form"
+            label="Total Forms"
             value={counts.total ?? 0}
             icon={FileText}
             accent="brand"
           />
           <StatCard
-            label="Total Patient"
+            label="Total Patients"
             value={totalPatients}
             icon={Users}
-            accent="brand"
+            accent="blue"
           />
           <StatCard
             label="Completed"
@@ -178,19 +178,19 @@ export default function DashboardPage() {
             label="Cancelled"
             value={counts[FORM_STATUS.CANCELLED] ?? 0}
             icon={CircleX}
-            iconWrapperClass="bg-red-500/15 text-red-600"
+            accent="red"
           />
           <StatCard
             label="Pending Assessment"
             value={counts[FORM_STATUS.PENDING_ASSESSMENT] ?? 0}
             icon={ClipboardList}
-            iconWrapperClass="bg-amber-500/15 text-amber-600"
+            accent="amber"
           />
           <StatCard
             label="Pending Consultation"
             value={counts[FORM_STATUS.PENDING_CONSULTATION] ?? 0}
             icon={MessageSquareDot}
-            iconWrapperClass="bg-emerald-500/15 text-emerald-600"
+            accent="emerald"
           />
         </div>
 
