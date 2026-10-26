@@ -106,7 +106,10 @@ export default function SearchSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-2 w-full min-w-max overflow-hidden rounded-xl border border-line bg-surface shadow-xl">
+        // On phones the list matches the field and long labels wrap: sized to
+        // the longest option it ran far off-screen, and truncating made
+        // options that differ only at the end look identical.
+        <div className="absolute left-0 z-30 mt-2 w-full overflow-hidden rounded-xl border border-line bg-surface shadow-xl sm:min-w-max">
           <div className="relative border-b border-line">
             <Search
               size={15}
@@ -145,10 +148,10 @@ export default function SearchSelect({
                     : isActive ? 'bg-[#cdf2e8] text-[#0e7d6b]' : 'text-ink-700'}`}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate">{option.label}</span>
+                      <span className="block sm:truncate">{option.label}</span>
                       {option.hint && (
                         <span
-                          className={`block truncate text-[11px] ${
+                          className={`block text-[11px] sm:truncate ${
                             isSelected ? 'text-white/80' : 'text-ink-500'
                           }`}
                         >

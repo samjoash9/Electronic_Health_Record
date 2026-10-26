@@ -20,10 +20,13 @@ import ActionsMenu from './ActionsMenu';
  *   icon button; several fold into the kebab menu, named by `actionsLabel`.
  * - `trailing` sits where the actions would, for a note in place of them.
  * - `onOpen` makes the whole card a button with a chevron.
+ * - `selection` (`{ checked, onChange, label }`) puts a checkbox before the
+ *   avatar, for lists that act on several records at once. Ticking it never
+ *   opens the card.
  */
 export function RecordCard({
   avatarName, icon: Icon, iconClass = '', title, titleClass = '', subtitle, badges,
-  meta = [], children, actions = [], actionsLabel, trailing, onOpen,
+  meta = [], children, actions = [], actionsLabel, trailing, onOpen, selection,
 }) {
   const single = actions.length === 1 ? actions[0] : null;
   const SingleIcon = single?.icon;
@@ -46,6 +49,24 @@ export function RecordCard({
         : ''
       }`}
     >
+      {selection && (
+        // The label widens the tap target past the bare 16px box without
+        // moving it, and keeps the click or Space from reaching the card.
+        <label
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="-m-2 flex h-15 shrink-0 cursor-pointer items-center self-start p-2"
+        >
+          <input
+            type="checkbox"
+            aria-label={selection.label}
+            checked={selection.checked}
+            onChange={selection.onChange}
+            className="h-4 w-4 accent-brand-600"
+          />
+        </label>
+      )}
+
       {avatarName != null
         ? <Avatar name={avatarName} size={44} />
         : Icon && (

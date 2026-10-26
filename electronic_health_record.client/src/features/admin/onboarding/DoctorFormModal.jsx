@@ -54,9 +54,17 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
         </>
       }
     >
-      <form id="doctor-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
-          <Field label="Surname" htmlFor="doctor-surname" required error={errors.surname?.message}>
+      <form id="doctor-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 sm:gap-5">
+        {/* Two columns on phones rather than one, so the whole form fits on a
+            single screen; the 3-column desktop layout is unchanged. */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-4">
+          <Field
+            label="Surname"
+            htmlFor="doctor-surname"
+            required
+            error={errors.surname?.message}
+            className="col-span-2 sm:col-span-1"
+          >
             <Input
               id="doctor-surname"
               error={Boolean(errors.surname)}
@@ -103,6 +111,7 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
             required
             hint="The desk this doctor reports to. They go straight here at sign-in."
             error={errors.station?.message}
+            className="col-span-2 sm:col-span-1"
           >
             <Select
               id="doctor-station"
@@ -119,14 +128,14 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
           </Field>
         </div>
 
-        <div className="rounded-xl border border-line bg-canvas p-4">
+        <div className="rounded-xl border border-line bg-canvas p-3 sm:p-4">
           <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wide text-ink-700 uppercase">
             <KeyRound size={14} className="text-[#0e7d6b]" />
             Sign-in credentials
           </p>
 
           {editing ? (
-            <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-6 sm:gap-y-4">
               <Field label="Username" hint="Usernames cannot be changed after registration.">
                 <Input value={doctor.username} disabled readOnly />
               </Field>
@@ -135,39 +144,45 @@ export default function DoctorFormModal({ doctor, isPending, error, onSubmit, on
               </Field>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-              <Field
-                label="Username"
-                htmlFor="doctor-username"
-                required
-                error={errors.username?.message}
-              >
-                <Input
-                  id="doctor-username"
-                  autoComplete="off"
-                  error={Boolean(errors.username)}
-                  {...register('username', { required: 'Username is required.' })}
-                />
-              </Field>
-              <Field
-                label="Temporary Password"
-                htmlFor="doctor-password"
-                required
-                hint="The doctor is asked to change this the first time they sign in."
-                error={errors.password?.message}
-              >
-                <Input
-                  id="doctor-password"
-                  type="text"
-                  autoComplete="off"
-                  error={Boolean(errors.password)}
-                  {...register('password', {
-                    required: 'A temporary password is required.',
-                    minLength: { value: 8, message: 'Use at least 8 characters.' },
-                  })}
-                />
-              </Field>
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-6 sm:gap-y-4">
+                <Field
+                  label="Username"
+                  htmlFor="doctor-username"
+                  required
+                  error={errors.username?.message}
+                >
+                  <Input
+                    id="doctor-username"
+                    autoComplete="off"
+                    error={Boolean(errors.username)}
+                    {...register('username', { required: 'Username is required.' })}
+                  />
+                </Field>
+                <Field
+                  label="Temporary Password"
+                  htmlFor="doctor-password"
+                  required
+                  error={errors.password?.message}
+                >
+                  <Input
+                    id="doctor-password"
+                    type="text"
+                    autoComplete="off"
+                    error={Boolean(errors.password)}
+                    {...register('password', {
+                      required: 'A temporary password is required.',
+                      minLength: { value: 8, message: 'Use at least 8 characters.' },
+                    })}
+                  />
+                </Field>
+              </div>
+              {/* Full width under both fields: inside the half-width password
+                  column this note wrapped to four lines on a phone. */}
+              <p className="mt-2 text-[11px] text-ink-500">
+                The doctor is asked to change this the first time they sign in.
+              </p>
+            </>
           )}
         </div>
 

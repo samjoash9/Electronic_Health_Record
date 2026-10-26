@@ -214,7 +214,7 @@ export default function PatientsPanel() {
             value={table.filter}
             onChange={(e) => table.onFilter(e.target.value)}
             options={STATUS_FILTER_OPTIONS}
-            className="w-1/2 self-start @2xl:w-52 @2xl:self-auto"
+            className="w-full @2xl:w-52"
           />
         </div>
       }

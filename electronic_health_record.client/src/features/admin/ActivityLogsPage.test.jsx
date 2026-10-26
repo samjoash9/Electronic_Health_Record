@@ -30,6 +30,16 @@ const LOGS = [
   log(1, 'Station9Approved', '2026-10-01T02:44:00Z'),
 ];
 
+// Answers each `(max-width: Npx)` query as a viewport `width` px wide would.
+function mockMatchMedia(width) {
+  window.matchMedia = vi.fn((query) => ({
+    matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)[1]),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -43,6 +53,7 @@ function renderPage() {
 
 describe('ActivityLogsPage', () => {
   beforeEach(() => {
+    mockMatchMedia(1280);
     getActivityLogs.mockReset();
     deleteActivityLogs.mockReset();
     getActivityLogs.mockResolvedValue(LOGS);
@@ -112,5 +123,62 @@ describe('ActivityLogsPage', () => {
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete permanently' }));
 
     expect(await within(screen.getByRole('dialog')).findByText('Forbidden')).toBeInTheDocument();
+  });
+});
+
+describe('ActivityLogsPage on a phone', () => {
+  beforeEach(() => {
+    mockMatchMedia(375);
+    getActivityLogs.mockReset();
+    deleteActivityLogs.mockReset();
+    getActivityLogs.mockResolvedValue(LOGS);
+    deleteActivityLogs.mockResolvedValue({ deleted: 2 });
+  });
+
+  it('lists the entries as cards instead of a table', async () => {
+    renderPage();
+    // Each card is a button named by its content; the action filter's hidden
+    // options repeat the labels, so plain text queries would match twice.
+    await screen.findByRole('button', { name: /Reverted Form/ });
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Submitted Station 5 — Vision/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Station 9 Approved/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete entry #3' })).toBeInTheDocument();
+  });
+
+  it('opens an entry from its card', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /Reverted Form/ }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('ticks cards without opening them, then deletes them together', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('button', { name: /Reverted Form/ });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select entry #3' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select entry #1' }));
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Delete selected/ }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete permanently' }));
+
+    await waitFor(() => expect(deleteActivityLogs).toHaveBeenCalledWith([3, 1]));
+  });
+
+  it('selects the whole page from the toolbar', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('button', { name: /Reverted Form/ });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select all entries on this page' }));
+
+    expect(screen.getByText('3 selected')).toBeInTheDocument();
   });
 });

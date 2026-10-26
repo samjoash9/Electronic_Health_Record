@@ -130,7 +130,7 @@ export default function EmployeesPanel() {
             type="button"
             variant="teal"
             size="md"
-            className="w-1/2 self-start @2xl:w-52 @2xl:self-auto"
+            className="w-full @2xl:w-52"
             onClick={() => setFormTarget('create')}
           >
             <UserPlus size={16} />

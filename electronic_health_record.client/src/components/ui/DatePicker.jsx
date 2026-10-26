@@ -131,7 +131,9 @@ const DatePicker = forwardRef(function DatePicker(
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1.5 w-96 rounded-xl border border-line bg-surface p-4 shadow-lg">
+        // Capped at the viewport less a phone modal's padding (3.5rem), so the
+        // calendar never runs off a small screen; day cells shrink to fit.
+        <div className="absolute z-20 mt-1.5 w-[min(24rem,calc(100vw-3.5rem))] rounded-xl border border-line bg-surface p-3 shadow-lg sm:p-4">
           <div className="mb-3 flex items-center justify-between">
             <button
               type="button"
@@ -206,7 +208,7 @@ const DatePicker = forwardRef(function DatePicker(
                     type="button"
                     disabled={isDisabled}
                     onClick={() => commit(cellDate)}
-                    className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full text-base transition
+                    className={`mx-auto flex aspect-square w-full max-w-11 items-center justify-center rounded-full text-base transition
                       ${!inMonth ? 'text-ink-300' : 'text-ink-700'}
                       ${isSelected ? 'bg-[#129883] font-semibold text-white' : 'hover:bg-[#f3fdfb]'}
                       ${isToday && !isSelected ? 'font-semibold text-[#0e7d6b] ring-1 ring-inset ring-[#129883]/40' : ''}

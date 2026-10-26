@@ -89,13 +89,18 @@ export default function EmployeeFormModal({ employee, isPending, error, onSubmit
                 onSubmit={handleSubmit(onSubmit)}
                 className="flex flex-col gap-4"
             >
-                <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                {/* Two columns on phones: short fields pair up while the long
+                    agency and position names keep a full row. Those rows and
+                    Address are ordered last there so Contact No. fills the
+                    slot beside Civil Status; desktop keeps the source order. */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-4">
 
                     <Field
                         label="Surname"
                         htmlFor="employee-surname"
                         required
                         error={errors.surname?.message}
+                        className="col-span-2 sm:col-span-1"
                     >
                         <Input
                             id="employee-surname"
@@ -195,6 +200,7 @@ export default function EmployeeFormModal({ employee, isPending, error, onSubmit
                         htmlFor="employee-agency"
                         required
                         error={errors.agencyOffice?.message}
+                        className="col-span-2 max-sm:order-1 sm:col-span-1"
                     >
                         <Controller
                             name="agencyOffice"
@@ -221,6 +227,7 @@ export default function EmployeeFormModal({ employee, isPending, error, onSubmit
                         htmlFor="employee-position"
                         required
                         error={errors.position?.message}
+                        className="col-span-2 max-sm:order-1 sm:col-span-1"
                     >
                         <Controller
                             name="position"
@@ -255,7 +262,7 @@ export default function EmployeeFormModal({ employee, isPending, error, onSubmit
                     <Field
                         label="Address"
                         htmlFor="employee-address"
-                        className="sm:col-span-2"
+                        className="col-span-2 max-sm:order-1"
                     >
                         <Input
                             id="employee-address"
