@@ -11,12 +11,24 @@ vi.mock('../../api/forms.api', () => ({
   revertStation: vi.fn(),
 }));
 
+const ADMIN = { id: 1, fullName: 'Test Admin', role: 'admin' };
+const auth = vi.hoisted(() => ({ user: null }));
 vi.mock('../../auth/useAuth', () => ({
-  useAuth: () => ({ user: { id: 1, fullName: 'Test Admin', role: 'admin' } }),
+  useAuth: () => auth,
 }));
 
 import { getAllForms } from '../../api/forms.api';
 import FormsPage from './FormsPage';
+
+// Answers each `(max-width: Npx)` query as a viewport `width` px wide would.
+function mockMatchMedia(width) {
+  window.matchMedia = vi.fn((query) => ({
+    matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)[1]),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
 
 const form = (formID, surname, formDate) => ({
   formID,
@@ -56,6 +68,8 @@ describe('FormsPage visit date filter', () => {
     // must count back from.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-08T20:00:00Z'));
+    mockMatchMedia(1280);
+    auth.user = ADMIN;
     getAllForms.mockReset();
     getAllForms.mockResolvedValue(FORMS);
   });
@@ -88,5 +102,109 @@ describe('FormsPage visit date filter', () => {
     await user.click(screen.getByRole('button', { name: 'Last 7 days' }));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
     expect(rowNames()).toEqual(['BAUTISTA, TEST', 'DIZON, TEST']);
+  });
+});
+
+describe('FormsPage on a phone', () => {
+  beforeEach(() => {
+    mockMatchMedia(375);
+    auth.user = ADMIN;
+    getAllForms.mockReset();
+    getAllForms.mockResolvedValue(FORMS);
+  });
+
+  it('lists forms as cards instead of a table', async () => {
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText('user3')).toBeInTheDocument();
+    expect(screen.getAllByText('Station 2')).toHaveLength(FORMS.length);
+  });
+
+  it('stretches Previous/Next across the screen', async () => {
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveClass('flex-1');
+    expect(screen.getByRole('button', { name: 'Next' })).toHaveClass('flex-1');
+  });
+
+  it('still narrows the cards by search', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    await user.type(screen.getByPlaceholderText('Search by name or username'), 'dizon');
+    expect(rowNames()).toEqual(['DIZON, TEST']);
+  });
+
+  it('shows no actions menu to a plain admin', async () => {
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).not.toBeInTheDocument();
+  });
+
+  it('offers a superadmin the same actions as the desktop table, from a menu', async () => {
+    auth.user = { ...ADMIN, adminRole: 'superadmin' };
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    await user.click(screen.getByRole('button', { name: 'Actions for CRUZ, TEST' }));
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent))
+      .toEqual(['Send Back', 'Cancel', 'Delete']);
+  });
+});
+
+describe('FormsPage beside the sidebar', () => {
+  // Reports `width` as the page's measured width the moment it is observed.
+  function mockPageWidth(width) {
+    window.ResizeObserver = class {
+      constructor(callback) { this.callback = callback; }
+      observe() { this.callback([{ contentRect: { width } }]); }
+      disconnect() {}
+    };
+  }
+
+  beforeEach(() => {
+    mockMatchMedia(1024);
+    auth.user = { ...ADMIN, adminRole: 'superadmin' };
+    getAllForms.mockReset();
+    getAllForms.mockResolvedValue(FORMS);
+  });
+
+  afterEach(() => {
+    delete window.ResizeObserver;
+  });
+
+  it('shows cards when the page is too narrow for the table', async () => {
+    mockPageWidth(640);
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Actions for CRUZ, TEST' })).toBeInTheDocument();
+  });
+
+  it('folds the row actions into a menu when the table fits but its buttons do not', async () => {
+    mockPageWidth(900);
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send Back' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Actions for CRUZ, TEST' })).toBeInTheDocument();
+  });
+
+  it('spells the row actions out when there is room', async () => {
+    mockPageWidth(1200);
+    renderPage();
+    await screen.findByText('CRUZ, TEST');
+
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Send Back' })).toHaveLength(FORMS.length);
   });
 });

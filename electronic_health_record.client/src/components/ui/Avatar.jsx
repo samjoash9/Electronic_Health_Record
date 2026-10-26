@@ -37,8 +37,10 @@ export default function Avatar({ name = '', size = 32, palette = 'vivid' }) {
   return (
     <span
       aria-hidden="true"
-      style={{ width: size, height: size }}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${tints[hash]}`}
+      // Initials scale with the chip, floored at the 11px every existing
+      // table-row size (28-32px) was designed around.
+      style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.34)) }}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${tints[hash]}`}
     >
       {initials}
     </span>

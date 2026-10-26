@@ -14,11 +14,15 @@ const DOTS = {
   default: 'bg-gray-400',
 };
 
-/** `dot` prefixes a status pill with a filled marker, for denser status columns. */
-export default function Badge({ tone = 'default', dot = false, children }) {
+/**
+ * `dot` prefixes a status pill with a filled marker, for denser status columns.
+ * `icon` (a lucide component) prefixes it with that glyph instead.
+ */
+export default function Badge({ tone = 'default', dot = false, icon: Icon, children }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${TONES[tone] ?? TONES.default}`}>
       {dot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOTS[tone] ?? DOTS.default}`} />}
+      {Icon && <Icon aria-hidden="true" size={13} className="shrink-0" />}
       {children}
     </span>
   );
