@@ -28,6 +28,7 @@ export async function login({ identifier, password }) {
         accountType,
         role,
         station,
+        mustChangePassword,
     } = response.data;
 
     const tableRole =
@@ -49,6 +50,9 @@ export async function login({ identifier, password }) {
             tableRole === ROLES.DOCTOR
                 ? station ?? null
                 : null,
+        // Still on the default password: RequireAuth holds every page behind
+        // the change-password prompt, since the server refuses their requests.
+        mustChangePassword: Boolean(mustChangePassword),
     };
 
     const session = {
@@ -77,6 +81,7 @@ export async function fetchCurrentUser() {
         accountType,
         role,
         station,
+        mustChangePassword,
     } = response.data;
 
     const tableRole =
@@ -98,6 +103,9 @@ export async function fetchCurrentUser() {
             tableRole === ROLES.DOCTOR
                 ? station ?? null
                 : null,
+        // Still on the default password: RequireAuth holds every page behind
+        // the change-password prompt, since the server refuses their requests.
+        mustChangePassword: Boolean(mustChangePassword),
     };
 
     // Preserve the token -- /Auth/user only answers "who is this", so refresh

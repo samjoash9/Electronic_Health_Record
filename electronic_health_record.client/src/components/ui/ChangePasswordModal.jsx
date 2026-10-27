@@ -45,7 +45,10 @@ function PasswordField({ id, label, register, error, autoComplete }) {
   );
 }
 
-export default function ChangePasswordModal({ open, onClose }) {
+// required: the account is still on its default password and the server
+// refuses everything else until it changes, so there is nothing to cancel back
+// to -- the only ways out are a new password or onSignOut.
+export default function ChangePasswordModal({ open, onClose, required = false, onChanged, onSignOut }) {
   const {
     register,
     handleSubmit,
@@ -60,6 +63,7 @@ export default function ChangePasswordModal({ open, onClose }) {
   });
 
   const handleClose = () => {
+    if (required) return;
     reset(BLANK_VALUES);
     onClose();
   };
@@ -74,7 +78,9 @@ export default function ChangePasswordModal({ open, onClose }) {
 
       toast.success('Password changed successfully.');
 
-      handleClose();
+      reset(BLANK_VALUES);
+      onChanged?.();
+      onClose?.();
     } catch (error) {
       const message =
         error.response?.data?.message ||
@@ -96,10 +102,10 @@ export default function ChangePasswordModal({ open, onClose }) {
             type="button"
             variant="secondary"
             size="lg"
-            onClick={handleClose}
+            onClick={required ? onSignOut : handleClose}
             disabled={isSubmitting}
           >
-            Cancel
+            {required ? 'Sign out' : 'Cancel'}
           </Button>
 
           <Button
@@ -122,7 +128,9 @@ export default function ChangePasswordModal({ open, onClose }) {
         <div className="flex items-center gap-3 rounded-lg bg-[#f3fdfb] p-3 text-sm text-[#0e7d6b]">
           <KeyRound size={18} className="shrink-0" />
 
-          Choose a new password with at least 8 characters.
+          {required
+            ? 'You are still on the password your account was set up with. Choose a new one with at least 8 characters to continue.'
+            : 'Choose a new password with at least 8 characters.'}
         </div>
 
         <PasswordField

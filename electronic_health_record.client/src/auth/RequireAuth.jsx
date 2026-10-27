@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import { ROLES, ROLE_HOME_PATH, isSuperAdmin } from '../lib/constants';
 import { readStation } from '../lib/stationStorage';
+import PasswordChangeGate from './PasswordChangeGate';
 
 function normalizedRole(user) {
     return typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role;
@@ -80,6 +81,12 @@ export function RequireAuth({ allow, requireSuperAdmin, allowSuperAdmin, childre
 
   if (requireSuperAdmin && !isSuperAdmin(user)) {
     return <Navigate to={fallbackRouteFor(user)} replace />;
+  }
+
+  // The server answers 403 to every page's requests until the default
+  // password is replaced, so hold the page back rather than render it broken.
+  if (user.mustChangePassword) {
+    return <PasswordChangeGate />;
   }
 
   return children ?? <Outlet />;

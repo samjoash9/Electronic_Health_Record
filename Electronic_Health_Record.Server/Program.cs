@@ -27,7 +27,13 @@ var builder = WebApplication.CreateBuilder(args);
 // All DateTime columns are datetime2 (offset-less) holding UTC values, so the
 // converters tag them with "Z" on the way out -- without it the client parses
 // them as local time and every timestamp renders 8 hours behind in Manila.
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Server-side half of the forced password change: an account still on
+        // its default password reaches only the actions marked
+        // [AllowPendingPasswordChange].
+        options.Filters.Add<PasswordChangeRequiredFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());

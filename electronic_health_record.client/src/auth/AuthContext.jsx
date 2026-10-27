@@ -5,7 +5,7 @@ import {
   getSession,
   fetchCurrentUser,
 } from '../services/authService';
-import { clearSession } from '../lib/session';
+import { clearSession, setSession } from '../lib/session';
 import { beginSignOut, endSignOut } from '../hooks/useUnsavedChangesGuard';
 
 // eslint-disable-next-line react-refresh/only-export-components -- co-located with its provider by design
@@ -75,9 +75,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // The server lifts its password gate the moment the change succeeds, so the
+  // client lifts its own straight away too -- in the stored session as well,
+  // or a reload before the /Auth/user round-trip would flash the prompt again.
+  const passwordChanged = useCallback(() => {
+    const session = getSession();
+    if (session?.user) setSession({ ...session, user: { ...session.user, mustChangePassword: false } });
+    setUser((current) => (current ? { ...current, mustChangePassword: false } : current));
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isAuthenticated: Boolean(user), signIn, signOut, loading }),
-    [user, signIn, signOut, loading],
+    () => ({ user, isAuthenticated: Boolean(user), signIn, signOut, passwordChanged, loading }),
+    [user, signIn, signOut, passwordChanged, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,5 +1,6 @@
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.DTOs.Auth;
+using Electronic_Health_Record.Server.Filters;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -128,7 +129,9 @@ public class AuthController : ControllerBase
 
                 AccountType = "Admin",
 
-                Role = admin.Role
+                Role = admin.Role,
+
+                MustChangePassword = admin.MustChangePassword
             });
         }
 
@@ -213,7 +216,9 @@ public class AuthController : ControllerBase
 
                 AccountType = "Physician",
 
-                Station = physician.Station
+                Station = physician.Station,
+
+                MustChangePassword = physician.MustChangePassword
             });
         }
 
@@ -319,7 +324,9 @@ public class AuthController : ControllerBase
                 FullName =
                     BuildPatientFullName(patient),
 
-                AccountType = "Patient"
+                AccountType = "Patient",
+
+                MustChangePassword = patientAccount.MustChangePassword
             });
         }
 
@@ -345,6 +352,7 @@ public class AuthController : ControllerBase
     // }
 
     [Authorize]
+    [AllowPendingPasswordChange]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
         [FromBody] ChangePasswordRequest request)
@@ -503,8 +511,10 @@ public class AuthController : ControllerBase
                     admin,
                     request.NewPassword);
 
-            // Update password information
+            // Update password information. Clearing the flag is what lifts
+            // PasswordChangeRequiredFilter for this account.
             var now = DateTime.UtcNow;
+            admin.MustChangePassword = false;
             admin.UpdatedAt = now;
 
             await _db.SaveChangesAsync();
@@ -594,8 +604,10 @@ public class AuthController : ControllerBase
                     physician,
                     request.NewPassword);
 
-            // Update password information
+            // Update password information. Clearing the flag is what lifts
+            // PasswordChangeRequiredFilter for this account.
             var now = DateTime.UtcNow;
+            physician.MustChangePassword = false;
             physician.UpdatedAt = now;
 
 
@@ -718,6 +730,7 @@ public class AuthController : ControllerBase
     // GET /api/Auth/user
     // Returns the authenticated user's account information.
     [Authorize]
+    [AllowPendingPasswordChange]
     [HttpGet("user")]
     public async Task<IActionResult> GetUser()
     {
@@ -770,7 +783,8 @@ public class AuthController : ControllerBase
                 username = admin.Username,
                 fullName = admin.FullName,
                 accountType = "Admin",
-                role = admin.Role
+                role = admin.Role,
+                mustChangePassword = admin.MustChangePassword
             });
         }
 
@@ -814,7 +828,9 @@ public class AuthController : ControllerBase
 
                 // The client restores its session from here, so omitting the
                 // station would drop a doctor to the no-station page on refresh.
-                station = physician.Station
+                station = physician.Station,
+
+                mustChangePassword = physician.MustChangePassword
             });
         }
 
@@ -890,7 +906,10 @@ public class AuthController : ControllerBase
                 accountType = "Patient",
 
                 employee =
-                    patient.ExternalEmployeeId
+                    patient.ExternalEmployeeId,
+
+                mustChangePassword =
+                    patientAccount.MustChangePassword
             });
         }
 
@@ -911,6 +930,7 @@ public class AuthController : ControllerBase
     // The JWT is hashed and matched against the session table.
     // RevokedAt is set to the current UTC time
     [Authorize]
+    [AllowPendingPasswordChange]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {

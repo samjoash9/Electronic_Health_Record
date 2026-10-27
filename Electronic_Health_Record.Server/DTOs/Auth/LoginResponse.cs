@@ -39,6 +39,12 @@ namespace Electronic_Health_Record.Server.DTOs.Auth
         //
         // Admin / Patient: null.
         public int? Station { get; set; }
+
+        // True while the account is still on the default password it was
+        // provisioned with. The server refuses everything but change-password,
+        // user and logout until it is replaced (PasswordChangeRequiredFilter),
+        // so the client must route straight to the change-password prompt.
+        public bool MustChangePassword { get; set; }
     }
 }
 

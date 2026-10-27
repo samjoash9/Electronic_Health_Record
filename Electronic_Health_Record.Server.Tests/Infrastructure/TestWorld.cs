@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using Electronic_Health_Record.Server.Data;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Electronic_Health_Record.Server.Tests.Infrastructure;
@@ -31,15 +32,23 @@ public sealed class TestWorld(EhrApiFactory factory)
         return await work(db);
     }
 
-    public Task<Admin> AddAdminAsync(string role = AdminRoles.Admin) => WithDbAsync(async db =>
+    /// <summary>The password every account seeded with mustChangePassword signs in with.</summary>
+    public const string DefaultPassword = "password123";
+
+    // Hashed once: PBKDF2 is deliberately slow, and the hasher ignores the
+    // account it is given, so one hash verifies for every seeded login.
+    private static readonly string DefaultPasswordHash =
+        new PasswordHasher<object>().HashPassword(new object(), DefaultPassword);
+
+    public Task<Admin> AddAdminAsync(string role = AdminRoles.Admin, bool mustChangePassword = false) => WithDbAsync(async db =>
     {
         var admin = new Admin
         {
             Username = Unique("admin"),
             Role = role,
             FullName = "Test Admin",
-            PasswordHash = "unused",
-            MustChangePassword = false,
+            PasswordHash = DefaultPasswordHash,
+            MustChangePassword = mustChangePassword,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -49,13 +58,13 @@ public sealed class TestWorld(EhrApiFactory factory)
         return admin;
     });
 
-    public Task<Physician> AddPhysicianAsync(int station, bool isActive = true, string surname = "Reyes") => WithDbAsync(async db =>
+    public Task<Physician> AddPhysicianAsync(int station, bool isActive = true, string surname = "Reyes", bool mustChangePassword = false) => WithDbAsync(async db =>
     {
         var physician = new Physician
         {
             Username = Unique("doc"),
-            PasswordHash = "unused",
-            MustChangePassword = false,
+            PasswordHash = DefaultPasswordHash,
+            MustChangePassword = mustChangePassword,
             Surname = surname,
             FirstName = "Ana",
             PRCLicenseNo = Unique("PRC"),
@@ -88,13 +97,14 @@ public sealed class TestWorld(EhrApiFactory factory)
         return patient;
     });
 
-    public Task<PatientAccount> AddPatientAccountAsync(int patientID) => WithDbAsync(async db =>
+    public Task<PatientAccount> AddPatientAccountAsync(int patientID, bool mustChangePassword = false) => WithDbAsync(async db =>
     {
         var account = new PatientAccount
         {
             PatientID = patientID,
             Username = Unique("pt"),
-            PasswordHash = "unused",
+            PasswordHash = DefaultPasswordHash,
+            MustChangePassword = mustChangePassword,
             Status = "Active",
             ProvisionedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
