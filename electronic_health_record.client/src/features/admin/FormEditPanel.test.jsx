@@ -113,7 +113,9 @@ describe('FormEditPanel', () => {
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
-  describe("year fields bounded by the patient's birth year", () => {
+  // Each keystroke re-renders the whole edit panel: alone these take ~1.5s, but
+  // under a full parallel run they brushed the 5s default and failed at random.
+  describe("year fields bounded by the patient's birth year", { timeout: 15_000 }, () => {
     beforeEach(() => {
       // jsdom has no layout, so scrolling is only observable as a call.
       Element.prototype.scrollIntoView = vi.fn();

@@ -242,9 +242,11 @@ export default function HealthReports() {
       // this export; let them draw before capturing.
       await waitForChartsDrawn(reportSections.map((section) => section.ref.current).filter(Boolean));
 
+      let captured = 0;
       for (const [index, section] of reportSections.entries()) {
         setExportProgress({ done: index, total: reportSections.length });
         if (!section.ref?.current) continue;
+        captured += 1;
 
         // Render DOM node to high-res JPEG natively with 0.9 compression
         const dataUrl = await toJpeg(section.ref.current, {
@@ -304,6 +306,10 @@ export default function HealthReports() {
         }
       }
       setExportProgress({ done: reportSections.length, total: reportSections.length });
+
+      // Every section ref is gone once the page unmounts, so an export the
+      // user walked away from would otherwise still download an empty report.
+      if (captured === 0) return;
 
       // Apply Diagonal Security Watermark across all pages
       const pageCount = doc.internal.getNumberOfPages();

@@ -16,6 +16,22 @@ import { installFakeIntersectionObserver } from '../../test/fakeIntersectionObse
 // export on its first chart, which is where these tests look.
 vi.mock('html-to-image', () => ({ toJpeg: vi.fn(() => new Promise(() => {})) }));
 
+// The real jsPDF, minus the download: under Node, save() writes the file into
+// the working directory. jsPDF assigns save per instance, so it is replaced
+// after construction rather than overridden on the class.
+const savePdf = vi.hoisted(() => vi.fn());
+vi.mock('jspdf', async (importOriginal) => {
+  const { default: JsPDF } = await importOriginal();
+  return {
+    default: class extends JsPDF {
+      constructor(...args) {
+        super(...args);
+        this.save = savePdf;
+      }
+    },
+  };
+});
+
 vi.mock('../../api/reports.api', () => ({ getHealthReport: vi.fn() }));
 
 import { getHealthReport } from '../../api/reports.api';
@@ -106,6 +122,20 @@ describe('HealthReportsPage charts', () => {
     startExport();
 
     expect(chartsMounted()).toBe(15);
+  });
+
+  it('saves nothing when the page is left mid-export', async () => {
+    installFakeIntersectionObserver();
+    const { unmount } = renderPage();
+    await liveStationsLoaded();
+    savePdf.mockClear();
+
+    startExport();
+    unmount();
+    // Let the export's pending imports and awaits run out.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(savePdf).not.toHaveBeenCalled();
   });
 
   it('shows which chart the export is capturing', async () => {
