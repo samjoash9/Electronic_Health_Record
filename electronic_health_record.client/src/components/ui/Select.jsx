@@ -26,7 +26,7 @@ function triggerBaseClasses(triggerClassName) {
 
 const Select = forwardRef(function Select(
   {
-    error, options = [], className = '', triggerClassName = '',
+    error, options = [], className = '', triggerClassName = '', label, matchWidth = false,
     value, defaultValue, onChange, onBlur, name, id, disabled, ...props
   },
   ref
@@ -36,6 +36,7 @@ const Select = forwardRef(function Select(
   const nativeRef = useRef(null);
   const rootRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const [menuMaxWidth, setMenuMaxWidth] = useState(null);
   const [internalValue, setInternalValue] = useState(value ?? defaultValue ?? '');
 
   useEffect(() => {
@@ -61,6 +62,16 @@ const Select = forwardRef(function Select(
       nativeRef.current.dispatchEvent(new Event('change', { bubbles: true }));
     }
     onChange?.({ target: { name, value: nextValue } });
+  }
+
+  function toggle() {
+    if (!open) {
+      // The menu hangs from the trigger's right edge, so it may only grow
+      // leftward as far as the screen's 16px gutter.
+      const right = rootRef.current?.getBoundingClientRect().right ?? 0;
+      setMenuMaxWidth(right > 0 ? right - 16 : null);
+    }
+    setOpen((v) => !v);
   }
 
   return (
@@ -95,14 +106,19 @@ const Select = forwardRef(function Select(
         type="button"
         id={id ? `${id}-trigger` : undefined}
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         onBlur={onBlur}
         className={`flex w-full items-center justify-between gap-2 border bg-surface text-left text-sm outline-none transition ${triggerDefaults}
           ${error ? 'border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10' : 'border-line focus:border-[#129883] focus:ring-4 focus:ring-[#129883]/10'}
           disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-ink-500 ${triggerClassName}`}
       >
-        <span className={`truncate ${selected ? 'text-ink-900' : 'text-ink-400'}`}>
-          {selected ? selected.label : 'Select…'}
+        {/* `label` sits inside the box above the value, so the trigger reads
+            "Month October" rather than needing a caption beside it. */}
+        <span className={label ? 'flex min-w-0 flex-col items-start' : 'contents'}>
+          {label && <span className="text-[11px] font-medium leading-tight text-ink-500">{label}</span>}
+          <span className={`max-w-full truncate ${selected ? 'text-ink-900' : 'text-ink-400'}`}>
+            {selected ? selected.label : 'Select…'}
+          </span>
         </span>
         <ChevronDown
           size={16}
@@ -110,10 +126,14 @@ const Select = forwardRef(function Select(
         />
       </button>
 
+      {/* Sized to the longest option, but capped at the room left of the
+          trigger: long names (office titles) wrap instead of running the menu
+          off the screen. `matchWidth` pins it to the trigger's own edges. */}
       {open && (
         <ul
           role="listbox"
-          className="absolute right-0 z-50 mt-2 max-h-64 w-max min-w-full overflow-auto rounded-xl border border-line bg-surface p-1.5 text-sm shadow-xl"
+          style={!matchWidth && menuMaxWidth ? { maxWidth: menuMaxWidth } : undefined}
+          className={`absolute right-0 z-50 mt-2 max-h-64 overflow-auto rounded-xl border border-line bg-surface p-1.5 text-sm shadow-xl ${matchWidth ? 'w-full' : 'w-max min-w-full'}`}
         >
           {normalized.map((option) => {
             const isSelected = String(option.value) === String(internalValue);
@@ -123,11 +143,11 @@ const Select = forwardRef(function Select(
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => commit(option.value)}
-                className={`flex cursor-pointer items-center justify-between gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 transition-colors
+                className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 leading-snug transition-colors
                   ${isSelected ? 'bg-[#129883] font-semibold text-white' : 'text-ink-700 hover:bg-[#cdf2e8] hover:text-[#0e7d6b]'}`}
               >
-                {option.label}
-                {isSelected && <Check size={15} className="text-white" />}
+                <span className="min-w-0">{option.label}</span>
+                {isSelected && <Check size={15} className="shrink-0 text-white" />}
               </li>
             );
           })}

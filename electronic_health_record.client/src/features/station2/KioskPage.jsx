@@ -7,6 +7,7 @@ import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { useMarkStationStarted } from '../../hooks/useMarkStationStarted';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station2Draft';
 import { ZOOM_LEVELS, readZoomIndex, writeZoomIndex } from '../../lib/kioskZoom';
 import { DEFAULT_LANGUAGE } from '../../i18n/assessmentTranslations';
@@ -27,6 +28,7 @@ import LanguageToggle from './LanguageToggle';
 export default function KioskPage() {
   const { formId } = useParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   // Read the draft once during the first render so state can be seeded
   // from it directly, instead of set from an effect afterwards (matches
   // station3/4/5's restoredDraft pattern).
@@ -142,21 +144,44 @@ export default function KioskPage() {
     navigate(`/station2/${formId}`, { state: { answers, justCompleted: true } });
   };
 
+  const displayControls = (
+    <>
+      <LanguageToggle value={lang} onChange={setLang} />
+      <TextSizeControl index={zoomIndex} onChange={handleZoomChange} />
+    </>
+  );
+
   return (
     <KioskShell
       title="Wellness Assessment"
       subtitle={form?.patient ? fullName(form.patient) : undefined}
+      // A phone's header has room for the title and two icon buttons only:
+      // with the language and text-size controls beside them the title was
+      // squeezed to a letter a line and Reset was pushed off-screen. Those
+      // controls move to the top of the page instead, where they scroll away
+      // once set rather than taking pinned height from the questions.
       headerActions={
         <>
-          <LanguageToggle value={lang} onChange={setLang} />
-          <TextSizeControl index={zoomIndex} onChange={handleZoomChange} />
-          <Button type="button" variant="ghost" size="md" onClick={() => navigate('/station2')}>
+          {!isMobile && displayControls}
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
+            aria-label={isMobile ? 'Back' : undefined}
+            onClick={() => navigate('/station2')}
+          >
             <ArrowLeft size={16} strokeWidth={2.25} />
-            Back
+            {!isMobile && 'Back'}
           </Button>
-          <Button type="button" variant="secondary" size="md" onClick={() => setResetOpen(true)}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            aria-label={isMobile ? 'Reset' : undefined}
+            onClick={() => setResetOpen(true)}
+          >
             <RotateCcw size={16} strokeWidth={2.25} />
-            Reset
+            {!isMobile && 'Reset'}
           </Button>
         </>
       }
@@ -195,12 +220,22 @@ export default function KioskPage() {
         </div>
       }
     >
-      <div className="mb-6 rounded-2xl border border-line bg-surface px-5 py-4 shadow-sm">
+      {/* Wraps to two rows on the narrowest phones rather than overflow. */}
+      {isMobile && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">{displayControls}</div>
+      )}
+
+      {/* Compact on a phone, where seven labels collide; uncaptioned, since the
+          category card below already names the section, in the patient's
+          language. */}
+      <div className="mb-4 rounded-2xl border border-line bg-surface px-3 py-3 shadow-sm md:mb-6 md:px-5 md:py-4">
         <StationStepIndicator
           steps={categories.map((c) => c.name)}
           current={step + 1}
           unlockedUpTo={unlockedUpTo}
           onSelect={goToStep}
+          compact={isMobile}
+          captioned={false}
         />
       </div>
 

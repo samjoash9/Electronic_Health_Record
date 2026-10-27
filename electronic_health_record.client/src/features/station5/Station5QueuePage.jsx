@@ -1,32 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { Clock } from 'lucide-react';
 import { getQueue } from '../../api/forms.api';
 import { FORM_STATUS } from '../../lib/constants';
 import { fullName, formatDateTime, ageFrom } from '../../lib/formatters';
 import { useTableControls } from '../../hooks/useTableControls';
+import { useCardLayout } from '../../hooks/useCardLayout';
 import Badge from '../../components/ui/Badge';
 import Card from '../../components/ui/Card';
 import DataTable from '../../components/ui/DataTable';
+import RecordCardList from '../../components/ui/RecordCardList';
 import Skeleton from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ui/ErrorState';
 import SearchInput from '../../components/ui/SearchInput';
 import TableFooter from '../../components/ui/TableFooter';
 
+// station5StartedAt is stamped when the vision page first opens this form
+// (useMarkStationStarted), so other desks can tell who is already being seen.
+// Every row shares one form status here, so this replaces that badge.
+const statusBadge = (row) => (row.station5StartedAt
+  ? <Badge tone="warn" dot>Examining</Badge>
+  : <Badge dot>Not yet examined</Badge>);
+
 const COLUMNS = [
   { key: 'name', header: 'Name', render: (row) => fullName(row.patient) },
   { key: 'age', header: 'Age', render: (row) => ageFrom(row.patient?.birthdate) },
-  // station5StartedAt is stamped when the vision page first opens this form
-  // (useMarkStationStarted), so other desks can tell who is already being seen.
-  // Every row shares one form status here, so this replaces that badge.
-  {
-    key: 'status',
-    header: 'Status',
-    render: (row) => (row.station5StartedAt
-      ? <Badge tone="warn" dot>Examining</Badge>
-      : <Badge dot>Not yet examined</Badge>),
-  },
+  { key: 'status', header: 'Status', render: statusBadge },
   { key: 'dental', header: 'Dental Done', render: (row) => formatDateTime(row.station4SubmittedAt) },
 ];
+
+// Card width the four columns need side by side; below it the queue shows as
+// cards.
+const TABLE_MIN_WIDTH = 640;
 
 // Only what this desk still has to do. A vision visit that is finished (or
 // cancelled) is history, not queue: it is read-only from here on and lives on
@@ -41,6 +46,7 @@ const searchFields = (row) => {
 
 export default function Station5QueuePage() {
   const navigate = useNavigate();
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['queue', QUEUE_STATUSES],
     queryFn: () => getQueue(QUEUE_STATUSES),
@@ -48,36 +54,56 @@ export default function Station5QueuePage() {
   });
 
   const table = useTableControls(data, { searchFields });
+  const openForm = (row) => navigate(`/station5/${row.formID}`);
+  const emptyMessage = table.isSearching
+    ? 'No patients match your search.'
+    : 'No patients waiting. Forms signed at Station 4 appear here automatically.';
 
   return (
-    <div className="flex flex-col gap-4 p-5">
+    // No side padding on a phone: the shell's own gutter is enough, and the
+    // cards need every pixel of width.
+    <div className="flex flex-col gap-4 pb-4 md:p-5">
       <h1 className="text-lg font-semibold text-ink-900">Station 5: Vision</h1>
 
-      <Card
-      flush
-      actions={!isLoading && !error && (
-        <SearchInput
-          id="station5-search"
-          value={table.query}
-          onChange={table.onSearch}
-          placeholder="Search by name or agency"
-          className="w-72"
-        />
-      )}
-    >
+      <Card ref={cardRef} flush bare={isMobile}>
       {isLoading && <Skeleton />}
       {error && <ErrorState error={error} onRetry={refetch} />}
       {!isLoading && !error && (
         <div className="flex flex-col gap-3">
-          <DataTable
-            columns={COLUMNS}
-            evenColumns
-            rows={table.pageRows}
-            onRowClick={(row) => navigate(`/station5/${row.formID}`)}
-            empty={table.isSearching
-              ? 'No patients match your search.'
-              : 'No patients waiting. Forms signed at Station 4 appear here automatically.'}
+          <SearchInput
+            id="station5-search"
+            value={table.query}
+            onChange={table.onSearch}
+            placeholder="Search by name or agency"
           />
+
+          {showCards ? (
+            <RecordCardList
+              rows={table.pageRows}
+              rowKey={(row) => row.formID}
+              onOpen={openForm}
+              empty={emptyMessage}
+              card={(row) => {
+                const name = fullName(row.patient);
+                const age = ageFrom(row.patient?.birthdate);
+                return {
+                  avatarName: name,
+                  title: name,
+                  subtitle: age != null ? `Age ${age}` : null,
+                  badges: statusBadge(row),
+                  meta: [{ icon: Clock, label: `Dental done ${formatDateTime(row.station4SubmittedAt)}` }],
+                };
+              }}
+            />
+          ) : (
+            <DataTable
+              columns={COLUMNS}
+              evenColumns
+              rows={table.pageRows}
+              onRowClick={openForm}
+              empty={emptyMessage}
+            />
+          )}
 
           <TableFooter
             page={table.page}
@@ -85,6 +111,7 @@ export default function Station5QueuePage() {
             total={table.total}
             noun="patient"
             onPageChange={table.setPage}
+            compact={isMobile}
           />
         </div>
       )}

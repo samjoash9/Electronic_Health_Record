@@ -26,13 +26,15 @@ import PhysicianSignature from '../station3/PhysicianSignature';
 import { activePhysicianOptions, findPhysician } from '../station3/physicianOptions';
 import DentalAssessmentSection from './DentalAssessmentSection';
 
+// `wide` facts run long, so below `tab` they take a full row of the two-column
+// grid and the short ones pair up beside each other.
 const PATIENT_FIELDS = [
-  { key: 'position', label: 'Position', icon: Briefcase },
-  { key: 'agencyOffice', label: 'Agency/Office', icon: Building2 },
+  { key: 'position', label: 'Position', icon: Briefcase, wide: true },
+  { key: 'agencyOffice', label: 'Agency/Office', icon: Building2, wide: true },
   { key: 'birthdate', label: 'Birthdate', icon: Cake, render: (p) => formatDate(p.birthdate) },
   { key: 'sex', label: 'Sex', icon: VenusAndMars },
   { key: 'civilStatus', label: 'Civil Status', icon: HeartHandshake },
-  { key: 'address', label: 'Address', icon: MapPin },
+  { key: 'address', label: 'Address', icon: MapPin, wide: true },
   { key: 'contactNo', label: 'Contact No.', icon: Phone },
 ];
 
@@ -181,6 +183,10 @@ export default function Station4DentalPage() {
     queryClient.invalidateQueries({ queryKey: ['form', Number(formId)] });
   };
 
+  const submitBlocker = !dentistID
+    ? 'Select the examining dentist.'
+    : !signature && 'A signature is required before submitting.';
+
   return (
     <form onSubmit={handleSubmit((values) => {
       // The picker is a submitted field, so it is validated here rather than
@@ -193,8 +199,8 @@ export default function Station4DentalPage() {
     })}>
       <div className="flex flex-col gap-4 pb-4">
         <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
-          <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-xl font-bold text-white shadow-sm ring-4 ring-white">
+          <div className="flex items-center gap-3 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4 tab:gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-lg font-bold text-white shadow-sm ring-4 ring-white tab:h-16 tab:w-16 tab:text-xl">
               {fullName(patient).charAt(0).toUpperCase()}
             </div>
             <div>
@@ -203,15 +209,21 @@ export default function Station4DentalPage() {
             </div>
           </div>
 
-          <dl className="grid grid-cols-1 gap-3 p-4 tab:grid-cols-2 xl:grid-cols-4">
-            {PATIENT_FIELDS.map(({ key, label, icon: Icon, render }) => (
-              <div key={key} className="flex items-start gap-3 rounded-lg border border-line bg-canvas p-3">
+          {/* Same phone layout as Station 3's header: below `tab` the short
+              facts pair up (dense, so Contact No. fills the gap Address
+              leaves) and every value wraps rather than truncates. */}
+          <dl className="grid grid-cols-2 gap-2 p-3 max-tab:grid-flow-row-dense tab:gap-3 tab:p-4 xl:grid-cols-4">
+            {PATIENT_FIELDS.map(({ key, label, icon: Icon, render, wide }) => (
+              <div
+                key={key}
+                className={`flex items-start gap-2.5 rounded-lg border border-line bg-canvas p-2.5 tab:gap-3 tab:p-3 ${wide ? 'max-tab:col-span-2' : ''}`}
+              >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#e9fbf6] text-[#0e7d6b]">
                   <Icon size={16} />
                 </div>
                 <div className="min-w-0">
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">{label}</dt>
-                  <dd className={`mt-0.5 text-sm font-medium text-ink-900 ${key === 'address' ? 'wrap-break-word' : 'truncate'}`}>
+                  <dd className={`mt-0.5 text-sm font-medium text-ink-900 ${key === 'address' ? 'wrap-break-word' : 'truncate max-tab:whitespace-normal max-tab:wrap-break-word'}`}>
                     {render ? render(patient) : patient?.[key] || '—'}
                   </dd>
                 </div>
@@ -242,26 +254,31 @@ export default function Station4DentalPage() {
         />
       </div>
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-between gap-3 border-t border-line bg-surface px-4 py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+      {/* Same phone footer as Station 3: the notes get a line of their own
+          above the buttons and Back keeps only its arrow, so Sign and Complete
+          can take the rest of the row. From md up the wrappers dissolve
+          (`contents`) back into one row. */}
+      <div className="sticky bottom-0 z-10 -mx-4 grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-2 border-t border-line bg-surface px-4 py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] md:flex md:justify-between md:gap-3">
         <Button type="button" variant="secondary" size="lg" onClick={() => navigate('/station4')}>
           <ArrowLeft size={16} strokeWidth={2.25} />
-          Back to Patient List
+          <span className="max-md:sr-only">Back to Patient List</span>
         </Button>
-        <div className="flex items-center gap-3">
-          {draftSavedAt && (
-            <span className="text-xs text-ink-500">
-              Draft saved {formatDateTime(draftSavedAt)}
-            </span>
-          )}
-          {!dentistID ? (
-            <span className="text-xs text-rose-600">Select the examining dentist.</span>
-          ) : !signature && (
-            <span className="text-xs text-rose-600">A signature is required before submitting.</span>
+        <div className="contents md:flex md:items-center md:gap-3">
+          {(draftSavedAt || submitBlocker) && (
+            <p className="order-first col-span-2 flex flex-wrap gap-x-3 gap-y-0.5 md:contents">
+              {draftSavedAt && (
+                <span className="text-xs text-ink-500">
+                  Draft saved {formatDateTime(draftSavedAt)}
+                </span>
+              )}
+              {submitBlocker && <span className="text-xs text-rose-600">{submitBlocker}</span>}
+            </p>
           )}
           <Button
             type="submit"
             variant="teal"
             size="lg"
+            className="max-md:w-full"
             disabled={!dentistID || !signature || mutation.isPending}
           >
             {mutation.isPending ? 'Submitting…' : 'Sign and Complete'}

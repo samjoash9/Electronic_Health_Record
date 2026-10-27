@@ -12,7 +12,7 @@ import {
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
-import ReportFilterBar from '../admin/ReportFilterBar';
+import { ReportFilterFields } from '../admin/ReportFilterBar';
 import { useReportFilter } from '../admin/useReportFilter';
 import Station1HealthSection from './Station1HealthSection';
 import Station2HealthSection from './Station2HealthSection';
@@ -37,7 +37,7 @@ const parseStationInput = (input) => {
   if (!input) return [1, 2, 3, 4, 5]; // Default to all if empty
   const stations = new Set();
   const parts = input.replace(/\s+/g, '').split(',');
-  
+
   parts.forEach(part => {
     if (part.includes('-')) {
       const [start, end] = part.split('-').map(Number);
@@ -366,49 +366,31 @@ export default function HealthReports() {
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-8 font-sans">
       <div className="mx-auto max-w-7xl">
-        {/* ==========================================
-            MASTER DASHBOARD HEADER
-        =========================================== */}
-        <div className="mb-8 border-b border-slate-200 pb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="h-3 w-3 rounded-full bg-[#0A594D]" />
-            <p className="text-xs font-bold uppercase tracking-wider text-[#0A594D]">
-              Integrated EHR Surveillance
-            </p>
-          </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Clinic Pipeline Analytics
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Master clinical and graphical reports spanning Station 1 (Registration) through Station 5 (Vision Screening).
-          </p>
-        </div>
 
         {/* Quick Station Navigation & Master PDF Export Sticky Bar */}
         <div
           ref={stickyBarRef}
-          className="sticky top-3 z-30 mb-8 flex flex-wrap items-center gap-3 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md"
+          className="sticky top-3 z-30 mb-8 flex flex-col gap-3 rounded-xl bg-white/95 p-2.5 shadow-sm border border-slate-200/80 backdrop-blur-md"
         >
-          {/* Left: Quick Jump Navigation Links */}
-          <QuickJumpNav stations={STATIONS} stickyBarRef={stickyBarRef} />
+          <div className="flex items-center gap-2">
+            {/* Left: Quick Jump Navigation Links */}
+            <QuickJumpNav stations={STATIONS} stickyBarRef={stickyBarRef} />
 
-          {/* Middle: period + office for the sections on live data. Below xl it
-              takes a row of its own, under the station chips and the button. */}
-          <div className="order-last w-full xl:order-none xl:w-auto">
-            <ReportFilterBar filter={reportFilter} />
+            {/* Right: Master Download PDF Report Action Button -- icon-only on phones */}
+            <Button
+              type="button"
+              size="md"
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="shrink-0"
+              title="Download PDF Report"
+            >
+              <Download size={16} aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only">Download PDF Report</span>
+            </Button>
           </div>
 
-          {/* Right: Master Download PDF Report Action Button -- icon-only on phones */}
-          <Button
-            type="button"
-            size="md"
-            onClick={() => setIsDownloadModalOpen(true)}
-            className="shrink-0"
-            title="Download PDF Report"
-          >
-            <Download size={16} aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">Download PDF Report</span>
-          </Button>
+          {/* Period + office for every station section, on a row of its own. */}
+          <ReportFilterFields filter={reportFilter} />
         </div>
 
         {/* ==========================================

@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Briefcase, Building2, Phone } from 'lucide-react';
 import { searchEmployees } from '../../api/patients.api';
 import { fullName } from '../../lib/formatters';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useCardLayout } from '../../hooks/useCardLayout';
 import Card from '../../components/ui/Card';
 import DataTable from '../../components/ui/DataTable';
-import Pagination from '../../components/ui/Pagination';
 import PatientPreviewModal from '../../components/ui/PatientPreviewModal';
+import RecordCardList from '../../components/ui/RecordCardList';
 import SearchInput from '../../components/ui/SearchInput';
+import TableFooter from '../../components/ui/TableFooter';
 
 const COLUMNS = [
   {
@@ -36,6 +39,10 @@ const COLUMNS = [
 
 const PAGE_SIZE = 10;
 
+// Card width the four columns need side by side -- position and agency names
+// run long; below it the results show as cards.
+const TABLE_MIN_WIDTH = 720;
+
 export default function EmployeeSearch({ onSelect }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -43,6 +50,7 @@ export default function EmployeeSearch({ onSelect }) {
   const [sortKey, setSortKey] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
   const debounced = useDebouncedValue(query, 300);
+  const { ref: cardRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data: rawResults = [], isFetching } = useQuery({
     queryKey: ['employees', debounced],
@@ -80,9 +88,10 @@ export default function EmployeeSearch({ onSelect }) {
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageRows = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const emptyMessage = isFetching ? 'Searching…' : 'No matching employees.';
 
   return (
-    <Card>
+    <Card ref={cardRef} flush={isMobile} bare={isMobile}>
       <div className="flex flex-col gap-3">
         <SearchInput
           id="employee-search"
@@ -92,24 +101,42 @@ export default function EmployeeSearch({ onSelect }) {
           placeholder="Search by name e.g. Santos"
         />
 
-        <DataTable
-          columns={COLUMNS}
-          rows={pageRows}
-          onRowClick={setPreviewEmployee}
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          empty={isFetching ? 'Searching…' : 'No matching employees.'}
-        />
-
-        {results.length > 0 && (
-          <div className="flex items-center justify-between text-sm text-ink-500">
-            <span>
-              Page {currentPage} of {totalPages} ({results.length} employees)
-            </span>
-            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
-          </div>
+        {showCards ? (
+          <RecordCardList
+            rows={pageRows}
+            rowKey={(e) => e.externalEmployeeId}
+            onOpen={setPreviewEmployee}
+            empty={emptyMessage}
+            card={(e) => ({
+              avatarName: `${e.firstName ?? ''} ${e.surname ?? ''}`,
+              title: fullName(e),
+              meta: [
+                e.position && { icon: Briefcase, label: e.position },
+                e.agencyOffice && { icon: Building2, label: e.agencyOffice },
+                e.contactNo && { icon: Phone, label: e.contactNo },
+              ].filter(Boolean),
+            })}
+          />
+        ) : (
+          <DataTable
+            columns={COLUMNS}
+            rows={pageRows}
+            onRowClick={setPreviewEmployee}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+            empty={emptyMessage}
+          />
         )}
+
+        <TableFooter
+          page={currentPage}
+          totalPages={totalPages}
+          total={results.length}
+          noun="employee"
+          onPageChange={setPage}
+          compact={isMobile}
+        />
       </div>
 
       <PatientPreviewModal

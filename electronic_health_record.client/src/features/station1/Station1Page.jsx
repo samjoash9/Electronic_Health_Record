@@ -13,6 +13,7 @@ import { useAuth } from '../../auth/useAuth';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAutosaveDraft } from '../../hooks/useAutosaveDraft';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { saveDraft, loadDraft, clearDraft } from '../../lib/station1Draft';
 import EmployeeSearch from './EmployeeSearch';
 import IdentityFields from './IdentityFields';
@@ -40,6 +41,7 @@ const STEPS = ['Search Employee', 'Confirm Information', 'Vital Signs'];
 export default function Station1Page() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [step, setStep] = useState(1);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   // Set only when the submission just provisioned a login, so the admin can read
@@ -240,16 +242,25 @@ export default function Station1Page() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-5">
+    // On a phone the outer panel goes and its cards sit straight on the page:
+    // panel, card margin and card padding stacked up left the employee list
+    // barely half the screen's width.
+    <div className="flex flex-col gap-4 pb-4 md:p-5">
       <h1 className="text-lg font-semibold text-ink-900">Station 1: Registration</h1>
 
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)}className="border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white">
-      <Card>
+      <form
+        onSubmit={handleSubmit(onSubmit, onInvalid)}
+        className={isMobile
+          ? 'flex flex-col gap-4'
+          : 'border border-gray-200 shadow-lg rounded-2xl flex flex-col bg-white'}
+      >
+      <Card flush={isMobile}>
         <StationStepIndicator
           steps={STEPS}
           current={step}
           unlockedUpTo={unlockedUpTo}
           onSelect={goToStep}
+          compact={isMobile}
         />
       </Card>
 
@@ -275,43 +286,58 @@ export default function Station1Page() {
             errors={errors}
             needsUsername={needsUsername}
             usernameStatus={usernameStatus}
+            flush={isMobile}
           />
         </>
       )}
-      {step === 3 && <VitalsFields register={register} watch={watch} errors={errors} />}
+      {step === 3 && <VitalsFields register={register} watch={watch} errors={errors} flush={isMobile} />}
 
-      <div className="flex justify-between gap-2 rounded-lg bg-surface px-4 py-3">
-        <div>
-          {step > 1 && (
+      {/* Step 1 has no actions -- picking an employee is what moves it on. On a
+          phone the bar pins to the bottom of the screen, since both later
+          steps run several screens deep, and its two button groups dissolve
+          into the grid so each button takes half the row or all of it. */}
+      {step > 1 && (
+        <div
+          className={isMobile
+            ? 'sticky bottom-3 z-10 grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-3 shadow-lg'
+            : 'flex justify-between gap-2 rounded-lg bg-surface px-4 py-3'}
+        >
+          <div className={isMobile ? 'contents' : undefined}>
             <Button type="button" variant="secondary" size="lg" onClick={() => setStep(step - 1)}>
               Back
             </Button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {step > 1 && step < 3 && (
-            <Button
-              type="button"
-              variant="teal"
-              size="lg"
-              disabled={step + 1 > unlockedUpTo}
-              onClick={() => goToStep(step + 1)}
-            >
-              Next
-            </Button>
-          )}
-          {step === 3 && (
-            <>
-              <Button type="button" variant="secondary" size="lg" onClick={() => setResetModalOpen(true)}>
-                Reset
+          </div>
+          <div className={isMobile ? 'contents' : 'flex gap-2'}>
+            {step === 2 && (
+              <Button
+                type="button"
+                variant="teal"
+                size="lg"
+                disabled={step + 1 > unlockedUpTo}
+                onClick={() => goToStep(step + 1)}
+              >
+                Next
               </Button>
-              <Button type="submit" variant="teal" size="lg" disabled={isSubmitting || mutation.isPending}>
-                {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
-              </Button>
-            </>
-          )}
+            )}
+            {step === 3 && (
+              <>
+                <Button type="button" variant="secondary" size="lg" onClick={() => setResetModalOpen(true)}>
+                  Reset
+                </Button>
+                <Button
+                  type="submit"
+                  variant="teal"
+                  size="lg"
+                  className={isMobile ? 'col-span-2' : ''}
+                  disabled={isSubmitting || mutation.isPending}
+                >
+                  {mutation.isPending ? 'Submitting…' : 'Submit to Station 2'}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {createdAccount && (
         <AccountCreatedModal

@@ -12,12 +12,19 @@ import {
 import { peso, formatDate } from '../../lib/formatters';
 import { listBillingForms, getBillingForm, deleteBillingForm } from '../../api/billing.api';
 import { useTableControls } from '../../hooks/useTableControls';
+import { useCardLayout } from '../../hooks/useCardLayout';
 import DataTable from '../../components/ui/DataTable';
 import TableFooter from '../../components/ui/TableFooter';
 import SearchInput from '../../components/ui/SearchInput';
 import Button from '../../components/ui/Button';
 import BillingFormModal from './BillingFormModal';
 import BillingFormSlidePanel from './BillingFormSlidePanel';
+import BillingCardList from './BillingCardList';
+import BudgetStatusBadge from './BudgetStatusBadge';
+
+// Panel width the six columns plus the delete button need side by side --
+// the peso columns never wrap. Below it the periods show as cards.
+const TABLE_MIN_WIDTH = 860;
 
 /**
  * Station 6. The table lists budget periods, not visits: an admin allocates
@@ -35,6 +42,7 @@ export default function Station6BillingPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const { ref: panelRef, isMobile, showCards } = useCardLayout(TABLE_MIN_WIDTH);
 
   const { data, isLoading, error: listError } = useQuery({
     queryKey: ['billing', 'forms'],
@@ -156,21 +164,21 @@ export default function Station6BillingPage() {
       key: 'status',
       header: 'Status',
       width: '16%',
-      render: (r) => (r.isOverBudget ? (
-        <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
-          <AlertTriangle size={11} className="shrink-0" />
-          Over Budget
-        </span>
-      ) : (
-        <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-          Within Budget
-        </span>
-      )),
+      render: (r) => <BudgetStatusBadge isOverBudget={r.isOverBudget} />,
     },
   ];
 
+  const emptyMessage = table.isSearching
+    ? 'No billing periods match your search.'
+    : 'No billing periods yet. Use "Add Billing" to allocate capital to a date range.';
+
   return (
-    <div className="flex h-full flex-col gap-4 overflow-hidden p-5 font-['Geist',sans-serif]">
+    // From md up the page fills the shell and only the list scrolls, keeping
+    // the stats and pagination in view. A phone has no room for that fixed
+    // frame -- the list was squeezed to a sliver -- so there the page flows
+    // and the shell scrolls it, with no side padding: the shell's own gutter
+    // is enough, and the cards need every pixel of width.
+    <div className="flex flex-col gap-4 pb-4 font-['Geist',sans-serif] md:h-full md:overflow-hidden md:p-5">
       <h1 className="text-lg font-semibold text-ink-900">Station 6: Billing</h1>
 
       {loadError && (
@@ -180,7 +188,10 @@ export default function Station6BillingPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 tab:grid-cols-2 lg:grid-cols-4">
+      {/* Below `tab` the two peso cards take the full row, where their amounts
+          fit untruncated, and dense flow pulls the two counts up to share the
+          first row instead of each taking a row of its own. */}
+      <div className="grid grid-flow-row-dense grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-xs">
           <span className="text-xs font-medium text-gray-500">Billing Periods</span>
           <div className="mt-1.5 flex items-baseline justify-between">
@@ -189,7 +200,7 @@ export default function Station6BillingPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border-2 border-[#37AF9B]/50 bg-linear-to-br from-[#f0faf8] via-[#e6f7f4] to-white p-4 shadow-sm">
+        <div className="col-span-2 rounded-xl border-2 border-[#37AF9B]/50 bg-linear-to-br tab:col-span-1 from-[#f0faf8] via-[#e6f7f4] to-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[#0A594D]">
               Total Capital
@@ -203,7 +214,7 @@ export default function Station6BillingPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 shadow-xs">
+        <div className="col-span-2 overflow-hidden rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 shadow-xs tab:col-span-1">
           <span className="text-xs font-medium text-amber-700">Total Consumed</span>
           <div className="mt-1.5 flex items-baseline justify-between overflow-hidden">
             <span className="truncate text-2xl font-bold text-amber-700">{peso(totalConsumed)}</span>
@@ -221,39 +232,50 @@ export default function Station6BillingPage() {
             <span className={`text-2xl font-bold ${overBudgetCount > 0 ? 'text-rose-700' : 'text-gray-400'}`}>
               {overBudgetCount}
             </span>
-            <span className="text-xs text-gray-400">of {rows.length} periods</span>
+            <span className="text-xs text-gray-400">of {rows.length} period{rows.length === 1 ? '' : 's'}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-col items-center justify-between gap-3 border-b border-gray-100 p-4 sm:flex-row">
+      {/* On a phone the panel goes bare -- no border, fill or padding -- since
+          the cards inside are bordered already (as Card's `bare` does). */}
+      <div
+        ref={panelRef}
+        className="flex min-w-0 flex-col md:flex-1 md:overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm"
+      >
+        <div className="flex items-center justify-between gap-2 pb-3 md:gap-3 md:border-b md:border-gray-100 md:p-4">
           <SearchInput
             id="billing-search"
             value={table.query}
             onChange={table.onSearch}
             placeholder="Search by period name or date…"
-            className="w-full sm:w-80"
+            className="min-w-0 flex-1 sm:w-80 sm:flex-none"
           />
 
-          <Button type="button" variant="teal" size="md" onClick={openAdd}>
+          {/* lg on a phone, to stand as tall as the search box beside it. */}
+          <Button type="button" variant="teal" size={isMobile ? 'lg' : 'md'} className="shrink-0" onClick={openAdd}>
             <Plus size={16} />
             <span>Add Billing</span>
           </Button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
-          {isLoading ? (
-            <p className="py-12 text-center text-sm text-gray-400">Loading…</p>
-          ) : (
+        <div className="md:flex-1 md:overflow-auto md:p-4">
+          {isLoading && <p className="py-12 text-center text-sm text-gray-400">Loading…</p>}
+          {!isLoading && showCards && (
+            <BillingCardList
+              periods={table.pageRows}
+              onOpen={(r) => setSelectedId(r.billingFormID)}
+              onDelete={handleDelete}
+              empty={emptyMessage}
+            />
+          )}
+          {!isLoading && !showCards && (
             <DataTable
               columns={COLUMNS}
               rows={table.pageRows.map((r) => ({ ...r, id: r.billingFormID }))}
               onRowClick={(r) => setSelectedId(r.billingFormID)}
               variant="plain"
-              empty={table.isSearching
-                ? 'No billing periods match your search.'
-                : 'No billing periods yet. Use "Add Billing" to allocate capital to a date range.'}
+              empty={emptyMessage}
               rowActions={(r) => (
                 <button
                   type="button"
@@ -269,13 +291,14 @@ export default function Station6BillingPage() {
           )}
         </div>
 
-        <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-3">
+        <div className="pt-3 md:border-t md:border-gray-100 md:bg-gray-50/60 md:px-5 md:py-3">
           <TableFooter
             page={table.page}
             totalPages={table.totalPages}
             total={table.total}
             noun="billing period"
             onPageChange={table.setPage}
+            compact={isMobile}
           />
         </div>
       </div>

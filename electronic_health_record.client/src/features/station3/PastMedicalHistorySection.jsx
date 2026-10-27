@@ -9,12 +9,13 @@ const BLANK_ROW = {
   maintenanceDrugGeneric: '', dosage: '', frequency: '',
 };
 
+// `span` is the cell's share of the six-column grid a row becomes on a phone.
 const COLUMNS = [
-  { name: 'conditionOther', label: 'Condition', placeholder: 'e.g. Hypertension', width: 'w-[26%]' },
-  { name: 'yearDiagnosed', label: 'Year Diagnosed', placeholder: 'e.g. 2019', width: 'w-[14%]', type: 'number' },
-  { name: 'maintenanceDrugGeneric', label: 'Maintenance Drug (Generic)', placeholder: 'e.g. Losartan', width: 'w-[24%]' },
-  { name: 'dosage', label: 'Dosage', placeholder: 'e.g. 50 mg', width: 'w-[16%]' },
-  { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[16%]' },
+  { name: 'conditionOther', label: 'Condition', placeholder: 'e.g. Hypertension', width: 'w-[26%]', span: 'max-md:col-span-4' },
+  { name: 'yearDiagnosed', label: 'Year Diagnosed', placeholder: 'e.g. 2019', width: 'w-[14%]', span: 'max-md:col-span-2', type: 'number' },
+  { name: 'maintenanceDrugGeneric', label: 'Maintenance Drug (Generic)', placeholder: 'e.g. Losartan', width: 'w-[24%]', span: 'max-md:col-span-6' },
+  { name: 'dosage', label: 'Dosage', placeholder: 'e.g. 50 mg', width: 'w-[16%]', span: 'max-md:col-span-3' },
+  { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[16%]', span: 'max-md:col-span-3' },
 ];
 
 /**
@@ -66,10 +67,13 @@ export default function PastMedicalHistorySection({ control, register, yearBound
       icon={Stethoscope}
     >
       {/* One input per field only: rendering a second mobile copy would register
-          two DOM nodes against the same react-hook-form path and desync them. */}
-      <div className="overflow-x-auto rounded-lg border border-line">
-        <table className="w-full min-w-190 table-fixed text-sm">
-          <thead className="bg-gray-50/80">
+          two DOM nodes against the same react-hook-form path and desync them.
+          So on a phone the same table restyles itself instead -- header hidden,
+          each row a card of labelled fields, the way the Exercise rows stack --
+          rather than scroll sideways past a 760px minimum width. */}
+      <div className="md:overflow-x-auto md:rounded-lg md:border md:border-line">
+        <table className="w-full table-fixed text-sm max-md:block md:min-w-190">
+          <thead className="bg-gray-50/80 max-md:hidden">
             <tr className="border-b border-line text-left">
               <th className="w-10 px-3 py-2.5 text-[11px] font-semibold tracking-wide text-ink-500 uppercase">
                 #
@@ -87,19 +91,24 @@ export default function PastMedicalHistorySection({ control, register, yearBound
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
             {fields.map((field, index) => (
               <tr
                 key={field.id}
-                className="group border-b border-line last:border-b-0 transition-colors hover:bg-[#f9fefd]"
+                className="group border-b border-line last:border-b-0 transition-colors hover:bg-[#f9fefd] max-md:grid max-md:grid-cols-6 max-md:gap-x-3 max-md:gap-y-2.5 max-md:rounded-lg max-md:border max-md:p-3 max-md:last:border-b"
               >
-                <td className="px-3 py-2 align-middle text-xs font-medium tabular-nums text-ink-400">
+                <td className="px-3 py-2 align-middle text-xs font-medium tabular-nums text-ink-400 max-md:col-span-5 max-md:row-start-1 max-md:self-center max-md:p-0">
+                  <span className="md:hidden">#</span>
                   {index + 1}
                 </td>
                 {COLUMNS.map((column) => (
-                  <td key={column.name} className="px-2 py-2 align-middle">
-                    <label className="sr-only" htmlFor={`pmh-${index}-${column.name}`}>
-                      {`${column.label}, row ${index + 1}`}
+                  <td key={column.name} className={`px-2 py-2 align-middle max-md:p-0 ${column.span}`}>
+                    <label
+                      className="mb-1 block text-xs font-medium tracking-wide text-ink-600 md:sr-only"
+                      htmlFor={`pmh-${index}-${column.name}`}
+                    >
+                      {column.label}
+                      <span className="sr-only">{`, row ${index + 1}`}</span>
                     </label>
                     <Input id={`pmh-${index}-${column.name}`} {...fieldProps(index, column)} />
                     {errorFor(index, column) && (
@@ -112,7 +121,7 @@ export default function PastMedicalHistorySection({ control, register, yearBound
                     )}
                   </td>
                 ))}
-                <td className="px-2 py-2 align-middle">
+                <td className="px-2 py-2 align-middle max-md:col-start-6 max-md:row-start-1 max-md:-m-2 max-md:justify-self-end max-md:p-0">
                   <button
                     type="button"
                     aria-label={`Remove row ${index + 1}`}

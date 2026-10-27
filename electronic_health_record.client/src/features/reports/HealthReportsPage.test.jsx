@@ -143,7 +143,7 @@ describe('HealthReportsPage live stations', () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole('button', { name: 'All offices' }));
+    await user.click(screen.getByRole('button', { name: /all offices/i }));
     await user.click(screen.getByRole('option', { name: 'PROVINCIAL HEALTH OFFICE' }));
 
     const picked = { from: '2026-10-01', to: '2026-10-31', office: 'PROVINCIAL HEALTH OFFICE' };
@@ -224,7 +224,7 @@ describe('HealthReportsPage Quick Jump', () => {
 
   it('lands the station clear of the sticky bar', () => {
     renderPage();
-    const stickyBar = screen.getByRole('navigation', { name: /stations/i }).parentElement;
+    const stickyBar = screen.getByRole('navigation', { name: /stations/i }).closest('.sticky');
     Object.defineProperty(stickyBar, 'offsetHeight', { value: 56 });
 
     fireEvent.click(jumpButton('4. Dental'));

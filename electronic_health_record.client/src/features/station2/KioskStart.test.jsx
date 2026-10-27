@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { getForm, startStation } from '../../api/forms.api';
@@ -29,6 +29,19 @@ vi.mock('../../api/assessment.api', () => ({
 }));
 
 import KioskPage from './KioskPage';
+
+// Answers each `(max-width: Npx)` query as a viewport `width` px wide would.
+function mockMatchMedia(width) {
+  window.matchMedia = vi.fn((query) => ({
+    matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)[1]),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
+// Desktop unless a test says otherwise.
+beforeEach(() => mockMatchMedia(1280));
 
 function renderKiosk() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -81,5 +94,26 @@ describe('KioskPage start-of-assessment marker', () => {
 
     await screen.findByText('Wellness Assessment');
     expect(startStation).not.toHaveBeenCalled();
+  });
+});
+
+describe('KioskPage on a phone', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    mockMatchMedia(390);
+  });
+
+  it('keeps only Back and Reset in the header, moving the display controls into the page', async () => {
+    getForm.mockResolvedValue(formWith({ station2StartedAt: '2026-10-01T02:10:00Z' }));
+    renderKiosk();
+
+    const header = (await screen.findByText('Wellness Assessment')).closest('header');
+
+    expect(within(header).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'Reset' })).toBeInTheDocument();
+    expect(within(header).queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('main')).getByRole('radiogroup', { name: 'Question language' }))
+      .toBeInTheDocument();
   });
 });

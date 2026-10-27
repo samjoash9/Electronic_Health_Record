@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -22,6 +23,16 @@ vi.mock('../../api/forms.api', () => ({
 
 import Station2QueuePage from './Station2QueuePage';
 
+// Answers each `(max-width: Npx)` query as a viewport `width` px wide would.
+function mockMatchMedia(width) {
+  window.matchMedia = vi.fn((query) => ({
+    matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)[1]),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -34,6 +45,8 @@ function renderPage() {
 }
 
 describe('Station2QueuePage status column', () => {
+  beforeEach(() => mockMatchMedia(1280));
+
   it('shows Answering once the kiosk was opened, Not yet answered otherwise', async () => {
     renderPage();
 
@@ -42,5 +55,26 @@ describe('Station2QueuePage status column', () => {
 
     expect(within(answeringRow).getByText('Answering')).toBeInTheDocument();
     expect(within(waitingRow).getByText('Not yet answered')).toBeInTheDocument();
+  });
+});
+
+describe('Station2QueuePage on a phone', () => {
+  beforeEach(() => mockMatchMedia(390));
+
+  it('lists the queue as cards that open the patient preview', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const answeringCard = await screen.findByRole('button', { name: /QUEENIE/ });
+    const waitingCard = screen.getByRole('button', { name: /FELIX/ });
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(within(answeringCard).getByText('Answering')).toBeInTheDocument();
+    expect(within(answeringCard).getByText('DOPMH')).toBeInTheDocument();
+    expect(within(waitingCard).getByText('Not yet answered')).toBeInTheDocument();
+
+    await user.click(answeringCard);
+
+    expect(await screen.findByRole('button', { name: 'Hand to Patient' })).toBeInTheDocument();
   });
 });

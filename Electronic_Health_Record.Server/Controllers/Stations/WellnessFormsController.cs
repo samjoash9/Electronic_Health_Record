@@ -13,6 +13,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Electronic_Health_Record.Server.Controllers.Stations
 {
+    // [Authorize] alone admits patients too: they read their own forms here
+    // (GetMine, GetForm). So every action that is staff-only says so itself,
+    // with the Staff policy or an AdminID/PhysicianID check -- an action that
+    // does neither is open to any patient login.
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -44,8 +48,10 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // Every station queue and the admin forms list both hit this route; a
         // status filter reads as a queue (oldest first, so the longest-waiting
         // patient is handled next), the unfiltered list reads as a history feed
-        // (newest first).
+        // (newest first). Staff only: it lists every patient's name and portal
+        // username.
         [HttpGet("")]
+        [Authorize(Policy = AuthPolicies.Staff)]
         public async Task<IActionResult> GetForms([FromQuery] string? status)
         {
             var query = _context.WellnessForms.AsQueryable();
@@ -73,6 +79,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // list — see DashboardPage.jsx, which the client-side version this
         // replaces read from getAllForms().
         [HttpGet("stats")]
+        [Authorize(Policy = AuthPolicies.Staff)]
         public async Task<IActionResult> GetStats()
         {
             var forms = await _context.WellnessForms
@@ -396,6 +403,9 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             if (form == null)
                 return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
 
+            if (NotWaitingFor(form, 2) is { } notWaiting)
+                return notWaiting;
+
             ApplyRowVersionToken(form, dto.RowVersion);
 
             var optionIds = dto.Answers.Select(a => a.OptionID).ToList();
@@ -480,6 +490,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // "consultation" key). Replaces Family/Past Medical History and Social
         // History wholesale, same reasoning as Station 2's answers.
         [HttpPost("{formID:int}/station3")]
+        [Authorize(Policy = AuthPolicies.Staff)]
         public async Task<IActionResult> SubmitStation3(int formID, [FromBody] Station3SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -504,9 +515,18 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 });
             }
 
+            // The picker offers only this desk's doctors; the request is held
+            // to the same list, so a dentist cannot be named as the attending
+            // physician.
+            if (signer.Station != 3)
+                return UnprocessableEntity(new { message = "That physician is not assigned to Station 3." });
+
             var form = await _context.WellnessForms.FindAsync(formID);
             if (form == null)
                 return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            if (NotWaitingFor(form, 3) is { } notWaiting)
+                return notWaiting;
 
             ApplyRowVersionToken(form, dto.RowVersion);
 
@@ -784,6 +804,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // wholesale, same reasoning as Station 2's answers -- a resubmit must not
         // accumulate duplicates. Hands off to Station 5, which now completes the form.
         [HttpPost("{formID:int}/station4")]
+        [Authorize(Policy = AuthPolicies.Staff)]
         public async Task<IActionResult> SubmitStation4(int formID, [FromBody] Station4SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -807,9 +828,16 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 });
             }
 
+            // Same as Station 3's signer: held to the doctors the picker offers.
+            if (dentist.Station != 4)
+                return UnprocessableEntity(new { message = "That doctor is not assigned to Station 4." });
+
             var form = await _context.WellnessForms.FindAsync(formID);
             if (form == null)
                 return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            if (NotWaitingFor(form, 4) is { } notWaiting)
+                return notWaiting;
 
             ApplyRowVersionToken(form, dto.RowVersion);
 
@@ -897,6 +925,7 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
         // wholesale, same reasoning as Station 4's dental row -- a resubmit must
         // not accumulate duplicates. This is the station that completes the form.
         [HttpPost("{formID:int}/station5")]
+        [Authorize(Policy = AuthPolicies.Staff)]
         public async Task<IActionResult> SubmitStation5(int formID, [FromBody] Station5SubmitDto dto)
         {
             if (!ModelState.IsValid)
@@ -920,9 +949,16 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
                 });
             }
 
+            // Same as Station 3's signer: held to the doctors the picker offers.
+            if (optometrist.Station != 5)
+                return UnprocessableEntity(new { message = "That doctor is not assigned to Station 5." });
+
             var form = await _context.WellnessForms.FindAsync(formID);
             if (form == null)
                 return NotFound(new { message = $"Wellness form with ID {formID} was not found." });
+
+            if (NotWaitingFor(form, 5) is { } notWaiting)
+                return notWaiting;
 
             ApplyRowVersionToken(form, dto.RowVersion);
 
@@ -1090,6 +1126,15 @@ namespace Electronic_Health_Record.Server.Controllers.Stations
             [4] = "PendingDental",
             [5] = "PendingVision",
         };
+
+        // A station only signs the forms waiting at its own desk. Without this
+        // a later desk could complete a form that skipped the earlier ones, and
+        // an earlier desk could pull back a form already signed past it. Same
+        // answer StartStation gives for a form that has moved on.
+        private ConflictObjectResult? NotWaitingFor(WellnessForm form, byte station) =>
+            form.Status == StationEntryStatus[station]
+                ? null
+                : Conflict(new { message = $"This form is no longer waiting for Station {station}." });
 
         // POST /api/wellnessforms/{formID}/revert
         // Body: { targetStation, reason, rowVersion }. Superadmin only, same

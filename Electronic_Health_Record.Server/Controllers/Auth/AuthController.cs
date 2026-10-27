@@ -3,18 +3,14 @@ using Electronic_Health_Record.Server.DTOs.Auth;
 using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Numerics;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Net.WebRequestMethods;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace Electronic_Health_Record.Server.Controllers.Auth;
 
@@ -44,10 +40,7 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<LoginResponse>> Login(
         [FromBody] LoginRequest request)
     {
-        // ---------------------------------------------------------
         // Validate request
-        // ---------------------------------------------------------
-
         if (request == null ||
             string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
@@ -139,20 +132,13 @@ public class AuthController : ControllerBase
             });
         }
 
-
-        // =========================================================
         // 2. PHYSICIAN
-        // =========================================================
-
         var physician = await _db.Physicians
             .FirstOrDefaultAsync(p => p.Username == username);
 
         if (physician != null)
         {
-            // -----------------------------------------------------
             // Portal access
-            // -----------------------------------------------------
-
             if (string.IsNullOrWhiteSpace(
                 physician.PasswordHash))
             {
@@ -163,10 +149,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Account status
-            // -----------------------------------------------------
-
             if (!physician.IsActive)
             {
                 return Unauthorized(new
@@ -175,10 +158,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Verify password
-            // -----------------------------------------------------
-
             var passwordResult =
                 _physicianPasswordHasher.VerifyHashedPassword(
                     physician,
@@ -195,10 +175,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Rehash password if required
-            // -----------------------------------------------------
-
             if (passwordResult ==
                 PasswordVerificationResult.SuccessRehashNeeded)
             {
@@ -209,17 +186,11 @@ public class AuthController : ControllerBase
                     );
             }
 
-            // -----------------------------------------------------
             // Update login information
-            // -----------------------------------------------------
-
             physician.LastLoginAt = DateTime.UtcNow;
             physician.UpdatedAt = DateTime.UtcNow;
 
-            // -----------------------------------------------------
             // Generate JWT + PhysicianSession
-            // -----------------------------------------------------
-
             var (token, expiresAt) =
                 await _tokenService.GenerateTokenAsync(
                     physician
@@ -227,10 +198,7 @@ public class AuthController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            // -----------------------------------------------------
             // Response
-            // -----------------------------------------------------
-
             return Ok(new LoginResponse
             {
                 Token = token,
@@ -249,21 +217,14 @@ public class AuthController : ControllerBase
             });
         }
 
-
-        // =========================================================
         // 3. PATIENT
-        // =========================================================
-
         var patientAccount = await _db.PatientAccounts
             .FirstOrDefaultAsync(a =>
                 a.Username == username);
 
         if (patientAccount != null)
         {
-            // -----------------------------------------------------
             // Account status
-            // -----------------------------------------------------
-
             if (!string.Equals(
                 patientAccount.Status,
                 "Active",
@@ -276,10 +237,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Password exists
-            // -----------------------------------------------------
-
             if (string.IsNullOrWhiteSpace(
                 patientAccount.PasswordHash))
             {
@@ -290,10 +248,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Load patient
-            // -----------------------------------------------------
-
             var patient = await _db.Patients
                 .FirstOrDefaultAsync(p =>
                     p.PatientID ==
@@ -308,10 +263,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Verify password
-            // -----------------------------------------------------
-
             var passwordResult =
                 _patientPasswordHasher.VerifyHashedPassword(
                     patientAccount,
@@ -329,10 +281,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // -----------------------------------------------------
             // Rehash password if required
-            // -----------------------------------------------------
-
             if (passwordResult ==
                 PasswordVerificationResult.SuccessRehashNeeded)
             {
@@ -343,16 +292,10 @@ public class AuthController : ControllerBase
                     );
             }
 
-            // -----------------------------------------------------
             // Update account
-            // -----------------------------------------------------
-
             patientAccount.UpdatedAt = DateTime.UtcNow;
 
-            // -----------------------------------------------------
             // Generate JWT + PatientSession
-            // -----------------------------------------------------
-
             var (token, expiresAt) =
                 await _tokenService.GenerateTokenAsync(
                     patientAccount,
@@ -361,10 +304,7 @@ public class AuthController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            // -----------------------------------------------------
             // Response
-            // -----------------------------------------------------
-
             return Ok(new LoginResponse
             {
                 Token = token,
@@ -383,51 +323,33 @@ public class AuthController : ControllerBase
             });
         }
 
-
-        // =========================================================
         // NO ACCOUNT FOUND
-        // =========================================================
-
         return Unauthorized(new
         {
             message = "Invalid username or password."
         });
     }
 
+    // CHANGE PASSWORD
+    // POST /api/Auth/change-password
+    //
+    // Authorization: Bearer <JWT>
+    //
+    // Supported accounts: Admin, Physician, Patient
+    //
+    // Request:
+    // {
+    //     "currentPassword": "OldPassword123!",
+    //     "newPassword": "NewPassword123!",
+    //     "confirmPassword": "NewPassword123!"
+    // }
 
-
-// =========================================================
-// CHANGE PASSWORD
-// =========================================================
-//
-// POST /api/Auth/change-password
-//
-// Authorization:
-// Bearer <JWT>
-//
-// Supported accounts:
-// Admin
-// Physician
-// Patient
-//
-// Request:
-// {
-//     "currentPassword": "OldPassword123!",
-//     "newPassword": "NewPassword123!",
-//     "confirmPassword": "NewPassword123!"
-// }
-//
-// =========================================================
-
-[Authorize]
-[HttpPost("change-password")]
-public async Task<IActionResult> ChangePassword(
-    [FromBody] ChangePasswordRequest request)
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request)
     {
-        // ---------------------------------------------------------
         // Validate request
-        // ---------------------------------------------------------
-
         if (request == null)
         {
             return BadRequest(new
@@ -460,10 +382,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // ---------------------------------------------------------
         // Confirm new password
-        // ---------------------------------------------------------
-
         if (request.NewPassword != request.ConfirmPassword)
         {
             return BadRequest(new
@@ -473,10 +392,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // ---------------------------------------------------------
         // Basic password validation
-        // ---------------------------------------------------------
-
         if (request.NewPassword.Length < 8)
         {
             return BadRequest(new
@@ -486,10 +402,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // ---------------------------------------------------------
         // Get PrincipalType from JWT
-        // ---------------------------------------------------------
-
         var principalType =
             User.FindFirstValue("PrincipalType");
 
@@ -501,10 +414,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // ---------------------------------------------------------
         // Get Account ID from JWT
-        // ---------------------------------------------------------
-
         var userIdValue =
             User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -517,10 +427,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // =========================================================
         // ADMIN
-        // =========================================================
-
         if (string.Equals(
             principalType,
             "Admin",
@@ -538,10 +445,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Check account status
-            // -----------------------------------------------------
-
             if (!admin.IsActive)
             {
                 return Unauthorized(new
@@ -550,10 +454,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Check password exists
-            // -----------------------------------------------------
-
             if (string.IsNullOrWhiteSpace(admin.PasswordHash))
             {
                 return BadRequest(new
@@ -563,10 +464,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Verify current password
-            // -----------------------------------------------------
-
             var currentPasswordResult =
                 _adminPasswordHasher.VerifyHashedPassword(
                     admin,
@@ -582,10 +480,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Prevent password reuse
-            // -----------------------------------------------------
-
             var newPasswordMatchesCurrent =
                 _adminPasswordHasher.VerifyHashedPassword(
                     admin,
@@ -602,26 +497,15 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Hash new password
-            // -----------------------------------------------------
-
             admin.PasswordHash =
                 _adminPasswordHasher.HashPassword(
                     admin,
                     request.NewPassword);
 
-            // -----------------------------------------------------
             // Update password information
-            // -----------------------------------------------------
-
             var now = DateTime.UtcNow;
-
             admin.UpdatedAt = now;
-
-            // -----------------------------------------------------
-            // Save
-            // -----------------------------------------------------
 
             await _db.SaveChangesAsync();
 
@@ -633,10 +517,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // =========================================================
         // PHYSICIAN
-        // =========================================================
-
         if (string.Equals(
             principalType,
             "Physician",
@@ -654,10 +535,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Check account status
-            // -----------------------------------------------------
-
             if (!physician.IsActive)
             {
                 return Unauthorized(new
@@ -666,10 +544,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Check password exists
-            // -----------------------------------------------------
-
             if (string.IsNullOrWhiteSpace(
                 physician.PasswordHash))
             {
@@ -680,10 +555,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Verify current password
-            // -----------------------------------------------------
-
             var currentPasswordResult =
                 _physicianPasswordHasher.VerifyHashedPassword(
                     physician,
@@ -699,10 +571,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Prevent password reuse
-            // -----------------------------------------------------
-
             var newPasswordMatchesCurrent =
                 _physicianPasswordHasher.VerifyHashedPassword(
                     physician,
@@ -719,26 +588,16 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Hash new password
-            // -----------------------------------------------------
-
             physician.PasswordHash =
                 _physicianPasswordHasher.HashPassword(
                     physician,
                     request.NewPassword);
 
-            // -----------------------------------------------------
             // Update password information
-            // -----------------------------------------------------
-
             var now = DateTime.UtcNow;
-
             physician.UpdatedAt = now;
 
-            // -----------------------------------------------------
-            // Save
-            // -----------------------------------------------------
 
             await _db.SaveChangesAsync();
 
@@ -750,10 +609,7 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // =========================================================
         // PATIENT
-        // =========================================================
-
         if (string.Equals(
             principalType,
             "Patient",
@@ -772,10 +628,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Check account status
-            // -----------------------------------------------------
-
             if (!string.Equals(
                 patientAccount.Status,
                 "Active",
@@ -788,10 +641,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Check password exists
-            // -----------------------------------------------------
-
             if (string.IsNullOrWhiteSpace(
                 patientAccount.PasswordHash))
             {
@@ -802,10 +652,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Verify current password
-            // -----------------------------------------------------
-
             var currentPasswordResult =
                 _patientPasswordHasher.VerifyHashedPassword(
                     patientAccount,
@@ -821,10 +668,7 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Prevent password reuse
-            // -----------------------------------------------------
-
             var newPasswordMatchesCurrent =
                 _patientPasswordHasher.VerifyHashedPassword(
                     patientAccount,
@@ -841,28 +685,17 @@ public async Task<IActionResult> ChangePassword(
                 });
             }
 
-            // -----------------------------------------------------
             // Hash new password
-            // -----------------------------------------------------
-
             patientAccount.PasswordHash =
                 _patientPasswordHasher.HashPassword(
                     patientAccount,
                     request.NewPassword);
 
-            // -----------------------------------------------------
             // Update password information
-            // -----------------------------------------------------
-
             var now = DateTime.UtcNow;
-
             patientAccount.MustChangePassword = false;
             patientAccount.PasswordChangedAt = now;
             patientAccount.UpdatedAt = now;
-
-            // -----------------------------------------------------
-            // Save
-            // -----------------------------------------------------
 
             await _db.SaveChangesAsync();
 
@@ -874,48 +707,25 @@ public async Task<IActionResult> ChangePassword(
             });
         }
 
-        // =========================================================
         // UNKNOWN ACCOUNT TYPE
-        // =========================================================
-
         return Unauthorized(new
         {
             message = "Unrecognized account type."
         });
     }
 
-
-
-
-
-    // =========================================================
     // GET USER
-    // =========================================================
-    //
     // GET /api/Auth/user
-    //
     // Returns the authenticated user's account information.
-    //
-    // Admin     -> Admins
-    // Physician -> Physicians
-    // Patient   -> PatientAccounts + Patients
-    // =========================================================
-
     [Authorize]
-[HttpGet("user")]
-public async Task<IActionResult> GetUser()
+    [HttpGet("user")]
+    public async Task<IActionResult> GetUser()
     {
-        // ---------------------------------------------------------
         // Get PrincipalType from JWT
-        // ---------------------------------------------------------
-
         var principalType =
             User.FindFirstValue("PrincipalType");
 
-        // ---------------------------------------------------------
         // Get User ID from JWT
-        // ---------------------------------------------------------
-
         var userIdValue =
             User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
@@ -930,11 +740,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // ADMIN
-        // =========================================================
-
         if (principalType == "Admin")
         {
             var admin = await _db.Admins
@@ -968,11 +774,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // PHYSICIAN
-        // =========================================================
-
         if (principalType == "Physician")
         {
             var physician = await _db.Physicians
@@ -1016,11 +818,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // PATIENT
-        // =========================================================
-
         if (principalType == "Patient")
         {
             var patientAccount =
@@ -1096,11 +894,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // UNKNOWN PRINCIPAL TYPE
-        // =========================================================
-
         return Unauthorized(new
         {
             message =
@@ -1108,35 +902,19 @@ public async Task<IActionResult> GetUser()
         });
     }
 
-
-
-
-    // =========================================================
     // LOGOUT
-    // =========================================================
-    //
     // POST /api/Auth/logout
     //
     // Authorization:
     // Bearer <JWT>
     //
     // The JWT is hashed and matched against the session table.
-    //
-    // Admin      -> AdminSessions
-    // Physician  -> PhysicianSessions
-    // Patient    -> PatientSessions
-    //
-    // RevokedAt is set to the current UTC time.
-    // =========================================================
-
+    // RevokedAt is set to the current UTC time
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        // ---------------------------------------------------------
         // Get PrincipalType
-        // ---------------------------------------------------------
-
         var principalType =
             User.FindFirstValue("PrincipalType");
 
@@ -1148,11 +926,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // ---------------------------------------------------------
         // Get Authorization header
-        // ---------------------------------------------------------
-
         var authorizationHeader =
             Request.Headers.Authorization.ToString();
 
@@ -1167,11 +941,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // ---------------------------------------------------------
         // Extract JWT
-        // ---------------------------------------------------------
-
         var token =
             authorizationHeader["Bearer ".Length..].Trim();
 
@@ -1183,20 +953,11 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // ---------------------------------------------------------
         // Hash JWT
-        // ---------------------------------------------------------
-
         var tokenHash = HashToken(token);
-
         var now = DateTime.UtcNow;
 
-
-        // =========================================================
         // ADMIN
-        // =========================================================
-
         if (principalType == "Admin")
         {
             var session =
@@ -1225,11 +986,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // PHYSICIAN
-        // =========================================================
-
         if (principalType == "Physician")
         {
             var session =
@@ -1258,11 +1015,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // PATIENT
-        // =========================================================
-
         if (principalType == "Patient")
         {
             var session =
@@ -1291,11 +1044,7 @@ public async Task<IActionResult> GetUser()
             });
         }
 
-
-        // =========================================================
         // UNKNOWN PRINCIPAL TYPE
-        // =========================================================
-
         return Unauthorized(new
         {
             message =
@@ -1303,11 +1052,7 @@ public async Task<IActionResult> GetUser()
         });
     }
 
-
-    // =========================================================
     // TOKEN HASH
-    // =========================================================
-
     private static string HashToken(string token)
     {
         var bytes =
@@ -1319,11 +1064,7 @@ public async Task<IActionResult> GetUser()
             .ToLowerInvariant();
     }
 
-
-    // =========================================================
     // PHYSICIAN FULL NAME
-    // =========================================================
-
     private static string BuildPhysicianFullName(
         Physician physician)
     {

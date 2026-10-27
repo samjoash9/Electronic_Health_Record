@@ -103,7 +103,7 @@ export default function BillingFormSlidePanel({ detail, onClose, onEdit }) {
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
       <div className="relative z-10 flex h-full w-full max-w-xl flex-col bg-[#f4f6f8] shadow-2xl transition-transform duration-300 sm:rounded-l-3xl">
-        <div className="flex items-start justify-between border-b border-gray-200/80 bg-white px-6 py-5 sm:rounded-tl-3xl">
+        <div className="flex items-start justify-between gap-3 border-b border-gray-200/80 bg-white px-4 py-4 sm:rounded-tl-3xl sm:px-6 sm:py-5">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
               <Calendar size={12} className="text-gray-400" />
@@ -138,8 +138,8 @@ export default function BillingFormSlidePanel({ detail, onClose, onEdit }) {
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-6">
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-lg">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-lg sm:p-6">
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
@@ -163,7 +163,9 @@ export default function BillingFormSlidePanel({ detail, onClose, onEdit }) {
                 ? 'border-rose-300 bg-linear-to-r from-rose-50 via-rose-50/60 to-white'
                 : 'border-[#37AF9B]/40 bg-linear-to-r from-[#e6f7f4] via-[#f0faf8] to-white'
             }`}>
-              <div className="flex items-center justify-between">
+              {/* Wraps the amount under its caption once both no longer fit
+                  on one line, as on a phone. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <div>
                   <span className={`text-xs font-bold uppercase tracking-wider ${isOverBudget ? 'text-rose-700' : 'text-[#0A594D]'}`}>
                     {isOverBudget ? 'Over Capital By' : 'Remaining Capital'}
@@ -212,7 +214,7 @@ export default function BillingFormSlidePanel({ detail, onClose, onEdit }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-4 sm:rounded-bl-3xl">
+        <div className="flex items-center justify-between gap-2 border-t border-gray-200 bg-white px-4 py-3 sm:rounded-bl-3xl sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={() => window.print()}

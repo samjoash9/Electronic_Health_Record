@@ -155,7 +155,10 @@ function DiagnosticTestGrid({ watch, setValue }) {
       return sum + (Number.isFinite(price) ? price : 0);
     }, 0);
 
-  const tile = (test) => {
+  // `stacked` drops the price under the name below sm, for the thyroid panel's
+  // three-to-a-row tiles, which are too narrow on a phone to hold both on one
+  // line.
+  const tile = (test, stacked = false) => {
     const checked = selected.has(test);
     const listed = catalogPrice(test);
     return (
@@ -165,7 +168,7 @@ function DiagnosticTestGrid({ watch, setValue }) {
           checked ? TILE_ON : TILE_OFF
         }`}
       >
-        <label className="relative flex cursor-pointer items-center gap-2 p-2.5">
+        <label className={`relative flex cursor-pointer items-center gap-2 p-2.5 ${stacked ? 'max-sm:flex-wrap max-sm:gap-y-0.5' : ''}`}>
           <input
             type="checkbox"
             className={HIDDEN_CHECKBOX}
@@ -177,7 +180,7 @@ function DiagnosticTestGrid({ watch, setValue }) {
           <span className={`flex-1 text-sm leading-snug ${checked ? 'font-semibold text-ink-900' : 'text-ink-700'}`}>
             {test}
           </span>
-          <span className={`shrink-0 text-xs tabular-nums ${checked ? 'font-semibold text-ink-900' : 'text-ink-500'}`}>
+          <span className={`shrink-0 text-xs tabular-nums ${stacked ? 'max-sm:w-full max-sm:pl-6' : ''} ${checked ? 'font-semibold text-ink-900' : 'text-ink-500'}`}>
             {listed == null ? '—' : peso(listed)}
           </span>
         </label>
@@ -211,13 +214,13 @@ function DiagnosticTestGrid({ watch, setValue }) {
           It starts a fresh row (col-start-1) so the group is never split by
           whatever the preceding tests leave over. */}
       <div className="grid grid-cols-2 gap-2 tab:grid-cols-3 lg:grid-cols-4">
-        {TESTS_BEFORE_PANEL.map(tile)}
+        {TESTS_BEFORE_PANEL.map((test) => tile(test))}
 
         <div className="col-span-2 col-start-1 grid grid-cols-3 gap-2 sm:col-span-3 lg:col-span-3">
-          {THYROID_PANEL.map(tile)}
+          {THYROID_PANEL.map((test) => tile(test, true))}
         </div>
 
-        {TESTS_AFTER_PANEL.map(tile)}
+        {TESTS_AFTER_PANEL.map((test) => tile(test))}
       </div>
 
       {/* Others spans the full width: its rows need more room than a tile. */}
@@ -303,15 +306,17 @@ function DiagnosticTestGrid({ watch, setValue }) {
 
 const BLANK_MEDICATION_ROW = { drug: '', dosage: '', frequency: '' };
 
+// `span` is the cell's share of the two-column grid a row becomes on a phone.
 const MEDICATION_COLUMNS = [
-  { name: 'drug', label: 'Medication (Generic)', placeholder: 'e.g. Losartan', width: 'w-[40%]' },
-  { name: 'dosage', label: 'Dosage', placeholder: 'e.g. 50 mg', width: 'w-[28%]' },
-  { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[32%]' },
+  { name: 'drug', label: 'Medication (Generic)', placeholder: 'e.g. Losartan', width: 'w-[40%]', span: 'max-md:col-span-2' },
+  { name: 'dosage', label: 'Dosage', placeholder: 'e.g. 50 mg', width: 'w-[28%]', span: '' },
+  { name: 'frequency', label: 'Frequency', placeholder: 'e.g. Once daily', width: 'w-[32%]', span: '' },
 ];
 
 // Same table shape as Past Medical History, so prescribing reads the way
-// recording an existing maintenance drug already does. Medications carry no
-// price: they are not billed line items, so pricing happens at Station 6.
+// recording an existing maintenance drug already does -- down to restyling
+// into a card per row on a phone. Medications carry no price: they are not
+// billed line items, so pricing happens at Station 6.
 function MedicationTable({ control, register }) {
   const { fields, append, remove } = useFieldArray({ control, name: 'medications' });
 
@@ -330,9 +335,9 @@ function MedicationTable({ control, register }) {
     <>
       {/* One input per field only: rendering a second mobile copy would register
           two DOM nodes against the same react-hook-form path and desync them. */}
-      <div className="overflow-x-auto rounded-lg border border-line">
-        <table className="w-full min-w-150 table-fixed text-sm">
-          <thead className="bg-gray-50/80">
+      <div className="md:overflow-x-auto md:rounded-lg md:border md:border-line">
+        <table className="w-full table-fixed text-sm max-md:block md:min-w-150">
+          <thead className="bg-gray-50/80 max-md:hidden">
             <tr className="border-b border-line text-left">
               <th className="w-10 px-3 py-2.5 text-[11px] font-semibold tracking-wide text-ink-500 uppercase">
                 #
@@ -350,19 +355,24 @@ function MedicationTable({ control, register }) {
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
             {fields.map((field, index) => (
               <tr
                 key={field.id}
-                className="group border-b border-line last:border-b-0 transition-colors hover:bg-[#f9fefd]"
+                className="group border-b border-line last:border-b-0 transition-colors hover:bg-[#f9fefd] max-md:grid max-md:grid-cols-2 max-md:gap-x-3 max-md:gap-y-2.5 max-md:rounded-lg max-md:border max-md:p-3 max-md:last:border-b"
               >
-                <td className="px-3 py-2 align-middle text-xs font-medium tabular-nums text-ink-400">
+                <td className="px-3 py-2 align-middle text-xs font-medium tabular-nums text-ink-400 max-md:row-start-1 max-md:self-center max-md:p-0">
+                  <span className="md:hidden">#</span>
                   {index + 1}
                 </td>
                 {MEDICATION_COLUMNS.map((column) => (
-                  <td key={column.name} className="px-2 py-2 align-middle">
-                    <label className="sr-only" htmlFor={`med-${index}-${column.name}`}>
-                      {`${column.label}, row ${index + 1}`}
+                  <td key={column.name} className={`px-2 py-2 align-middle max-md:p-0 ${column.span}`}>
+                    <label
+                      className="mb-1 block text-xs font-medium tracking-wide text-ink-600 md:sr-only"
+                      htmlFor={`med-${index}-${column.name}`}
+                    >
+                      {column.label}
+                      <span className="sr-only">{`, row ${index + 1}`}</span>
                     </label>
                     <Input
                       id={`med-${index}-${column.name}`}
@@ -372,7 +382,7 @@ function MedicationTable({ control, register }) {
                     />
                   </td>
                 ))}
-                <td className="px-2 py-2 align-middle">
+                <td className="px-2 py-2 align-middle max-md:col-start-2 max-md:row-start-1 max-md:-m-2 max-md:justify-self-end max-md:p-0">
                   <button
                     type="button"
                     aria-label={`Remove row ${index + 1}`}

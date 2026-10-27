@@ -11,7 +11,9 @@ const BMI_TONE = {
   Obese: 'danger',
 };
 
-export default function VitalsFields({ register, watch, errors }) {
+export default function VitalsFields({
+  register, watch, errors, flush = false,
+}) {
   const weightKg = watch('weightKg');
   const heightCm = watch('heightCm');
   const bmi = calculateBMI(weightKg, heightCm);
@@ -19,7 +21,7 @@ export default function VitalsFields({ register, watch, errors }) {
   const category = bmiCategory(bmi);
 
   return (
-    <Card title="Vital Signs">
+    <Card title="Vital Signs" flush={flush}>
       <div className="grid grid-cols-1 gap-3 tab:grid-cols-2 lg:grid-cols-3">
         <Field label="Weight (kg)" htmlFor="weightKg" required error={errors.weightKg?.message}>
           <Input id="weightKg" type="number" step="0.1" {...register('weightKg')} />

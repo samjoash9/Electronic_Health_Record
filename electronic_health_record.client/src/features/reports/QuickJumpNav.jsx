@@ -124,10 +124,11 @@ export default function QuickJumpNav({ stations, stickyBarRef }) {
       <span className="hidden shrink-0 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400 sm:inline">
         Quick Jump:
       </span>
-      {/* One row that scrolls sideways when the bar is too narrow to fit it. */}
+      {/* One row, on a grey tray, that scrolls sideways when the bar is too
+          narrow to fit it. */}
       <div
         ref={listRef}
-        className="relative flex min-w-0 items-center gap-1 overflow-x-auto p-0.5 motion-safe:scroll-smooth scrollbar-none sm:gap-2 lg:gap-4 [&::-webkit-scrollbar]:hidden"
+        className="relative flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 motion-safe:scroll-smooth scrollbar-none sm:gap-2 lg:gap-4 [&::-webkit-scrollbar]:hidden"
       >
         <span
           ref={pillRef}

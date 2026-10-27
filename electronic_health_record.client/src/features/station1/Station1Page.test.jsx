@@ -38,6 +38,19 @@ vi.mock('../../hooks/useUnsavedChangesGuard', () => ({
 
 import Station1Page from './Station1Page';
 
+// Answers each `(max-width: Npx)` query as a viewport `width` px wide would.
+function mockMatchMedia(width) {
+  window.matchMedia = vi.fn((query) => ({
+    matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)[1]),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
+// Desktop unless a test says otherwise.
+beforeEach(() => mockMatchMedia(1280));
+
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -161,5 +174,83 @@ describe('Station1Page username guard', () => {
     expect(await screen.findByText('That username is already taken.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
     expect(screen.getByText('Vital Signs').closest('button')).toBeDisabled();
+  });
+});
+
+describe('Station1Page on a phone', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    hasPatientAccount.mockResolvedValue(true);
+    mockMatchMedia(390);
+  });
+
+  it('lists employees as cards and names the current step under the circles', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: /AARON/ })).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
+
+    await selectEmployee(user);
+
+    expect(await screen.findByText('Step 2 of 3')).toBeInTheDocument();
+    expect(screen.getByText('Confirm Information')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
+
+  it('pins the actions to the bottom, with Submit taking the whole row on Vital Signs', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+
+    const next = await screen.findByRole('button', { name: 'Next' });
+    expect(next.parentElement.parentElement).toHaveClass('sticky', 'grid-cols-2');
+
+    await user.click(next);
+
+    expect(await screen.findByText('Step 3 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit to Station 2' })).toHaveClass('col-span-2');
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+});
+
+describe('Station1Page actions', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+    hasPatientAccount.mockResolvedValue(true);
+  });
+
+  it('shows no actions on the search step, where picking an employee moves on', async () => {
+    renderPage();
+    await screen.findByText(/AARON/i);
+
+    // Back is in every state of the action bar, so its absence means no bar.
+    // (Next is not checked: the employee list's pagination has its own.)
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit to Station 2' })).not.toBeInTheDocument();
+  });
+
+  it('labels the step circles in place of a caption on a desktop', async () => {
+    renderPage();
+    await screen.findByText(/AARON/i);
+
+    expect(screen.queryByText('Step 1 of 3')).not.toBeInTheDocument();
+    expect(screen.getByText('Vital Signs')).toBeInTheDocument();
+  });
+
+  it('goes Back from Confirm Information to the search', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await selectEmployee(user);
+
+    await user.click(await screen.findByRole('button', { name: 'Back' }));
+
+    expect(await screen.findByPlaceholderText('Search by name e.g. Santos')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
   });
 });

@@ -15,12 +15,12 @@ const USERNAME_HINTS = {
 };
 
 export default function IdentityFields({
-  register, watch, control, errors, needsUsername, usernameStatus,
+  register, watch, control, errors, needsUsername, usernameStatus, flush = false,
 }) {
   const age = ageFrom(watch('birthdate'));
 
   return (
-    <Card title="Personal Information">
+    <Card title="Personal Information" flush={flush}>
       {needsUsername && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <Field

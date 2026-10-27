@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, AtSign,
-  Pencil,
+  ArrowLeft, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone, UserRound,
+  Lock, Pencil,
 } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
@@ -19,6 +19,7 @@ import { consultationHeader, dentalHeader, visionHeader } from '../station3/stat
 import Station3ConsultationDetail from '../station3/Station3ConsultationDetail';
 import DentalAssessmentDetail from '../station3/DentalAssessmentDetail';
 import VisionAssessmentDetail from '../station3/VisionAssessmentDetail';
+import { STATUS_ICON } from './formStatusIcon';
 
 const STATUS_LABEL = {
   [FORM_STATUS.PENDING_ASSESSMENT]: 'Pending Assessment',
@@ -110,27 +111,53 @@ export default function FormDetailPage() {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
-        <div className="flex items-center gap-4 bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-xl font-bold text-white shadow-sm ring-4 ring-white">
-            {fullName(patient).charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-lg font-semibold text-ink-900">{fullName(patient)}</p>
-            <p className="text-sm text-ink-500">Age {ageFrom(patient?.birthdate)} · {patient?.position} · {patient?.agencyOffice}</p>
-            {account?.username && (
-              // The portal handle issued at Station 1, sat with the name rather than
-              // in the field grid below: it identifies the person, it is not a
-              // clinical detail of the visit.
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-500">
-                <AtSign size={13} strokeWidth={2.25} className="text-[#0e7d6b]" />
-                <span className="font-medium text-ink-700">{account.username}</span>
-                {account.mustChangePassword && (
-                  <span className="text-ink-400">· has not signed in yet</span>
-                )}
+        <div className="bg-linear-to-r from-[#e9fbf6] to-[#f3fdfb] p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#14a690] to-[#0e7d6b] text-2xl font-bold text-white shadow-sm ring-4 ring-white sm:h-20 sm:w-20 sm:text-3xl">
+              {fullName(patient).charAt(0).toUpperCase()}
+            </div>
+            <div aria-hidden="true" className="w-px self-stretch bg-[#0e7d6b]/20" />
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-tight text-ink-900">{fullName(patient)}</p>
+              <p className="mt-1 text-sm text-ink-500">
+                Age {ageFrom(patient?.birthdate)}
+                {patient?.position && <><span aria-hidden="true" className="mx-1.5">•</span>{patient.position}</>}
               </p>
-            )}
+              {patient?.agencyOffice && (
+                <p className="text-sm leading-snug text-ink-500">{patient.agencyOffice}</p>
+              )}
+              <div className="mt-2">
+                <Badge tone={STATUS_TONE[form.status]} icon={STATUS_ICON[form.status]}>
+                  {STATUS_LABEL[form.status] ?? form.status}
+                </Badge>
+              </div>
+            </div>
           </div>
-          <Badge tone={STATUS_TONE[form.status]}>{STATUS_LABEL[form.status] ?? form.status}</Badge>
+
+          {account?.username && (
+            // The portal handle issued at Station 1, sat with the name rather than
+            // in the field grid below: it identifies the person, it is not a
+            // clinical detail of the visit.
+            <div className="mt-4 flex items-stretch rounded-lg bg-white/60 ring-1 ring-[#0e7d6b]/10">
+              <div className="flex min-w-0 flex-1 items-center gap-3 p-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e9fbf6] text-[#0e7d6b]">
+                  <UserRound size={16} strokeWidth={2.25} />
+                </span>
+                <span className="truncate text-sm font-semibold text-ink-900">{account.username}</span>
+              </div>
+              {account.mustChangePassword && (
+                <>
+                  <div aria-hidden="true" className="my-3 w-px bg-line" />
+                  <div className="flex min-w-0 flex-1 items-center gap-3 p-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-200 text-ink-500">
+                      <Lock size={15} strokeWidth={2.25} />
+                    </span>
+                    <span className="text-xs leading-snug text-ink-500">has not signed in yet</span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <dl className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">

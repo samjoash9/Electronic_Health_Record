@@ -1,7 +1,19 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from './mock/db';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// The wellness-form calls go straight to the server (there is no mock-db
+// branch), so these pin the request each one sends: the route, and a body
+// whose keys match the server's submit DTOs. The rules the server applies to
+// that body -- signatures, signers, stale rowVersions -- are tested on the
+// server, in WellnessFormsControllerTests.
+vi.mock('../config/axios', () => ({
+  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+}));
+
+import api from '../config/axios';
 import {
-  submitStation1, submitStation2, submitStation3, submitStation4, submitStation5, getQueue, getForm,
+  getQueue, getAllForms, getForm, submitStation1, startStation, submitStation2, submitStation3,
+  submitStation4, submitStation5, cancelForm, revertStation, editForm, deleteForm,
+  getActivityLogs, deleteActivityLogs, getPatientForms,
 } from './forms.api';
 import { FORM_STATUS } from '../lib/constants';
 
@@ -19,225 +31,244 @@ const vitals = {
   heartRate: 72, respRate: 16,
 };
 
+const SIGNATURE = 'data:image/png;base64,AAA';
+
+/** The body of the one POST the call under test made. */
+function postedBody() {
+  expect(api.post).toHaveBeenCalledTimes(1);
+  return api.post.mock.calls[0][1];
+}
+
+/** An axios-shaped failure, as the server would answer. */
+function httpError(status, data) {
+  return Object.assign(new Error(`Request failed with status code ${status}`), {
+    response: { status, data },
+  });
+}
+
 beforeEach(() => {
-  localStorage.clear();
-  db.reset();
+  vi.resetAllMocks();
+  api.get.mockResolvedValue({ data: {} });
+  api.post.mockResolvedValue({ data: {} });
+  api.patch.mockResolvedValue({ data: {} });
+  api.delete.mockResolvedValue({ data: {} });
+});
+
+describe('reading forms', () => {
+  it('asks for several queue statuses in one comma-joined param', async () => {
+    await getQueue([FORM_STATUS.PENDING_CONSULTATION, FORM_STATUS.PENDING_DENTAL]);
+
+    expect(api.get).toHaveBeenCalledWith('/wellnessforms', {
+      params: { status: `${FORM_STATUS.PENDING_CONSULTATION},${FORM_STATUS.PENDING_DENTAL}` },
+    });
+  });
+
+  it('accepts a single queue status', async () => {
+    await getQueue(FORM_STATUS.PENDING_ASSESSMENT);
+
+    expect(api.get).toHaveBeenCalledWith('/wellnessforms', {
+      params: { status: FORM_STATUS.PENDING_ASSESSMENT },
+    });
+  });
+
+  it('unwraps a { data } envelope', async () => {
+    api.get.mockResolvedValue({ data: { data: [{ formID: 1 }] } });
+
+    await expect(getQueue(FORM_STATUS.PENDING_ASSESSMENT)).resolves.toEqual([{ formID: 1 }]);
+  });
+
+  it('passes a bare response through', async () => {
+    api.get.mockResolvedValue({ data: [{ formID: 1 }] });
+
+    await expect(getAllForms()).resolves.toEqual([{ formID: 1 }]);
+    expect(api.get).toHaveBeenCalledWith('/wellnessforms');
+  });
+
+  it('reads one form by id', async () => {
+    api.get.mockResolvedValue({ data: { formID: 42 } });
+
+    await expect(getForm(42)).resolves.toEqual({ formID: 42 });
+    expect(api.get).toHaveBeenCalledWith('/wellnessforms/42');
+  });
+
+  it('reads the signed-in patient\'s own forms without naming the patient', async () => {
+    await getPatientForms();
+
+    expect(api.get).toHaveBeenCalledWith('/wellnessforms/mine');
+  });
 });
 
 describe('station submissions', () => {
-  it('station 1 creates a form awaiting assessment', async () => {
+  it('station 1 sends the patient and vitals only -- the admin comes from the JWT', async () => {
+    api.post.mockResolvedValue({ data: { data: { formID: 7, status: FORM_STATUS.PENDING_ASSESSMENT } } });
+
     const form = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    expect(form.status).toBe(FORM_STATUS.PENDING_ASSESSMENT);
-    expect(form.currentStation).toBe(2);
-    expect(form.station1AdminID).toBe(1);
-    expect(form.station1SubmittedAt).toBeTruthy();
+
+    expect(api.post).toHaveBeenCalledWith('/wellnessforms/station1', { patient: employee, vitals });
+    expect(form).toEqual({ formID: 7, status: FORM_STATUS.PENDING_ASSESSMENT });
   });
 
-  it('station 1 provisions a patient account', async () => {
-    await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const state = db.read();
-    expect(state.patientAccounts).toHaveLength(2);
-    expect(state.patientAccounts[1].status).toBe('Provisioned');
+  it('marks a station as started on its own route, with no body', async () => {
+    await startStation(42, 3);
+
+    expect(api.post).toHaveBeenCalledWith('/wellnessforms/42/station3/start');
   });
 
-  it('the new form appears in the station 2 queue', async () => {
-    await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const queue = await getQueue(FORM_STATUS.PENDING_ASSESSMENT);
-    expect(queue).toHaveLength(1);
-    expect(queue[0].patient.surname).toBe('Santos');
+  it('station 2 sends the answers and the rowVersion it read', async () => {
+    const answers = [{ questionID: 1, optionID: 3 }];
+
+    await submitStation2({ formID: 42, answers, rowVersion: 'AAAA', adminID: 2 });
+
+    expect(api.post.mock.calls[0][0]).toBe('/wellnessforms/42/station2');
+    // Station2SubmitDto: Answers, RowVersion.
+    expect(postedBody()).toEqual({ answers, rowVersion: 'AAAA' });
   });
 
-  it('station 2 moves the form to consultation', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const updated = await submitStation2({
-      formID: created.formID,
-      answers: [{ questionID: 101, optionID: 1011 }],
-      adminID: 2,
-      rowVersion: created.rowVersion,
-    });
-    expect(updated.status).toBe(FORM_STATUS.PENDING_CONSULTATION);
-    expect(updated.currentStation).toBe(3);
-    const full = await getForm(created.formID);
-    expect(full.assessmentAnswers).toHaveLength(1);
+  it('station 3 spreads the consultation flat beside the physician and rowVersion', async () => {
+    const consultation = {
+      familyMedicalHistory: [{ conditionID: 4, conditionType: 'Type 2' }],
+      pastMedicalHistory: [{ conditionOther: 'Asthma', yearDiagnosed: 2015 }],
+      exercise: [{ exerciseType: 'Jogging', exerciseFrequency: 'Weekly', exerciseYearStarted: '2020' }],
+      socialHistory: { smokes: false },
+      recommendedDiagnosticTest: 'CBC',
+      impressionClinical: 'Well',
+      managementTreatment: 'Continue current regimen',
+      charges: [],
+      signature: SIGNATURE,
+    };
+
+    await submitStation3({ formID: 42, physicianID: 1, rowVersion: 'BBBB', consultation });
+
+    expect(api.post.mock.calls[0][0]).toBe('/wellnessforms/42/station3');
+    // Station3SubmitDto takes these flat; a nested `consultation` key would
+    // bind to nothing and fail the signature check.
+    expect(postedBody()).toEqual({ physicianID: 1, ...consultation, rowVersion: 'BBBB' });
+    expect(postedBody()).not.toHaveProperty('consultation');
   });
 
-  it('station 3 signs and hands the form to dental', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const assessed = await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
+  it('station 3 signs against the doctor picked on the form, not the caller', async () => {
+    // Doctor 2 is the one picked in the dropdown; doctor 1 is signed in, and
+    // the request carries no trace of the caller.
+    await submitStation3({
+      formID: 42, physicianID: 2, rowVersion: 'BBBB', consultation: { signature: SIGNATURE },
     });
-    const signed = await submitStation3({
-      formID: created.formID,
-      physicianID: 1,
-      rowVersion: assessed.rowVersion,
-      consultation: {
-        familyMedicalHistory: [{ conditionID: 4, conditionType: 'Type 2' }],
-        pastMedicalHistory: [{
-          conditionOther: 'Asthma', yearDiagnosed: 2015,
-          maintenanceDrugGeneric: 'Salbutamol', dosage: '2 puffs', frequency: 'PRN',
-        }],
-        socialHistory: { smokes: false },
-        exercise: [{ exerciseType: 'Jogging', exerciseFrequency: 'Weekly', exerciseYearStarted: '2020' }],
-        recommendedDiagnosticTest: 'CBC',
-        impressionClinical: 'Well',
-        managementTreatment: 'Continue current regimen',
-        signature: 'data:image/png;base64,AAA',
-      },
-    });
-    // The physician's signature is captured here, but the form is not complete
-    // until the dental station signs too.
-    expect(signed.status).toBe(FORM_STATUS.PENDING_DENTAL);
-    expect(signed.currentStation).toBe(4);
-    expect(signed.signedAt).toBeTruthy();
-    expect(signed.physicianID).toBe(1);
 
-    const full = await getForm(created.formID);
-    expect(full.familyMedicalHistory).toHaveLength(1);
-    expect(full.pastMedicalHistory).toHaveLength(1);
-    expect(full.exercise).toHaveLength(1);
-    expect(full.exercise[0].exerciseFrequency).toBe('Weekly');
+    expect(postedBody().physicianID).toBe(2);
   });
 
-  it('station 4 records the dental assessment and hands the form to vision', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const assessed = await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
-    });
-    const signed = await submitStation3({
-      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
-      consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
-    });
-    const dentalDone = await submitStation4({
-      formID: created.formID,
-      dentistID: 1,
-      rowVersion: signed.rowVersion,
-      dentalSignature: 'data:image/png;base64,BBB',
-      dentalAssessment: {
-        oralHygieneStatus: 'Fair',
-        oralHygieneStatusRemarks: 'Plaque on lower incisors',
-        dentalCaries: 'Present',
-        gumCondition: 'Gingivitis',
-        toothStatus: 'Missing Teeth',
-        toothachePain: 'Yes',
-        oralLesions: 'None',
-        dentureUse: 'None',
-        dentalTreatmentNeed: 'Restorative Treatment',
-        lastDentalVisit: '6–12 months',
-        dentalReferral: 'Routine referral',
-      },
-    });
-    // The dentist's signature is captured here, but the form is not complete
-    // until the vision station signs too.
-    expect(dentalDone.status).toBe(FORM_STATUS.PENDING_VISION);
-    expect(dentalDone.currentStation).toBe(5);
-    expect(dentalDone.dentistID).toBe(1);
-    expect(dentalDone.dentalSignedAt).toBeTruthy();
-    expect(dentalDone.station4SubmittedAt).toBeTruthy();
+  it('station 4 sends the dentist, the assessment nested, and the dental signature', async () => {
+    const dentalAssessment = { oralHygieneStatus: 'Fair', oralHygieneStatusRemarks: 'Plaque' };
 
-    const full = await getForm(created.formID);
-    expect(full.dentalAssessment).toBeTruthy();
-    expect(full.dentalAssessment.oralHygieneStatus).toBe('Fair');
-    expect(full.dentalAssessment.oralHygieneStatusRemarks).toBe('Plaque on lower incisors');
-    expect(full.dentalAssessment.lastDentalVisit).toBe('6–12 months');
+    await submitStation4({
+      formID: 42, dentistID: 5, rowVersion: 'CCCC', dentalSignature: SIGNATURE, dentalAssessment,
+    });
+
+    expect(api.post.mock.calls[0][0]).toBe('/wellnessforms/42/station4');
+    // Station4SubmitDto: DentistID, DentalAssessment, DentalSignature, RowVersion.
+    expect(postedBody()).toEqual({
+      dentistID: 5, dentalAssessment, dentalSignature: SIGNATURE, rowVersion: 'CCCC',
+    });
   });
 
-  it('station 4 refuses to submit without a dentist signature', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const assessed = await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
+  it('station 5 sends the optometrist, the assessment nested, and the vision signature', async () => {
+    const visionAssessment = { visualAcuityRightEye: '20/20', visualAcuityLeftEye: '20/25' };
+
+    await submitStation5({
+      formID: 42, optometristID: 6, rowVersion: 'DDDD', visionSignature: SIGNATURE, visionAssessment,
     });
-    const signed = await submitStation3({
-      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
-      consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
+
+    expect(api.post.mock.calls[0][0]).toBe('/wellnessforms/42/station5');
+    // Station5SubmitDto: OptometristID, VisionAssessment, VisionSignature, RowVersion.
+    expect(postedBody()).toEqual({
+      optometristID: 6, visionAssessment, visionSignature: SIGNATURE, rowVersion: 'DDDD',
     });
-    await expect(submitStation4({
-      formID: created.formID, dentistID: 1, rowVersion: signed.rowVersion,
-      dentalSignature: null, dentalAssessment: {},
-    })).rejects.toThrow(/signature/i);
+  });
+});
+
+describe('admin actions', () => {
+  it('cancels with a reason and the rowVersion', async () => {
+    await cancelForm({ formID: 42, reason: 'Duplicate', rowVersion: 'EEEE' });
+
+    expect(api.post).toHaveBeenCalledWith('/wellnessforms/42/cancel', { reason: 'Duplicate', rowVersion: 'EEEE' });
   });
 
-  it('station 5 records the vision assessment and completes the form', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const assessed = await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
-    });
-    const signed = await submitStation3({
-      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
-      consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
-    });
-    const dentalDone = await submitStation4({
-      formID: created.formID, dentistID: 1, rowVersion: signed.rowVersion,
-      dentalSignature: 'data:image/png;base64,BBB', dentalAssessment: { oralHygieneStatus: 'Good' },
-    });
-    const completed = await submitStation5({
-      formID: created.formID,
-      optometristID: 1,
-      rowVersion: dentalDone.rowVersion,
-      visionSignature: 'data:image/png;base64,CCC',
-      visionAssessment: {
-        historyOfEyeProblems: 'Yes',
-        historyOfEyeProblemsRemarks: 'Cataract surgery, left eye, 2019',
-        blurredVision: 'No',
-        visualAcuityRightEye: '20/20',
-        visualAcuityLeftEye: '20/25',
-        eyeConditionIdentified: 'Other',
-        eyeConditionOther: 'Mild astigmatism',
-        correctiveLensesRecommended: 'Yes',
-        referralToEyeSpecialist: 'No',
-        followUpConsultationAdvised: 'Yes',
-      },
-    });
-    expect(completed.status).toBe(FORM_STATUS.COMPLETED);
-    expect(completed.currentStation).toBe(5);
-    expect(completed.optometristID).toBe(1);
-    expect(completed.visionSignedAt).toBeTruthy();
-    expect(completed.station5SubmittedAt).toBeTruthy();
+  it('reverts to a station with a reason and the rowVersion', async () => {
+    await revertStation({ formID: 42, targetStation: 3, reason: 'Wrong doctor', rowVersion: 'EEEE' });
 
-    const full = await getForm(created.formID);
-    expect(full.visionAssessment).toBeTruthy();
-    expect(full.visionAssessment.visualAcuityRightEye).toBe('20/20');
-    expect(full.visionAssessment.visualAcuityLeftEye).toBe('20/25');
-    expect(full.visionAssessment.eyeConditionOther).toBe('Mild astigmatism');
+    expect(api.post).toHaveBeenCalledWith('/wellnessforms/42/revert', {
+      targetStation: 3, reason: 'Wrong doctor', rowVersion: 'EEEE',
+    });
   });
 
-  it('station 5 refuses to submit without an optometrist signature', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const assessed = await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
+  it('edits by PATCHing only the changed fields', async () => {
+    await editForm({ formID: 42, changes: { bpSystolic: 130 }, reason: 'Typo', rowVersion: 'EEEE' });
+
+    expect(api.patch).toHaveBeenCalledWith('/wellnessforms/42', {
+      bpSystolic: 130, reason: 'Typo', rowVersion: 'EEEE',
     });
-    const signed = await submitStation3({
-      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
-      consultation: { socialHistory: { smokes: false }, signature: 'data:image/png;base64,AAA' },
-    });
-    const dentalDone = await submitStation4({
-      formID: created.formID, dentistID: 1, rowVersion: signed.rowVersion,
-      dentalSignature: 'data:image/png;base64,BBB', dentalAssessment: { oralHygieneStatus: 'Good' },
-    });
-    await expect(submitStation5({
-      formID: created.formID, optometristID: 1, rowVersion: dentalDone.rowVersion,
-      visionSignature: null, visionAssessment: {},
-    })).rejects.toThrow(/signature/i);
   });
 
-  it('rejects a stale write with a 409', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
+  it('deletes with the reason in the request body', async () => {
+    await expect(deleteForm({ formID: 42, reason: 'Test record', rowVersion: 'EEEE' })).resolves.toBeUndefined();
+
+    expect(api.delete).toHaveBeenCalledWith('/wellnessforms/42', {
+      data: { reason: 'Test record', rowVersion: 'EEEE' },
     });
-    await expect(submitStation2({
-      formID: created.formID, answers: [], adminID: 2,
-      rowVersion: created.rowVersion,
-    })).rejects.toMatchObject({ status: 409 });
   });
 
-  it('refuses to sign without a signature', async () => {
-    const created = await submitStation1({ patient: employee, vitals, adminID: 1 });
-    const assessed = await submitStation2({
-      formID: created.formID, answers: [], adminID: 2, rowVersion: created.rowVersion,
-    });
+  it('reads and deletes audit log entries', async () => {
+    api.delete.mockResolvedValue({ data: { deleted: 2 } });
+
+    await getActivityLogs();
+    await expect(deleteActivityLogs([1, 2])).resolves.toEqual({ deleted: 2 });
+
+    expect(api.get).toHaveBeenCalledWith('/wellnessformauditlogs');
+    expect(api.delete).toHaveBeenCalledWith('/wellnessformauditlogs', { data: { logIDs: [1, 2] } });
+  });
+});
+
+describe('server refusals', () => {
+  it('surfaces a stale write as a 409 with the server\'s message', async () => {
+    api.post.mockRejectedValue(httpError(409, { message: 'This record was changed at another station.' }));
+
+    await expect(submitStation2({ formID: 42, answers: [], rowVersion: 'OLD' }))
+      .rejects.toMatchObject({ status: 409, message: 'This record was changed at another station.' });
+  });
+
+  it('surfaces a missing signature from ModelState as its own words', async () => {
+    api.post.mockRejectedValue(httpError(400, {
+      errors: { Signature: ['A physician signature is required before submitting.'] },
+    }));
+
     await expect(submitStation3({
-      formID: created.formID, physicianID: 1, rowVersion: assessed.rowVersion,
-      consultation: { signature: null },
-    })).rejects.toThrow(/signature/i);
+      formID: 42, physicianID: 1, rowVersion: 'BBBB', consultation: { signature: null },
+    })).rejects.toMatchObject({ status: 400, message: 'A physician signature is required before submitting.' });
+  });
+
+  it('surfaces a missing physician from ModelState as its own words', async () => {
+    api.post.mockRejectedValue(httpError(400, {
+      errors: { PhysicianID: ['An attending physician is required before submitting.'] },
+    }));
+
+    await expect(submitStation3({
+      formID: 42, physicianID: null, rowVersion: 'BBBB', consultation: { signature: SIGNATURE },
+    })).rejects.toThrow(/physician/i);
+  });
+
+  it.each([
+    ['dentist', () => submitStation4({ formID: 42, dentistID: 5, rowVersion: 'C', dentalSignature: null, dentalAssessment: {} }),
+      { DentalSignature: ['A dentist signature is required before submitting.'] }],
+    ['optometrist', () => submitStation5({ formID: 42, optometristID: 6, rowVersion: 'D', visionSignature: null, visionAssessment: {} }),
+      { VisionSignature: ['An optometrist signature is required before submitting.'] }],
+  ])('surfaces a missing %s signature', async (_who, submit, errors) => {
+    api.post.mockRejectedValue(httpError(400, { errors }));
+
+    await expect(submit()).rejects.toThrow(/signature/i);
+  });
+
+  it('reports an unreachable server as status 0', async () => {
+    api.get.mockRejectedValue(new Error('Network Error'));
+
+    await expect(getForm(42)).rejects.toMatchObject({ status: 0, message: 'Network Error' });
   });
 });

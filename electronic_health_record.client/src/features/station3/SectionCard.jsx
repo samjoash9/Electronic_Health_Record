@@ -5,7 +5,7 @@
  */
 export function SubPanel({ icon: Icon, title, subtitle, children }) {
   return (
-    <section className="rounded-xl border border-line bg-surface/60 p-4 sm:p-5">
+    <section className="rounded-xl border border-line bg-surface/60 p-3.5 sm:p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[13rem_1fr] sm:gap-6">
         <div className="flex items-center gap-3">
           <span
@@ -37,7 +37,7 @@ export default function SectionCard({
 }) {
   return (
     <section className="rounded-xl border border-line bg-surface shadow-sm">
-      <header className="relative overflow-hidden border-b border-line bg-linear-to-r from-[#f3fdfb] to-surface px-5 py-4">
+      <header className="relative overflow-hidden border-b border-line bg-linear-to-r from-[#f3fdfb] to-surface px-4 py-4 sm:px-5">
         <svg
           aria-hidden
           viewBox="0 0 600 100"
@@ -71,7 +71,9 @@ export default function SectionCard({
         </div>
       </header>
 
-      <div className={flush ? '' : 'p-4 sm:p-5'}>{children}</div>
+      {/* A phone nests a SubPanel's padding inside this one, so both start a
+          step tighter there to leave the fields more of the width. */}
+      <div className={flush ? '' : 'p-3 sm:p-5'}>{children}</div>
     </section>
   );
 }
