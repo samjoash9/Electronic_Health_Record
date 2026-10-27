@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import * as Icons from 'lucide-react';
+import { AlertTriangle, ChevronDown, ClipboardList } from 'lucide-react';
 import { answersToMap, scoreAllCategories, overallScore } from '../../lib/scoring';
 import { BANDS, bandRange, scoreBand, concerningAnswers } from '../../lib/interpretation';
 import {
@@ -10,6 +10,7 @@ import { categoryStyle } from '../../lib/constants';
 import ScoreBar from '../../components/ui/ScoreBar';
 import LanguageToggle from './LanguageToggle';
 import BandChip from './BandChip';
+import { CATEGORY_ICONS } from './categoryIcons';
 
 export default function AnswersReview({
   categories,
@@ -85,7 +86,7 @@ export default function AnswersReview({
             {overall.percent === null ? '—' : t.overallPercent(overall.percent)}
           </span>
         </span>
-        <Icons.ChevronDown
+        <ChevronDown
           size={18}
           aria-hidden="true"
           className={`shrink-0 text-ink-500 transition-transform ${allCollapsed ? '' : 'rotate-180'}`}
@@ -100,7 +101,7 @@ export default function AnswersReview({
           const flagged = concerningAnswers(category, answerMap);
           const name = categoryName(category.name, lang);
           const style = categoryStyle(category.name);
-          const Icon = Icons[style.icon] ?? Icons.ClipboardList;
+          const Icon = CATEGORY_ICONS[style.icon] ?? ClipboardList;
           const isCollapsed = Boolean(collapsed[category.categoryID]);
           const panelId = `${uid}-panel-${category.categoryID}`;
           const categoryRef = categoryRefs?.[category.name] ?? categoryRefs?.[category.name?.toLowerCase()];
@@ -122,7 +123,7 @@ export default function AnswersReview({
                   icon={Icon}
                   badgeClassName={style.title}
                 />
-                <Icons.ChevronDown
+                <ChevronDown
                   size={18}
                   aria-hidden="true"
                   className={`shrink-0 text-ink-500 transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
@@ -144,7 +145,7 @@ export default function AnswersReview({
                   {flagged.length > 0 && (
                     <div className="rounded-lg bg-rose-50 px-3 py-2">
                       <p id={`${panelId}-flagged`} className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
-                        <Icons.AlertTriangle size={14} aria-hidden="true" />
+                        <AlertTriangle size={14} aria-hidden="true" />
                         {t.flaggedTitle}
                       </p>
                       <p className="mt-0.5 text-xs text-rose-700">{t.flaggedNote}</p>
@@ -220,7 +221,7 @@ export default function AnswersReview({
               percent={overall.percent}
               total={overall.total}
               max={overall.max}
-              icon={Icons.ClipboardList}
+              icon={ClipboardList}
               badgeClassName="text-ink-900"
             />
             {overallBand && (

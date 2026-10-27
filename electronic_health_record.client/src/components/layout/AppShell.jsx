@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import RouteErrorBoundary from '../RouteErrorBoundary';
+import PageLoader from '../ui/PageLoader';
 import { useIsTabletDown } from '../../hooks/useIsTabletDown';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
@@ -95,7 +96,10 @@ export default function AppShell() {
         />
         <main className="flex-1 overflow-y-auto bg-canvas p-4 pb-0">
           <RouteErrorBoundary>
-            <Outlet />
+            {/* Pages load lazily (routes.jsx); the shell stays put while one arrives. */}
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </RouteErrorBoundary>
         </main>
       </div>

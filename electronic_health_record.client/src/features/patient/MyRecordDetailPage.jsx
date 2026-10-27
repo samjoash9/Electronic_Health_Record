@@ -1,12 +1,11 @@
 import { useState, useRef } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { toJpeg } from 'html-to-image';
-import jsPDF from 'jspdf';
 import {
   ArrowLeft, Download, Loader2, Briefcase, Building2, Cake, VenusAndMars, HeartHandshake, MapPin, Phone,
 } from 'lucide-react';
 import { getAssessmentTemplate } from '../../api/assessment.api';
+import { loadPdfTools } from '../../lib/pdfTools';
 import { useWellnessForm } from '../../hooks/useWellnessForm';
 import { FORM_STATUS, STATUS_LABEL, STATUS_TONE } from '../../lib/constants';
 import { fullName, ageFrom, formatDate } from '../../lib/formatters';
@@ -89,6 +88,7 @@ export default function MyRecordDetailPage() {
         return true;
       };
 
+      const { jsPDF, toJpeg } = await loadPdfTools();
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();

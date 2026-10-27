@@ -1,32 +1,40 @@
+import { lazy } from 'react';
 import { Route, Navigate, createRoutesFromElements } from 'react-router-dom';
 import { RequireAuth, RequireStation } from './auth/RequireAuth';
 import HomeRedirect from './auth/HomeRedirect';
 import { ROLES, STATIONS } from './lib/constants';
 
 import LoginPage from './features/auth/LoginPage';
-import StationPickerPage from './features/auth/StationPickerPage';
-import NoStationPage from './features/auth/NoStationPage';
-import DashboardPage from './features/admin/DashboardPage';
-import FormsPage from './features/admin/FormsPage';
-import FormDetailPage from './features/admin/FormDetailPage';
-import FormEditPage from './features/admin/FormEditPage';
-import ActivityLogsPage from './features/admin/ActivityLogsPage';
-import HealthReportsPage from './features/reports/HealthReportsPage';
-import OnboardingPage from './features/admin/onboarding/OnboardingPage';
-import Station1Page from './features/station1/Station1Page';
-import Station2QueuePage from './features/station2/Station2QueuePage';
-import Station2AssessmentPage from './features/station2/Station2AssessmentPage';
-import KioskPage from './features/station2/KioskPage';
-import Station3QueuePage from './features/station3/Station3QueuePage';
-import Station3ConsultationPage from './features/station3/Station3ConsultationPage';
-import Station4QueuePage from './features/station4/Station4QueuePage';
-import Station4DentalPage from './features/station4/Station4DentalPage';
-import Station5QueuePage from './features/station5/Station5QueuePage';
-import Station5VisionPage from './features/station5/Station5VisionPage';
-import Station6BillingPage from './features/station6/Station6BillingPage';
-import MyRecordPage from './features/patient/MyRecordPage';
-import MyRecordDetailPage from './features/patient/MyRecordDetailPage';
 import AppShell from './components/layout/AppShell';
+
+// Every page but the login screen loads on first visit rather than up front:
+// the eager bundle carried the charts, PDF export and all six stations for
+// every user, patients included. AppShell (and App, for the routes outside
+// it) hold the Suspense boundaries these resolve under.
+/* eslint-disable react-refresh/only-export-components -- lazy page handles sit beside the route table that uses them; this module is config, not a component to hot-swap */
+const StationPickerPage = lazy(() => import('./features/auth/StationPickerPage'));
+const NoStationPage = lazy(() => import('./features/auth/NoStationPage'));
+const DashboardPage = lazy(() => import('./features/admin/DashboardPage'));
+const FormsPage = lazy(() => import('./features/admin/FormsPage'));
+const FormDetailPage = lazy(() => import('./features/admin/FormDetailPage'));
+const FormEditPage = lazy(() => import('./features/admin/FormEditPage'));
+const ActivityLogsPage = lazy(() => import('./features/admin/ActivityLogsPage'));
+const HealthReportsPage = lazy(() => import('./features/reports/HealthReportsPage'));
+const OnboardingPage = lazy(() => import('./features/admin/onboarding/OnboardingPage'));
+const Station1Page = lazy(() => import('./features/station1/Station1Page'));
+const Station2QueuePage = lazy(() => import('./features/station2/Station2QueuePage'));
+const Station2AssessmentPage = lazy(() => import('./features/station2/Station2AssessmentPage'));
+const KioskPage = lazy(() => import('./features/station2/KioskPage'));
+const Station3QueuePage = lazy(() => import('./features/station3/Station3QueuePage'));
+const Station3ConsultationPage = lazy(() => import('./features/station3/Station3ConsultationPage'));
+const Station4QueuePage = lazy(() => import('./features/station4/Station4QueuePage'));
+const Station4DentalPage = lazy(() => import('./features/station4/Station4DentalPage'));
+const Station5QueuePage = lazy(() => import('./features/station5/Station5QueuePage'));
+const Station5VisionPage = lazy(() => import('./features/station5/Station5VisionPage'));
+const Station6BillingPage = lazy(() => import('./features/station6/Station6BillingPage'));
+const MyRecordPage = lazy(() => import('./features/patient/MyRecordPage'));
+const MyRecordDetailPage = lazy(() => import('./features/patient/MyRecordDetailPage'));
+/* eslint-enable react-refresh/only-export-components */
 
 // createRoutesFromElements + createBrowserRouter (in App.jsx) instead of a plain
 // <Routes>/<BrowserRouter> tree — useUnsavedChangesGuard's useBlocker throws

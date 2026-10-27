@@ -1,9 +1,11 @@
+import { Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './auth/AuthContext';
 import { routeElements } from './routes';
+import PageLoader from './components/ui/PageLoader';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,7 +32,11 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <RouterProvider router={router} />
+        {/* For the lazy routes outside AppShell (kiosk, station picker); the
+            shell has its own boundary for everything inside it. */}
+        <Suspense fallback={<PageLoader fullScreen />}>
+          <RouterProvider router={router} />
+        </Suspense>
         <ToastContainer
           position="top-right"
           autoClose={3500}

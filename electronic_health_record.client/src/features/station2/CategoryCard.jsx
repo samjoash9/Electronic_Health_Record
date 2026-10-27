@@ -1,13 +1,13 @@
-import * as Icons from 'lucide-react';
 import { categoryStyle } from '../../lib/constants';
 import { categoryName, questionText } from '../../lib/assessmentText';
 import OptionPills from './OptionPills';
+import { CATEGORY_ICONS } from './categoryIcons';
 
 export default function CategoryCard({ category, answers, onAnswer, scale = 1, lang = 'en' }) {
   // Styling stays keyed on the English name -- CATEGORY_STYLES looks it up
   // by that, so only the displayed label is translated.
   const style = categoryStyle(category.name);
-  const Icon = Icons[style.icon] ?? Icons.ClipboardList;
+  const Icon = CATEGORY_ICONS[style.icon] ?? CATEGORY_ICONS.ClipboardList;
   const answeredCount = category.questions.filter((q) => answers[q.questionID] != null).length;
   const total = category.questions.length;
   const complete = answeredCount === total;

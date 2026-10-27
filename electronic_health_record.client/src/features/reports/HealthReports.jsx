@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
-import { toJpeg } from 'html-to-image';
-import jsPDF from 'jspdf';
 import { Download, Loader2 } from 'lucide-react';
+import { loadPdfTools } from '../../lib/pdfTools';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
@@ -97,6 +96,7 @@ export default function HealthReports() {
     setIsGeneratingPDF(true);
 
     try {
+      const { jsPDF, toJpeg } = await loadPdfTools();
       const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
