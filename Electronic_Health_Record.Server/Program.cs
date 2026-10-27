@@ -33,6 +33,11 @@ builder.Services.AddControllers(options =>
         // its default password reaches only the actions marked
         // [AllowPendingPasswordChange].
         options.Filters.Add<PasswordChangeRequiredFilter>();
+
+        // Any exception an action does not catch comes back as the
+        // { message } body the client reads, logged here and never echoed:
+        // exception text is where connection strings and SQL surface.
+        options.Filters.Add<ApiExceptionFilter>();
     })
     .AddJsonOptions(options =>
     {
