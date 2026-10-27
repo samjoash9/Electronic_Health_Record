@@ -9,12 +9,12 @@ using Microsoft.EntityFrameworkCore;
 namespace Electronic_Health_Record.Server.Controllers.Billing
 {
     // The admin-owned price catalog behind Station 3's lab/medication pickers
-    // and Station 6's billing totals. Read is open to any authenticated
-    // station; only SuperAdmin may create, edit, or retire an entry -- pricing
-    // is a budget decision, not a station-floor one.
+    // and Station 6's billing totals. Read is open to any staff station (not
+    // to patients); only SuperAdmin may create, edit, or retire an entry --
+    // pricing is a budget decision, not a station-floor one.
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public class ChargeItemsController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;

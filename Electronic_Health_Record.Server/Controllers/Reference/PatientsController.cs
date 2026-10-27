@@ -20,18 +20,23 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
     public class PatientsController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;
+        private readonly ICurrentUser _currentUser;
         private readonly ILogger<PatientsController> _logger;
 
         public PatientsController(
             ElectronicHealthRecordDbContext context,
+            ICurrentUser currentUser,
             ILogger<PatientsController> logger)
         {
             _context = context;
+            _currentUser = currentUser;
             _logger = logger;
         }
 
         // get all patients
-        [Authorize]
+        // Every patient's full row, so admins only -- no screen gives a doctor
+        // or a patient the whole register.
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpGet("")]
         public async Task<IActionResult> GetPatients()
         {
@@ -48,7 +53,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         // get specific patient
-        [Authorize]
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         // :int so this cannot swallow the literal routes below it -- without the
         // constraint "accounts" matches here too and fails model binding with
         // "The value 'accounts' is not valid."
@@ -72,7 +77,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         }
 
         // register new patient
-        [Authorize]
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpPost("")]
         public async Task<IActionResult> CreatePatient([FromBody] CreatePatientDto dto)
         {
@@ -116,7 +121,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // Lets Station 1 know, once an employee is picked, whether a
         // PatientAccount already exists for them -- if not, the admin must
         // ask the patient for a desired username before submitting.
-        [Authorize]
+        [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
         [HttpGet("has-account/{externalEmployeeId}")]
         public async Task<IActionResult> HasAccount(string externalEmployeeId)
         {
@@ -383,11 +388,18 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // operational decision this endpoint does not encode). Used by
         // Station 1 (is this a returning patient?), Station 3
         // (PriorStationsPanel's "Previous visits"), and Station 6 (has this
-        // patient been billed before?).
+        // patient been billed before?). The patient portal renders the same
+        // panel, so a patient may read their own history -- and only theirs.
         [Authorize]
         [HttpGet("{patientId:int}/forms")]
         public async Task<IActionResult> GetPatientForms(int patientId)
         {
+            // Checked before the existence lookup so a patient cannot tell
+            // which ids belong to someone from a 404 versus a 403.
+            var isStaff = _currentUser.AdminID is not null || _currentUser.PhysicianID is not null;
+            if (!isStaff && _currentUser.PatientID != patientId)
+                return Forbid();
+
             var patientExists = await _context.Patients.AnyAsync(p => p.PatientID == patientId);
             if (!patientExists)
                 return NotFound(new { message = $"Patient with ID {patientId} was not found." });
@@ -449,7 +461,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         //   day   -> each day of the month; previous = same day of the month before
         //   month -> each month of the year; previous = same month of the year before
         //   year  -> each year since the first registration; no previous
-        [Authorize]
+        [Authorize(Policy = AuthPolicies.Staff)]
         [HttpGet("onboarded")]
         public async Task<IActionResult> GetOnboardedStats(
             [FromQuery] string? granularity,
@@ -555,7 +567,7 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // office is compared with Patient.AgencyOffice (the client offers the
         // offices in agencyPositions.json); the column's default collation
         // makes that case-insensitive. Omit it for every office.
-        [Authorize]
+        [Authorize(Policy = AuthPolicies.Staff)]
         [HttpGet("smoking-status")]
         public async Task<IActionResult> GetSmokingStatus([FromQuery] string? office)
         {

@@ -17,10 +17,13 @@ namespace Electronic_Health_Record.Server.Controllers.Billing
     /// Periods may not overlap. That rule is enforced here rather than by a
     /// check constraint, which cannot see other rows, and it is what makes the
     /// billing form covering a given visit unambiguous.
+    ///
+    /// Admin-only throughout: Station 6 is an admin route, and the budget
+    /// figures are nothing a doctor's or patient's login has a screen for.
     /// </summary>
     [ApiController]
     [Route("api/billing")]
-    [Authorize]
+    [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
     public class BillingController : ControllerBase
     {
         private readonly ElectronicHealthRecordDbContext _context;

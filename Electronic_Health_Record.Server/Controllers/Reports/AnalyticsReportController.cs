@@ -1,4 +1,5 @@
 using Electronic_Health_Record.Server.DTOs.Reports;
+using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,9 +7,11 @@ using QuestPDF.Fluent;
 
 namespace Electronic_Health_Record.Server.Controllers.Reports;
 
+// Staff only, like the health reports it renders: rendering a PDF is CPU work
+// an anonymous caller could otherwise trigger at will.
 [ApiController]
 [Route("api/reports")]
-[Authorize]
+[Authorize(Policy = AuthPolicies.Staff)]
 public class AnalyticsReportController : ControllerBase
 {
     private readonly ILogger<AnalyticsReportController> _logger;
@@ -18,7 +21,6 @@ public class AnalyticsReportController : ControllerBase
         _logger = logger;
     }
 
-    [AllowAnonymous]
     [HttpPost("analytics-pdf")]
     public IActionResult GenerateAnalyticsPdf([FromBody] AnalyticsReportPdfRequest request)
     {
@@ -36,7 +38,8 @@ public class AnalyticsReportController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate analytics PDF report");
-            return StatusCode(500, new { message = "Failed to generate analytics PDF report", error = ex.Message });
+            // The exception is logged above; its message stays server-side.
+            return StatusCode(500, new { message = "Failed to generate analytics PDF report" });
         }
     }
 }

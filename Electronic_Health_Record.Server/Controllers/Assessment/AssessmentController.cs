@@ -1,4 +1,5 @@
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -84,6 +85,8 @@ namespace Electronic_Health_Record.Server.Controllers.Assessment
         // answered has a null score.
         // office is compared with Patient.AgencyOffice, as in
         // PatientsController.GetSmokingStatus. Omit it for every office.
+        // Unlike the template this is pooled patient data, so staff only.
+        [Authorize(Policy = AuthPolicies.Staff)]
         [HttpGet("wellness-scores")]
         public async Task<IActionResult> GetWellnessScores([FromQuery] string? office)
         {

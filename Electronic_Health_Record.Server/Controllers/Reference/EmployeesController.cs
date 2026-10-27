@@ -9,10 +9,12 @@ using Microsoft.EntityFrameworkCore;
 namespace Electronic_Health_Record.Server.Controllers.Reference
 {
     // The employee directory is personal data (names, birthdates, addresses),
-    // so reads require a signed-in account and writes an admin.
+    // and only admin screens (Station 1's employee search, onboarding) read
+    // it, so reads and writes alike are admin-only. Plain [Authorize] here
+    // handed the whole HR directory to any patient login.
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = $"{AdminRoles.Admin},{AdminRoles.SuperAdmin}")]
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeService _employeeService;

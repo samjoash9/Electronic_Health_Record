@@ -63,7 +63,9 @@ namespace Electronic_Health_Record.Server.Controllers.Auth
         }
 
         // get specific admin
-        [Authorize]
+        // Same audience as the list above: plain [Authorize] let any login,
+        // patients included, read staff accounts one id at a time.
+        [Authorize(Roles = AdminRoles.SuperAdmin)]
         [HttpGet("{AdminID:int}")]
         public async Task<IActionResult> GetAdmin(int AdminID)
         {

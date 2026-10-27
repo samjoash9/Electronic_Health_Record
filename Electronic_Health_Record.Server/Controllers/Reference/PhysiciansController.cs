@@ -8,15 +8,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Electronic_Health_Record.Server.Controllers.Reference
 {
-    // Reads are open to any signed-in account: Station 1 and Station 3 both need
-    // the physician list, and a doctor's JWT carries no Role claim (only Admin
-    // has permission tiers), so a role-based rule would lock doctors out of it.
+    // Reads are open to staff: the onboarding panel and the Station 3-5 signer
+    // pickers all need the physician list, and a doctor's JWT carries no Role
+    // claim (only Admin has permission tiers), so a role-based rule would lock
+    // doctors out of it. The Staff policy admits them without admitting
+    // patients, who have no screen that lists doctors.
     //
     // Every write is gated to admin/superadmin below. Without that, these
     // endpoints -- including the password reset -- accepted anonymous requests.
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Policy = AuthPolicies.Staff)]
     public class PhysiciansController : Controller
     {
         private readonly ElectronicHealthRecordDbContext _context;

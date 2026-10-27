@@ -1,4 +1,5 @@
 using Electronic_Health_Record.Server.Data;
+using Electronic_Health_Record.Server.Models;
 using Electronic_Health_Record.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,6 +42,9 @@ namespace Electronic_Health_Record.Server.Controllers.Reference
         // free-text conditions are pooled under one "Others" entry (null
         // conditionID), listed last. FormDate is already the clinic's
         // calendar date, so unlike Patient.CreatedAt it needs no UTC shift.
+        // Population figures for the staff reports, not reference data, so
+        // staff only.
+        [Authorize(Policy = AuthPolicies.Staff)]
         [HttpGet("diagnosed")]
         public async Task<IActionResult> GetDiagnosed(
             [FromQuery] string? granularity,
