@@ -1,14 +1,7 @@
 import { useState, useRef } from 'react';
 import { toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
-import {
-  Clock,
-  ShieldCheck,
-  UserCheck,
-  FileSpreadsheet,
-  Download,
-  Loader2,
-} from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';

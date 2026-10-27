@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useForm } from 'react-hook-form';
@@ -27,13 +27,13 @@ describe('AssessmentPlanSection', () => {
 
   it('sets the field to the label when a single test is checked', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -42,18 +42,18 @@ describe('AssessmentPlanSection', () => {
     render(<Wrapper />);
     await user.click(screen.getByRole('checkbox', { name: 'CBC' }));
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('CBC');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('CBC');
   });
 
   it('joins multiple checked tests in list order regardless of click order', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -63,18 +63,18 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('checkbox', { name: 'FBS' }));
     await user.click(screen.getByRole('checkbox', { name: 'CBC' }));
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('CBC, FBS');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('CBC, FBS');
   });
 
   it('removes a test from the joined string when unchecked, keeping the rest', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -86,7 +86,7 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('checkbox', { name: 'FBS' }));
     await user.click(cbc);
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('FBS');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('FBS');
   });
 
   it('pre-checks boxes from an existing comma-joined value', () => {
@@ -98,7 +98,7 @@ describe('AssessmentPlanSection', () => {
 
   it('captures medication rows and the advice text separately', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: {
@@ -109,7 +109,7 @@ describe('AssessmentPlanSection', () => {
         },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -125,10 +125,10 @@ describe('AssessmentPlanSection', () => {
     );
     await user.click(screen.getByRole('button', { name: 'go' }));
 
-    expect(submitted.medications[0]).toEqual({
+    expect(onSubmit.mock.lastCall[0].medications[0]).toEqual({
       drug: 'Losartan', dosage: '50 mg', frequency: 'Once daily',
     });
-    expect(submitted.lifestyleFollowUp).toBe('Recheck BP in 4 weeks');
+    expect(onSubmit.mock.lastCall[0].lifestyleFollowUp).toBe('Recheck BP in 4 weeks');
   });
 
   it('offers no price field or total for medications', async () => {
@@ -160,13 +160,13 @@ describe('AssessmentPlanSection', () => {
 
   it('stores an unpriced test bare until an amount is quoted', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -176,7 +176,7 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('checkbox', { name: 'ECG' }));
     await user.type(screen.getByRole('spinbutton', { name: 'Price for ECG' }), '500');
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('ECG (500)');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('ECG (500)');
   });
 
   it('adds a quoted price for an unpriced test into the total', async () => {
@@ -190,13 +190,13 @@ describe('AssessmentPlanSection', () => {
 
   it('includes a typed other test and its price in the value and total', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -209,7 +209,7 @@ describe('AssessmentPlanSection', () => {
     await user.type(screen.getByRole('spinbutton', { name: 'Price, row 1' }), '1200');
     expect(screen.getByText('₱1,380.00')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('CBC, 2D Echo (1200)');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('CBC, 2D Echo (1200)');
   });
 
   it('pre-checks a test saved under its former name', () => {
@@ -238,13 +238,13 @@ describe('AssessmentPlanSection', () => {
 
   it('keeps the thyroid panel in catalog order within the joined value', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -255,18 +255,18 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('checkbox', { name: 'TT3' }));
     await user.click(screen.getByRole('checkbox', { name: 'ECG' }));
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('TT3, TSH, ECG');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('TT3, TSH, ECG');
   });
 
   it('appends a typed other test after the catalog selections', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -277,7 +277,7 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Others (Please Specify)' }));
     await user.type(screen.getByRole('textbox', { name: 'Other diagnostic test, row 1' }), '2D Echo');
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('CBC, 2D Echo');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('CBC, 2D Echo');
   });
 
   it('restores typed other rows from a value holding non-catalog entries', () => {
@@ -288,13 +288,13 @@ describe('AssessmentPlanSection', () => {
 
   it('drops typed entries from the value when Others is unchecked', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: 'CBC, 2D Echo', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -303,18 +303,18 @@ describe('AssessmentPlanSection', () => {
     render(<Wrapper />);
     await user.click(screen.getByRole('checkbox', { name: 'Others (Please Specify)' }));
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('CBC');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('CBC');
   });
 
   it('keeps multiple typed tests in row order', async () => {
     const user = userEvent.setup();
-    let submitted;
+    const onSubmit = vi.fn();
     function Wrapper() {
       const form = useForm({
         defaultValues: { recommendedDiagnosticTest: '', impressionClinical: '', managementTreatment: '' },
       });
       return (
-        <form onSubmit={form.handleSubmit((v) => { submitted = v; })}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <AssessmentPlanSection {...form} />
           <button type="submit">go</button>
         </form>
@@ -326,6 +326,6 @@ describe('AssessmentPlanSection', () => {
     await user.click(screen.getByRole('button', { name: 'Add another test' }));
     await user.type(screen.getByRole('textbox', { name: 'Other diagnostic test, row 2' }), 'Bone density scan');
     await user.click(screen.getByRole('button', { name: 'go' }));
-    expect(submitted.recommendedDiagnosticTest).toBe('2D Echo, Bone density scan');
+    expect(onSubmit.mock.lastCall[0].recommendedDiagnosticTest).toBe('2D Echo, Bone density scan');
   });
 });
